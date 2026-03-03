@@ -4,11 +4,9 @@ IntelliTeam - 智能研发协作平台
 主入口
 """
 
-import asyncio
 import structlog
-from .config.settings import get_settings
-from .api.main import app
 
+from .config.settings import get_settings
 
 # 配置结构化日志
 structlog.configure(
@@ -33,15 +31,15 @@ logger = structlog.get_logger(__name__)
 def main():
     """主函数"""
     import uvicorn
-    
+
     settings = get_settings()
-    
+
     logger.info(
         "Starting IntelliTeam",
         version="1.0.0",
         environment=settings.app_env,
     )
-    
+
     # 启动服务器
     uvicorn.run(
         "src.api.main:app",

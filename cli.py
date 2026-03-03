@@ -68,22 +68,13 @@ def status():
     async def check():
         try:
             async with httpx.AsyncClient() as client:
-                # 检查 API
                 response = await client.get('http://localhost:8000/health')
                 if response.status_code == 200:
                     print("✅ API 服务：运行中")
                 else:
                     print("❌ API 服务：异常")
-                
-                # 检查 Redis
-                from src.memory.short_term import ShortTermMemory
-                memory = ShortTermMemory()
-                await memory.connect()
-                print("✅ Redis: 已连接")
-                await memory.disconnect()
-                
-        except Exception as e:
-            print(f"❌ 服务检查失败：{e}")
+        except Exception:
+            print("❌ API 服务：未运行")
     
     asyncio.run(check())
 

@@ -2,8 +2,8 @@
 LLM 服务模块
 """
 
+from .providers import AzureOpenAIProvider, BaseProvider, OpenAIProvider
 from .service import LLMService, get_llm_service
-from .providers import BaseProvider, OpenAIProvider, AzureOpenAIProvider
 
 __all__ = [
     "LLMService",

@@ -4,12 +4,12 @@ ArchitectAgent - 架构师 Agent
 职责：系统设计、技术选型、架构评审
 """
 
-from typing import Any, Optional
+from typing import Any
+
 import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
-
 
 logger = structlog.get_logger(__name__)
 
@@ -24,18 +24,18 @@ class ArchitectAgent(BaseAgent):
     - 接口设计
     - 架构评审和优化建议
     """
-    
+
     ROLE = AgentRole.ARCHITECT
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         # 架构师特有配置
         self.design_model = kwargs.get("design_model", "gpt-4")
         self.preferred_patterns = kwargs.get("preferred_patterns", [])
-        
+
         self.logger.info("ArchitectAgent initialized")
-    
+
     async def execute(self, task: Task) -> dict[str, Any]:
         """
         执行架构设计任务
@@ -45,53 +45,53 @@ class ArchitectAgent(BaseAgent):
             task_id=task.id,
             task_title=task.title,
         )
-        
+
         # 获取需求
         requirements = task.input_data.get("requirements", [])
         constraints = task.input_data.get("constraints", {})
         existing_system = task.input_data.get("existing_system", None)
-        
+
         # 思考架构方案
         design = await self.think({
             "requirements": requirements,
             "constraints": constraints,
             "existing_system": existing_system,
         })
-        
+
         # 生成架构文档
         architecture_doc = self._generate_architecture_doc(design)
-        
+
         # 存储到黑板
         self.put_to_blackboard(
             f"architecture:{task.id}",
             architecture_doc,
             description="系统架构设计文档",
         )
-        
+
         return {
             "status": "design_complete",
             "architecture": architecture_doc,
             "design_decisions": design.get("decisions", []),
         }
-    
+
     async def think(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         思考架构设计方案
         """
         requirements = context.get("requirements", [])
         constraints = context.get("constraints", {})
-        
+
         # 构建架构设计提示词
         prompt = self._build_architecture_prompt(requirements, constraints)
-        
+
         self.logger.debug("Architecture prompt prepared", prompt_length=len(prompt))
-        
+
         # TODO: 调用 LLM API
         # 使用模拟返回
         design = self._simulate_design(requirements, constraints)
-        
+
         return design
-    
+
     def _build_architecture_prompt(
         self,
         requirements: list[str],
@@ -114,7 +114,7 @@ class ArchitectAgent(BaseAgent):
 4. 数据流设计
 5. 扩展性和可维护性考虑
 """
-    
+
     def _simulate_design(
         self,
         requirements: list[str],
@@ -157,7 +157,7 @@ class ArchitectAgent(BaseAgent):
                 },
             ],
         }
-    
+
     def _generate_architecture_doc(self, design: dict[str, Any]) -> dict[str, Any]:
         """生成架构文档"""
         return {
@@ -177,7 +177,7 @@ class ArchitectAgent(BaseAgent):
                 "sequence_diagram": "TODO: 生成时序图",
             },
         }
-    
+
     async def review_architecture(
         self,
         architecture: dict[str, Any],

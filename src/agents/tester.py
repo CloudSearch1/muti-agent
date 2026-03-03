@@ -4,13 +4,13 @@ TesterAgent - 测试员 Agent
 职责：测试用例生成、执行测试、质量保障
 """
 
-from typing import Any, Optional
 from datetime import datetime
+from typing import Any
+
 import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
-
 
 logger = structlog.get_logger(__name__)
 
@@ -25,19 +25,19 @@ class TesterAgent(BaseAgent):
     - 缺陷跟踪和管理
     - 质量保障
     """
-    
+
     ROLE = AgentRole.TESTER
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         # 测试员特有配置
         self.testing_framework = kwargs.get("testing_framework", "pytest")
         self.coverage_target = kwargs.get("coverage_target", 80)
         self.auto_fix = kwargs.get("auto_fix", False)
-        
+
         self.logger.info("TesterAgent initialized")
-    
+
     async def execute(self, task: Task) -> dict[str, Any]:
         """
         执行测试任务
@@ -47,28 +47,28 @@ class TesterAgent(BaseAgent):
             task_id=task.id,
             task_title=task.title,
         )
-        
+
         # 获取测试输入
         code_files = task.input_data.get("code_files", [])
         requirements = task.input_data.get("requirements", [])
         test_scope = task.input_data.get("test_scope", "unit")
-        
+
         # 思考测试策略
         test_plan = await self.think({
             "code_files": code_files,
             "requirements": requirements,
             "test_scope": test_scope,
         })
-        
+
         # 生成测试用例
         test_cases = self._generate_test_cases(test_plan)
-        
+
         # 执行测试
         test_results = await self._run_tests(test_cases)
-        
+
         # 生成测试报告
         report = self._generate_report(test_results)
-        
+
         # 存储到黑板
         self.put_to_blackboard(
             f"test:{task.id}",
@@ -79,7 +79,7 @@ class TesterAgent(BaseAgent):
             },
             description="测试结果",
         )
-        
+
         return {
             "status": "testing_complete",
             "test_cases_created": len(test_cases),
@@ -88,25 +88,25 @@ class TesterAgent(BaseAgent):
             "coverage": test_results.get("coverage", 0),
             "report": report,
         }
-    
+
     async def think(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         思考测试策略
         """
         code_files = context.get("code_files", [])
         requirements = context.get("requirements", [])
-        
+
         # 构建测试提示词
         prompt = self._build_testing_prompt(code_files, requirements)
-        
+
         self.logger.debug("Testing prompt prepared", prompt_length=len(prompt))
-        
+
         # TODO: 调用 LLM API
         # 使用模拟返回
         test_plan = self._simulate_test_plan(code_files)
-        
+
         return test_plan
-    
+
     def _build_testing_prompt(
         self,
         code_files: list[dict],
@@ -132,7 +132,7 @@ class TesterAgent(BaseAgent):
 ## 输出格式
 提供完整的测试代码
 """
-    
+
     def _simulate_test_plan(
         self,
         code_files: list[dict],
@@ -151,7 +151,7 @@ class TesterAgent(BaseAgent):
                 "错误处理",
             ],
         }
-    
+
     def _generate_test_cases(self, test_plan: dict[str, Any]) -> list[dict[str, Any]]:
         """生成测试用例"""
         # TODO: 生成真实测试用例
@@ -169,7 +169,7 @@ class TesterAgent(BaseAgent):
                 "code": "# TODO: 生成边界测试代码\ndef test_edge_case():\n    assert True\n",
             },
         ]
-    
+
     async def _run_tests(
         self,
         test_cases: list[dict[str, Any]],
@@ -182,7 +182,7 @@ class TesterAgent(BaseAgent):
         # 模拟测试结果
         total = len(test_cases)
         passed = total  # 模拟全部通过
-        
+
         return {
             "total": total,
             "passed": passed,
@@ -199,14 +199,14 @@ class TesterAgent(BaseAgent):
                 for tc in test_cases
             ],
         }
-    
+
     def _generate_report(self, test_results: dict[str, Any]) -> dict[str, Any]:
         """生成测试报告"""
         total = test_results.get("total", 0)
         passed = test_results.get("passed", 0)
-        
+
         pass_rate = (passed / total * 100) if total > 0 else 0
-        
+
         return {
             "title": "测试报告",
             "generated_at": datetime.now().isoformat(),
@@ -220,7 +220,7 @@ class TesterAgent(BaseAgent):
             "status": "passed" if pass_rate >= 95 else "needs_attention",
             "recommendations": [],
         }
-    
+
     async def generate_regression_tests(
         self,
         bug_report: dict[str, Any],

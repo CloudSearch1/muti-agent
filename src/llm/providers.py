@@ -2,7 +2,7 @@
 LLM 提供商模块
 """
 
-from .service import BaseProvider, OpenAIProvider, AzureOpenAIProvider
+from .service import AzureOpenAIProvider, BaseProvider, OpenAIProvider
 
 __all__ = [
     "BaseProvider",

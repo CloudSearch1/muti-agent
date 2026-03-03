@@ -4,14 +4,12 @@
 提供测试执行、覆盖率分析等功能
 """
 
-from typing import Any, Optional
-from datetime import datetime
-import structlog
-import subprocess
 import asyncio
+from datetime import datetime
+
+import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
-
 
 logger = structlog.get_logger(__name__)
 
@@ -25,18 +23,18 @@ class TestTools(BaseTool):
     - 覆盖率分析
     - 测试报告生成
     """
-    
+
     NAME = "test_tools"
     DESCRIPTION = "测试相关工具集合"
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         # 测试配置
         self.test_framework = kwargs.get("test_framework", "pytest")
         self.coverage_tool = kwargs.get("coverage_tool", "coverage.py")
         self.test_dir = kwargs.get("test_dir", "tests")
-    
+
     @property
     def parameters(self) -> list[ToolParameter]:
         return [
@@ -60,13 +58,13 @@ class TestTools(BaseTool):
                 required=False,
             ),
         ]
-    
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行测试工具"""
         action = kwargs.get("action")
         test_path = kwargs.get("test_path", self.test_dir)
         options = kwargs.get("options", {})
-        
+
         if action == "run":
             return await self._run_tests(test_path, options)
         elif action == "coverage":
@@ -78,7 +76,7 @@ class TestTools(BaseTool):
                 success=False,
                 error=f"Unknown action: {action}",
             )
-    
+
     async def _run_tests(
         self,
         test_path: str,
@@ -87,17 +85,17 @@ class TestTools(BaseTool):
         """运行测试"""
         verbose = options.get("verbose", False)
         fail_fast = options.get("fail_fast", False)
-        
+
         # 构建命令
         cmd = [self.test_framework, test_path]
-        
+
         if verbose:
             cmd.append("-v")
         if fail_fast:
             cmd.append("-x")
-        
+
         logger.info("Running tests", cmd=cmd)
-        
+
         try:
             # 执行测试
             process = await asyncio.create_subprocess_exec(
@@ -105,12 +103,12 @@ class TestTools(BaseTool):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            
+
             stdout, stderr = await process.communicate()
-            
+
             return_code = process.returncode
             success = return_code == 0
-            
+
             return ToolResult(
                 success=success,
                 data={
@@ -123,14 +121,14 @@ class TestTools(BaseTool):
                     "duration_ms": 0,  # TODO: 计算实际耗时
                 },
             )
-            
+
         except Exception as e:
             logger.error("Test execution failed", error=str(e))
             return ToolResult(
                 success=False,
                 error=str(e),
             )
-    
+
     async def _run_coverage(
         self,
         test_path: str,
@@ -147,7 +145,7 @@ class TestTools(BaseTool):
                 "missing_lines": [10, 25, 42],
             },
         )
-    
+
     async def _generate_report(
         self,
         options: dict,
@@ -155,7 +153,7 @@ class TestTools(BaseTool):
         """生成测试报告"""
         report_format = options.get("format", "html")
         output_path = options.get("output", "test_report")
-        
+
         # TODO: 生成测试报告
         return ToolResult(
             success=True,

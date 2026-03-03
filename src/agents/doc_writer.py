@@ -4,13 +4,13 @@ DocWriterAgent - 文档员 Agent
 职责：技术文档编写、API 文档生成、知识库维护
 """
 
-from typing import Any, Optional
 from datetime import datetime
+from typing import Any
+
 import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
-
 
 logger = structlog.get_logger(__name__)
 
@@ -25,19 +25,19 @@ class DocWriterAgent(BaseAgent):
     - 维护知识库
     - 文档审查和更新
     """
-    
+
     ROLE = AgentRole.DOC_WRITER
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         # 文档员特有配置
         self.doc_model = kwargs.get("doc_model", "gpt-4")
         self.doc_format = kwargs.get("doc_format", "markdown")
         self.auto_generate = kwargs.get("auto_generate", True)
-        
+
         self.logger.info("DocWriterAgent initialized")
-    
+
     async def execute(self, task: Task) -> dict[str, Any]:
         """
         执行文档编写任务
@@ -47,36 +47,36 @@ class DocWriterAgent(BaseAgent):
             task_id=task.id,
             task_title=task.title,
         )
-        
+
         # 获取文档输入
         content_type = task.input_data.get("content_type", "api_doc")
         source_material = task.input_data.get("source_material", {})
         target_audience = task.input_data.get("target_audience", "developers")
-        
+
         # 思考文档结构
         doc_plan = await self.think({
             "content_type": content_type,
             "source_material": source_material,
             "target_audience": target_audience,
         })
-        
+
         # 生成文档
         document = self._generate_document(doc_plan, source_material)
-        
+
         # 存储到黑板
         self.put_to_blackboard(
             f"doc:{task.id}",
             document,
             description="生成的文档",
         )
-        
+
         return {
             "status": "documentation_complete",
             "document_type": content_type,
             "document": document,
             "word_count": len(document.get("content", "")),
         }
-    
+
     async def think(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         思考文档结构
@@ -84,22 +84,22 @@ class DocWriterAgent(BaseAgent):
         content_type = context.get("content_type", "")
         source_material = context.get("source_material", {})
         target_audience = context.get("target_audience", "")
-        
+
         # 构建文档提示词
         prompt = self._build_doc_prompt(
             content_type,
             source_material,
             target_audience,
         )
-        
+
         self.logger.debug("Documentation prompt prepared", prompt_length=len(prompt))
-        
+
         # TODO: 调用 LLM API
         # 使用模拟返回
         doc_plan = self._simulate_doc_plan(content_type)
-        
+
         return doc_plan
-    
+
     def _build_doc_prompt(
         self,
         content_type: str,
@@ -129,7 +129,7 @@ class DocWriterAgent(BaseAgent):
 ## 输出格式
 提供完整的文档内容
 """
-    
+
     def _simulate_doc_plan(
         self,
         content_type: str,
@@ -171,7 +171,7 @@ class DocWriterAgent(BaseAgent):
                 "sections": 3,
                 "estimated_length": "1000-2000 字",
             }
-    
+
     def _generate_document(
         self,
         doc_plan: dict[str, Any],
@@ -184,7 +184,7 @@ class DocWriterAgent(BaseAgent):
             "version": "1.0.0",
             "generated_at": datetime.now().isoformat(),
             "format": self.doc_format,
-            "content": f"""# 技术文档
+            "content": """# 技术文档
 
 ## 概述
 
@@ -223,7 +223,7 @@ A: Python 3.11+
                 "word_count": 500,
             },
         }
-    
+
     async def generate_api_doc(
         self,
         code_files: list[dict[str, Any]],
@@ -246,7 +246,7 @@ A: Python 3.11+
             "models": [],
             "examples": [],
         }
-    
+
     async def update_knowledge_base(
         self,
         topic: str,
@@ -270,7 +270,7 @@ A: Python 3.11+
             "topic": topic,
             "tags": tags or [],
         }
-    
+
     async def review_document(
         self,
         document: dict[str, Any],

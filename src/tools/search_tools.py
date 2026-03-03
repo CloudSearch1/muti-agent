@@ -4,13 +4,12 @@
 提供代码搜索、文件搜索等功能
 """
 
-from typing import Any, Optional
-from pathlib import Path
-import structlog
 import re
+from pathlib import Path
+
+import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
-
 
 logger = structlog.get_logger(__name__)
 
@@ -24,16 +23,16 @@ class SearchTools(BaseTool):
     - 文件名搜索
     - 正则表达式搜索
     """
-    
+
     NAME = "search_tools"
     DESCRIPTION = "搜索工具集合"
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         self.root_dir = Path(kwargs.get("root_dir", ".")).resolve()
         self.max_results = kwargs.get("max_results", 100)
-    
+
     @property
     def parameters(self) -> list[ToolParameter]:
         return [
@@ -65,16 +64,16 @@ class SearchTools(BaseTool):
                 default="*",
             ),
         ]
-    
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行搜索工具"""
         action = kwargs.get("action")
         query = kwargs.get("query")
         path = kwargs.get("path", ".")
         pattern = kwargs.get("pattern", "*")
-        
+
         search_path = (self.root_dir / path).resolve()
-        
+
         if action == "content":
             return self._search_content(search_path, query, pattern)
         elif action == "filename":
@@ -86,7 +85,7 @@ class SearchTools(BaseTool):
                 success=False,
                 error=f"Unknown action: {action}",
             )
-    
+
     def _search_content(
         self,
         path: Path,
@@ -96,38 +95,38 @@ class SearchTools(BaseTool):
         """搜索文件内容"""
         try:
             results = []
-            
+
             for file_path in path.glob(f"**/{pattern}"):
                 if not file_path.is_file():
                     continue
-                
+
                 try:
                     content = file_path.read_text(encoding="utf-8")
-                    
+
                     if query.lower() in content.lower():
                         # 找到匹配行
                         lines = content.splitlines()
                         matching_lines = []
-                        
+
                         for i, line in enumerate(lines, 1):
                             if query.lower() in line.lower():
                                 matching_lines.append({
                                     "line": i,
                                     "content": line.strip()[:200],
                                 })
-                        
+
                         results.append({
                             "file": str(file_path.relative_to(self.root_dir)),
                             "matches": matching_lines[:10],  # 限制每文件显示行数
                             "total_matches": len(matching_lines),
                         })
-                        
+
                         if len(results) >= self.max_results:
                             break
-                            
+
                 except (UnicodeDecodeError, PermissionError):
                     continue
-            
+
             return ToolResult(
                 success=True,
                 data={
@@ -141,12 +140,12 @@ class SearchTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _search_filename(self, path: Path, query: str) -> ToolResult:
         """搜索文件名"""
         try:
             results = []
-            
+
             for file_path in path.glob(f"**/*{query}*"):
                 rel_path = file_path.relative_to(self.root_dir)
                 results.append({
@@ -154,10 +153,10 @@ class SearchTools(BaseTool):
                     "is_file": file_path.is_file(),
                     "size": file_path.stat().st_size if file_path.is_file() else 0,
                 })
-                
+
                 if len(results) >= self.max_results:
                     break
-            
+
             return ToolResult(
                 success=True,
                 data={
@@ -171,7 +170,7 @@ class SearchTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _search_regex(
         self,
         path: Path,
@@ -182,15 +181,15 @@ class SearchTools(BaseTool):
         try:
             regex = re.compile(pattern)
             results = []
-            
+
             for file_path in path.glob(f"**/{file_pattern}"):
                 if not file_path.is_file():
                     continue
-                
+
                 try:
                     content = file_path.read_text(encoding="utf-8")
                     lines = content.splitlines()
-                    
+
                     file_matches = []
                     for i, line in enumerate(lines, 1):
                         matches = regex.findall(line)
@@ -200,20 +199,20 @@ class SearchTools(BaseTool):
                                 "matches": matches,
                                 "content": line.strip()[:200],
                             })
-                    
+
                     if file_matches:
                         results.append({
                             "file": str(file_path.relative_to(self.root_dir)),
                             "matches": file_matches[:10],
                             "total_matches": sum(len(m["matches"]) for m in file_matches),
                         })
-                        
+
                         if len(results) >= self.max_results:
                             break
-                            
+
                 except (UnicodeDecodeError, PermissionError):
                     continue
-            
+
             return ToolResult(
                 success=True,
                 data={

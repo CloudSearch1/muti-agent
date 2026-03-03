@@ -5,10 +5,10 @@
 """
 
 from typing import Any
+
+import structlog
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-import structlog
-
 
 logger = structlog.get_logger(__name__)
 
@@ -57,11 +57,11 @@ _tasks_db: dict[str, dict] = {}
 )
 async def create_task(request: TaskCreateRequest):
     """创建新任务"""
-    from datetime import datetime
     import uuid
-    
+    from datetime import datetime
+
     task_id = str(uuid.uuid4())
-    
+
     task = {
         "id": task_id,
         "title": request.title,
@@ -72,11 +72,11 @@ async def create_task(request: TaskCreateRequest):
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),
     }
-    
+
     _tasks_db[task_id] = task
-    
+
     logger.info("Task created", task_id=task_id)
-    
+
     return TaskResponse(**task)
 
 
@@ -91,14 +91,14 @@ async def list_tasks(
 ):
     """获取任务列表"""
     tasks = [_tasks_db[k] for k in _tasks_db]
-    
+
     # 状态过滤
     if status:
         tasks = [t for t in tasks if t["status"] == status]
-    
+
     # 限制数量
     tasks = tasks[:limit]
-    
+
     return [TaskResponse(**t) for t in tasks]
 
 
@@ -110,10 +110,10 @@ async def list_tasks(
 async def get_task(task_id: str):
     """获取任务详细信息"""
     task = _tasks_db.get(task_id)
-    
+
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     return TaskResponse(**task)
 
 
@@ -125,9 +125,9 @@ async def delete_task(task_id: str):
     """删除任务"""
     if task_id not in _tasks_db:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     del _tasks_db[task_id]
-    
+
     logger.info("Task deleted", task_id=task_id)
-    
+
     return {"status": "deleted", "task_id": task_id}

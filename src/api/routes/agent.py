@@ -5,10 +5,10 @@ Agent 路由
 """
 
 from typing import Any
+
+import structlog
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-import structlog
-
 
 logger = structlog.get_logger(__name__)
 
@@ -52,15 +52,15 @@ async def list_agents(
 ):
     """获取 Agent 列表"""
     agents = list(_agents_db.values())
-    
+
     # 角色过滤
     if role:
         agents = [a for a in agents if a["role"] == role]
-    
+
     # 启用状态过滤
     if enabled is not None:
         agents = [a for a in agents if a["enabled"] == enabled]
-    
+
     return [AgentResponse(**a) for a in agents]
 
 
@@ -72,10 +72,10 @@ async def list_agents(
 async def get_agent(agent_id: str):
     """获取 Agent 详细信息"""
     agent = _agents_db.get(agent_id)
-    
+
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    
+
     return AgentResponse(**agent)
 
 
@@ -86,8 +86,8 @@ async def get_agent(agent_id: str):
 async def get_agent_stats(agent_id: str):
     """获取 Agent 统计信息"""
     agent = _agents_db.get(agent_id)
-    
+
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    
+
     return agent.get("statistics", {})

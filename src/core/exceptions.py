@@ -4,23 +4,23 @@
 职责: 定义项目专用异常类，统一错误处理
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class IntelliTeamError(Exception):
     """IntelliTeam 基础异常"""
-    
+
     def __init__(
         self,
         message: str,
-        code: Optional[str] = None,
-        details: Optional[dict[str, Any]] = None,
+        code: str | None = None,
+        details: dict[str, Any] | None = None,
     ):
         self.message = message
         self.code = code or "UNKNOWN_ERROR"
         self.details = details or {}
         super().__init__(self.message)
-    
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "error": self.code,
@@ -40,7 +40,7 @@ class AgentError(IntelliTeamError):
 
 class AgentNotFoundError(AgentError):
     """Agent 不存在"""
-    
+
     def __init__(self, agent_name: str):
         super().__init__(
             message=f"Agent '{agent_name}' not found",
@@ -51,8 +51,8 @@ class AgentNotFoundError(AgentError):
 
 class AgentExecutionError(AgentError):
     """Agent 执行错误"""
-    
-    def __init__(self, agent_name: str, reason: str, details: Optional[dict] = None):
+
+    def __init__(self, agent_name: str, reason: str, details: dict | None = None):
         super().__init__(
             message=f"Agent '{agent_name}' execution failed: {reason}",
             code="AGENT_EXECUTION_ERROR",
@@ -62,7 +62,7 @@ class AgentExecutionError(AgentError):
 
 class AgentTimeoutError(AgentError):
     """Agent 执行超时"""
-    
+
     def __init__(self, agent_name: str, timeout_seconds: int):
         super().__init__(
             message=f"Agent '{agent_name}' execution timed out after {timeout_seconds}s",
@@ -82,7 +82,7 @@ class TaskError(IntelliTeamError):
 
 class TaskNotFoundError(TaskError):
     """任务不存在"""
-    
+
     def __init__(self, task_id: str):
         super().__init__(
             message=f"Task '{task_id}' not found",
@@ -93,7 +93,7 @@ class TaskNotFoundError(TaskError):
 
 class TaskValidationError(TaskError):
     """任务验证失败"""
-    
+
     def __init__(self, task_id: str, errors: list[str]):
         super().__init__(
             message=f"Task '{task_id}' validation failed",
@@ -104,7 +104,7 @@ class TaskValidationError(TaskError):
 
 class TaskExecutionError(TaskError):
     """任务执行错误"""
-    
+
     def __init__(self, task_id: str, reason: str):
         super().__init__(
             message=f"Task '{task_id}' execution failed: {reason}",
@@ -124,7 +124,7 @@ class WorkflowError(IntelliTeamError):
 
 class WorkflowNotFoundError(WorkflowError):
     """工作流不存在"""
-    
+
     def __init__(self, workflow_id: str):
         super().__init__(
             message=f"Workflow '{workflow_id}' not found",
@@ -135,7 +135,7 @@ class WorkflowNotFoundError(WorkflowError):
 
 class WorkflowTransitionError(WorkflowError):
     """工作流状态转换错误"""
-    
+
     def __init__(self, workflow_id: str, from_state: str, to_state: str, reason: str):
         super().__init__(
             message=f"Workflow '{workflow_id}' cannot transition from '{from_state}' to '{to_state}': {reason}",
@@ -160,7 +160,7 @@ class KnowledgeError(IntelliTeamError):
 
 class DocumentNotFoundError(KnowledgeError):
     """文档不存在"""
-    
+
     def __init__(self, document_id: str):
         super().__init__(
             message=f"Document '{document_id}' not found",
@@ -171,7 +171,7 @@ class DocumentNotFoundError(KnowledgeError):
 
 class EmbeddingError(KnowledgeError):
     """嵌入错误"""
-    
+
     def __init__(self, text: str, reason: str):
         super().__init__(
             message=f"Failed to embed text: {reason}",
@@ -182,7 +182,7 @@ class EmbeddingError(KnowledgeError):
 
 class RetrievalError(KnowledgeError):
     """检索错误"""
-    
+
     def __init__(self, query: str, reason: str):
         super().__init__(
             message=f"Failed to retrieve for query: {reason}",
@@ -202,7 +202,7 @@ class ToolError(IntelliTeamError):
 
 class ToolNotFoundError(ToolError):
     """工具不存在"""
-    
+
     def __init__(self, tool_name: str):
         super().__init__(
             message=f"Tool '{tool_name}' not found",
@@ -213,8 +213,8 @@ class ToolNotFoundError(ToolError):
 
 class ToolExecutionError(ToolError):
     """工具执行错误"""
-    
-    def __init__(self, tool_name: str, reason: str, details: Optional[dict] = None):
+
+    def __init__(self, tool_name: str, reason: str, details: dict | None = None):
         super().__init__(
             message=f"Tool '{tool_name}' execution failed: {reason}",
             code="TOOL_EXECUTION_ERROR",
@@ -233,7 +233,7 @@ class CollaborationError(IntelliTeamError):
 
 class ConflictDetectedError(CollaborationError):
     """检测到冲突"""
-    
+
     def __init__(self, conflict_id: str, description: str):
         super().__init__(
             message=f"Conflict detected: {description}",
@@ -244,7 +244,7 @@ class ConflictDetectedError(CollaborationError):
 
 class ArbitrationRequiredError(CollaborationError):
     """需要仲裁"""
-    
+
     def __init__(self, conflict_id: str, agents: list[str]):
         super().__init__(
             message="Arbitration required to resolve conflict",
@@ -259,7 +259,7 @@ class ArbitrationRequiredError(CollaborationError):
 
 class ConfigurationError(IntelliTeamError):
     """配置错误"""
-    
+
     def __init__(self, setting_name: str, reason: str):
         super().__init__(
             message=f"Configuration error for '{setting_name}': {reason}",

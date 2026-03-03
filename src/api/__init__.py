@@ -2,7 +2,7 @@
 API 模块
 """
 
-from .main import create_app, app
+from .main import app, create_app
 
 __all__ = [
     "create_app",

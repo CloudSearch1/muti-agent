@@ -4,14 +4,12 @@
 提供文件读写、目录管理等功能
 """
 
-from typing import Any, Optional
-from pathlib import Path
-import structlog
-import os
 import shutil
+from pathlib import Path
+
+import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
-
 
 logger = structlog.get_logger(__name__)
 
@@ -25,16 +23,16 @@ class FileTools(BaseTool):
     - 目录管理
     - 文件操作（复制、移动、删除）
     """
-    
+
     NAME = "file_tools"
     DESCRIPTION = "文件操作工具集合"
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         # 根目录限制（安全考虑）
         self.root_dir = Path(kwargs.get("root_dir", ".")).resolve()
-    
+
     @property
     def parameters(self) -> list[ToolParameter]:
         return [
@@ -71,7 +69,7 @@ class FileTools(BaseTool):
                 default=False,
             ),
         ]
-    
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行文件工具"""
         action = kwargs.get("action")
@@ -79,7 +77,7 @@ class FileTools(BaseTool):
         content = kwargs.get("content")
         destination = kwargs.get("destination")
         recursive = kwargs.get("recursive", False)
-        
+
         # 安全检查
         safe_path = self._safe_path(path)
         if not safe_path:
@@ -87,7 +85,7 @@ class FileTools(BaseTool):
                 success=False,
                 error=f"Path '{path}' is outside root directory",
             )
-        
+
         if action == "read":
             return self._read_file(safe_path)
         elif action == "write":
@@ -129,20 +127,20 @@ class FileTools(BaseTool):
                 success=False,
                 error=f"Unknown action: {action}",
             )
-    
-    def _safe_path(self, path: str) -> Optional[Path]:
+
+    def _safe_path(self, path: str) -> Path | None:
         """安全检查：确保路径在根目录内"""
         try:
             full_path = (self.root_dir / path).resolve()
-            
+
             # 检查是否在根目录内
             if not str(full_path).startswith(str(self.root_dir)):
                 return None
-            
+
             return full_path
         except Exception:
             return None
-    
+
     def _read_file(self, path: Path) -> ToolResult:
         """读取文件"""
         try:
@@ -151,15 +149,15 @@ class FileTools(BaseTool):
                     success=False,
                     error=f"File not found: {path}",
                 )
-            
+
             if not path.is_file():
                 return ToolResult(
                     success=False,
                     error=f"Not a file: {path}",
                 )
-            
+
             content = path.read_text(encoding="utf-8")
-            
+
             return ToolResult(
                 success=True,
                 data={
@@ -174,16 +172,16 @@ class FileTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _write_file(self, path: Path, content: str) -> ToolResult:
         """写入文件"""
         try:
             # 创建父目录
             path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # 写入文件
             path.write_text(content, encoding="utf-8")
-            
+
             return ToolResult(
                 success=True,
                 data={
@@ -196,7 +194,7 @@ class FileTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _list_directory(self, path: Path, recursive: bool) -> ToolResult:
         """列出目录"""
         try:
@@ -205,15 +203,15 @@ class FileTools(BaseTool):
                     success=False,
                     error=f"Directory not found: {path}",
                 )
-            
+
             if not path.is_dir():
                 return ToolResult(
                     success=False,
                     error=f"Not a directory: {path}",
                 )
-            
+
             items = []
-            
+
             if recursive:
                 for item in path.rglob("*"):
                     rel_path = item.relative_to(path)
@@ -229,7 +227,7 @@ class FileTools(BaseTool):
                         "is_file": item.is_file(),
                         "size": item.stat().st_size if item.is_file() else 0,
                     })
-            
+
             return ToolResult(
                 success=True,
                 data={
@@ -243,12 +241,12 @@ class FileTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _create_directory(self, path: Path) -> ToolResult:
         """创建目录"""
         try:
             path.mkdir(parents=True, exist_ok=True)
-            
+
             return ToolResult(
                 success=True,
                 data={"path": str(path)},
@@ -258,7 +256,7 @@ class FileTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _delete(self, path: Path, recursive: bool) -> ToolResult:
         """删除文件/目录"""
         try:
@@ -267,7 +265,7 @@ class FileTools(BaseTool):
                     success=False,
                     error=f"Path not found: {path}",
                 )
-            
+
             if path.is_file():
                 path.unlink()
             elif path.is_dir():
@@ -275,7 +273,7 @@ class FileTools(BaseTool):
                     shutil.rmtree(path)
                 else:
                     path.rmdir()
-            
+
             return ToolResult(
                 success=True,
                 data={"deleted": str(path)},
@@ -285,7 +283,7 @@ class FileTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _copy_file(self, src: Path, dest: Path) -> ToolResult:
         """复制文件"""
         try:
@@ -293,7 +291,7 @@ class FileTools(BaseTool):
                 shutil.copy2(src, dest)
             else:
                 shutil.copytree(src, dest)
-            
+
             return ToolResult(
                 success=True,
                 data={
@@ -306,12 +304,12 @@ class FileTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _move_file(self, src: Path, dest: Path) -> ToolResult:
         """移动文件"""
         try:
             shutil.move(str(src), str(dest))
-            
+
             return ToolResult(
                 success=True,
                 data={

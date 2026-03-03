@@ -4,13 +4,13 @@ LLM 服务
 职责：提供统一的 LLM 调用接口，支持多提供商
 """
 
-from typing import Any, Optional, AsyncIterator
 from abc import ABC, abstractmethod
-from pydantic import BaseModel, Field
+from collections.abc import AsyncIterator
+
 import structlog
+from pydantic import BaseModel, Field
 
 from ..config.settings import Settings, get_settings
-
 
 logger = structlog.get_logger(__name__)
 
@@ -26,31 +26,31 @@ class LLMResponse(BaseModel):
     content: str = Field(..., description="响应内容")
     model: str = Field(..., description="使用的模型")
     usage: dict[str, int] = Field(default_factory=dict, description="Token 使用量")
-    finish_reason: Optional[str] = Field(default=None, description="结束原因")
+    finish_reason: str | None = Field(default=None, description="结束原因")
 
 
 class BaseProvider(ABC):
     """LLM 提供商抽象基类"""
-    
+
     NAME: str = None
-    
+
     @abstractmethod
     async def generate(
         self,
         messages: list[LLMMessage],
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> LLMResponse:
         """生成响应"""
         pass
-    
+
     @abstractmethod
     async def generate_stream(
         self,
         messages: list[LLMMessage],
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> AsyncIterator[str]:
         """流式生成"""
@@ -59,9 +59,9 @@ class BaseProvider(ABC):
 
 class OpenAIProvider(BaseProvider):
     """OpenAI 提供商"""
-    
+
     NAME = "openai"
-    
+
     def __init__(
         self,
         api_key: str,
@@ -72,16 +72,16 @@ class OpenAIProvider(BaseProvider):
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
-        
+
         # 延迟导入 httpx
         self._httpx = None
-        
+
         logger.info(
             "OpenAIProvider initialized",
             model=model,
             base_url=base_url,
         )
-    
+
     @property
     def httpx(self):
         """延迟导入 httpx"""
@@ -89,22 +89,22 @@ class OpenAIProvider(BaseProvider):
             import httpx
             self._httpx = httpx
         return self._httpx
-    
+
     async def generate(
         self,
         messages: list[LLMMessage],
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> LLMResponse:
         """调用 OpenAI API 生成响应"""
         url = f"{self.base_url}/chat/completions"
-        
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        
+
         payload = {
             "model": self.model,
             "messages": [m.dict() for m in messages],
@@ -112,42 +112,42 @@ class OpenAIProvider(BaseProvider):
             "max_tokens": max_tokens,
             **kwargs,
         }
-        
+
         logger.debug(
             "Calling OpenAI API",
             model=self.model,
             messages_count=len(messages),
         )
-        
+
         async with self.httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
-            
+
             data = response.json()
             choice = data["choices"][0]
-            
+
             return LLMResponse(
                 content=choice["message"]["content"],
                 model=data["model"],
                 usage=data.get("usage", {}),
                 finish_reason=choice.get("finish_reason"),
             )
-    
+
     async def generate_stream(
         self,
         messages: list[LLMMessage],
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> AsyncIterator[str]:
         """流式调用 OpenAI API"""
         url = f"{self.base_url}/chat/completions"
-        
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        
+
         payload = {
             "model": self.model,
             "messages": [m.dict() for m in messages],
@@ -156,24 +156,24 @@ class OpenAIProvider(BaseProvider):
             "stream": True,
             **kwargs,
         }
-        
+
         async with self.httpx.AsyncClient() as client:
             async with client.stream("POST", url, headers=headers, json=payload) as response:
                 response.raise_for_status()
-                
+
                 async for line in response.aiter_lines():
                     if line.startswith("data: "):
                         data = line[6:]
                         if data == "[DONE]":
                             break
-                        
+
                         import json
                         try:
                             chunk = json.loads(data)
                             choice = chunk["choices"][0]
                             delta = choice.get("delta", {})
                             content = delta.get("content", "")
-                            
+
                             if content:
                                 yield content
                         except json.JSONDecodeError:
@@ -182,9 +182,9 @@ class OpenAIProvider(BaseProvider):
 
 class AzureOpenAIProvider(BaseProvider):
     """Azure OpenAI 提供商"""
-    
+
     NAME = "azure"
-    
+
     def __init__(
         self,
         api_key: str,
@@ -197,63 +197,63 @@ class AzureOpenAIProvider(BaseProvider):
         self.endpoint = endpoint
         self.deployment = deployment
         self.api_version = api_version
-        
+
         self._httpx = None
-        
+
         logger.info(
             "AzureOpenAIProvider initialized",
             deployment=deployment,
             endpoint=endpoint,
         )
-    
+
     @property
     def httpx(self):
         if self._httpx is None:
             import httpx
             self._httpx = httpx
         return self._httpx
-    
+
     async def generate(
         self,
         messages: list[LLMMessage],
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> LLMResponse:
         """调用 Azure OpenAI API"""
         url = f"{self.endpoint}/openai/deployments/{self.deployment}/chat/completions?api-version={self.api_version}"
-        
+
         headers = {
             "api-key": self.api_key,
             "Content-Type": "application/json",
         }
-        
+
         payload = {
             "messages": [m.dict() for m in messages],
             "temperature": temperature,
             "max_tokens": max_tokens,
             **kwargs,
         }
-        
+
         async with self.httpx.AsyncClient() as client:
             response = await client.post(url, headers=headers, json=payload)
             response.raise_for_status()
-            
+
             data = response.json()
             choice = data["choices"][0]
-            
+
             return LLMResponse(
                 content=choice["message"]["content"],
                 model=self.deployment,
                 usage=data.get("usage", {}),
                 finish_reason=choice.get("finish_reason"),
             )
-    
+
     async def generate_stream(
         self,
         messages: list[LLMMessage],
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> AsyncIterator[str]:
         """流式调用 Azure OpenAI"""
@@ -268,17 +268,17 @@ class LLMService:
     
     统一管理 LLM 调用，支持多提供商切换
     """
-    
+
     def __init__(self, settings: Settings = None):
         self.settings = settings or get_settings()
-        self._provider: Optional[BaseProvider] = None
+        self._provider: BaseProvider | None = None
         self._initialize_provider()
-        
+
         logger.info(
             "LLMService initialized",
             provider=self.settings.openai_model if self.settings.openai_api_key else "none",
         )
-    
+
     def _initialize_provider(self) -> None:
         """初始化提供商"""
         if self.settings.azure_openai_api_key:
@@ -295,22 +295,22 @@ class LLMService:
             )
         else:
             logger.warning("No LLM API key configured")
-    
+
     @property
-    def provider(self) -> Optional[BaseProvider]:
+    def provider(self) -> BaseProvider | None:
         """获取当前提供商"""
         return self._provider
-    
+
     def is_configured(self) -> bool:
         """检查是否已配置"""
         return self._provider is not None
-    
+
     async def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> LLMResponse:
         """
@@ -327,40 +327,40 @@ class LLMService:
         """
         if not self._provider:
             raise RuntimeError("LLM provider not configured")
-        
+
         messages = []
-        
+
         if system_prompt:
             messages.append(LLMMessage(role="system", content=system_prompt))
-        
+
         messages.append(LLMMessage(role="user", content=prompt))
-        
+
         return await self._provider.generate(
             messages,
             temperature=temperature,
             max_tokens=max_tokens,
             **kwargs,
         )
-    
+
     async def generate_stream(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> AsyncIterator[str]:
         """流式生成"""
         if not self._provider:
             raise RuntimeError("LLM provider not configured")
-        
+
         messages = []
-        
+
         if system_prompt:
             messages.append(LLMMessage(role="system", content=system_prompt))
-        
+
         messages.append(LLMMessage(role="user", content=prompt))
-        
+
         async for chunk in self._provider.generate_stream(
             messages,
             temperature=temperature,
@@ -368,12 +368,12 @@ class LLMService:
             **kwargs,
         ):
             yield chunk
-    
+
     async def chat(
         self,
         messages: list[dict[str, str]],
         temperature: float = 0.3,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
         **kwargs,
     ) -> LLMResponse:
         """
@@ -387,12 +387,12 @@ class LLMService:
         """
         if not self._provider:
             raise RuntimeError("LLM provider not configured")
-        
+
         llm_messages = [
             LLMMessage(role=m["role"], content=m["content"])
             for m in messages
         ]
-        
+
         return await self._provider.generate(
             llm_messages,
             temperature=temperature,
@@ -402,7 +402,7 @@ class LLMService:
 
 
 # 全局单例
-_service: Optional[LLMService] = None
+_service: LLMService | None = None
 
 
 def get_llm_service() -> LLMService:

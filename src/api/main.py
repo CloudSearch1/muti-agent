@@ -4,17 +4,17 @@ FastAPI 应用入口
 职责：创建和配置 FastAPI 应用
 """
 
-from typing import Any
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+from typing import Any
+
 import structlog
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from ..config.settings import Settings, get_settings
-from ..memory.short_term import ShortTermMemory
 from ..memory.session import SessionManager
+from ..memory.short_term import ShortTermMemory
 from .routes import router as api_router
-
 
 logger = structlog.get_logger(__name__)
 
@@ -28,28 +28,28 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时初始化
     logger.info("Application starting up")
-    
+
     settings = get_settings()
-    
+
     # 初始化 Redis
     memory = ShortTermMemory(redis_url=settings.redis_url)
     await memory.connect()
     _resources["memory"] = memory
-    
+
     # 初始化会话管理器
     session_manager = SessionManager(memory=memory)
     _resources["session_manager"] = session_manager
-    
+
     logger.info("Application started")
-    
+
     yield
-    
+
     # 关闭时清理
     logger.info("Application shutting down")
-    
+
     if "memory" in _resources:
         await _resources["memory"].disconnect()
-    
+
     logger.info("Application stopped")
 
 
@@ -65,7 +65,7 @@ def create_app(settings: Settings = None) -> FastAPI:
     """
     if settings is None:
         settings = get_settings()
-    
+
     app = FastAPI(
         title=settings.app_name,
         description="IntelliTeam - 智能研发协作平台 API",
@@ -74,7 +74,7 @@ def create_app(settings: Settings = None) -> FastAPI:
         redoc_url="/redoc",
         lifespan=lifespan,
     )
-    
+
     # 配置 CORS
     app.add_middleware(
         CORSMiddleware,
@@ -83,10 +83,10 @@ def create_app(settings: Settings = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
     # 注册路由
     app.include_router(api_router, prefix="/api/v1")
-    
+
     # 健康检查
     @app.get("/health")
     async def health_check():
@@ -95,7 +95,7 @@ def create_app(settings: Settings = None) -> FastAPI:
             "app": settings.app_name,
             "environment": settings.app_env,
         }
-    
+
     # 根路径
     @app.get("/")
     async def root():
@@ -104,13 +104,13 @@ def create_app(settings: Settings = None) -> FastAPI:
             "version": "1.0.0",
             "docs": "/docs",
         }
-    
+
     logger.info(
         "FastAPI app created",
         host=settings.api_host,
         port=settings.api_port,
     )
-    
+
     return app
 
 
@@ -120,9 +120,9 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     settings = get_settings()
-    
+
     uvicorn.run(
         "src.api.main:app",
         host=settings.api_host,

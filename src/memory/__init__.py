@@ -2,8 +2,8 @@
 记忆模块
 """
 
-from .short_term import ShortTermMemory
 from .session import SessionManager
+from .short_term import ShortTermMemory
 
 __all__ = [
     "ShortTermMemory",

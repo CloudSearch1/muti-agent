@@ -4,13 +4,12 @@ Git 工具集
 提供 Git 操作功能
 """
 
-from typing import Any, Optional
-from pathlib import Path
-import structlog
 import subprocess
+from pathlib import Path
+
+import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
-
 
 logger = structlog.get_logger(__name__)
 
@@ -25,15 +24,15 @@ class GitTools(BaseTool):
     - 分支管理
     - 代码差异
     """
-    
+
     NAME = "git_tools"
     DESCRIPTION = "Git 操作工具集合"
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         self.repo_path = Path(kwargs.get("repo_path", ".")).resolve()
-    
+
     @property
     def parameters(self) -> list[ToolParameter]:
         return [
@@ -51,12 +50,12 @@ class GitTools(BaseTool):
                 required=False,
             ),
         ]
-    
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行 Git 工具"""
         action = kwargs.get("action")
         args = kwargs.get("args", "")
-        
+
         try:
             if action == "status":
                 return self._run_git(["status"])
@@ -87,12 +86,12 @@ class GitTools(BaseTool):
                 success=False,
                 error=str(e),
             )
-    
+
     def _run_git(self, args: list[str]) -> ToolResult:
         """运行 Git 命令"""
         try:
             cmd = ["git"] + args
-            
+
             result = subprocess.run(
                 cmd,
                 cwd=self.repo_path,
@@ -100,7 +99,7 @@ class GitTools(BaseTool):
                 text=True,
                 timeout=30,
             )
-            
+
             if result.returncode == 0:
                 return ToolResult(
                     success=True,
@@ -114,7 +113,7 @@ class GitTools(BaseTool):
                     success=False,
                     error=result.stderr,
                 )
-                
+
         except subprocess.TimeoutExpired:
             return ToolResult(
                 success=False,

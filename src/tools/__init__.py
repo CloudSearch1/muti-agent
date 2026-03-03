@@ -3,8 +3,8 @@
 """
 
 from .base import BaseTool
-from .registry import ToolRegistry
 from .code_tools import CodeTools
+from .registry import ToolRegistry
 from .test_tools import TestTools
 
 __all__ = [

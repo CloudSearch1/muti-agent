@@ -2,8 +2,8 @@
 LangGraph 工作流模块
 """
 
+from .states import AgentState, WorkflowState
 from .workflow import AgentWorkflow, create_workflow
-from .states import WorkflowState, AgentState
 
 __all__ = [
     "AgentWorkflow",

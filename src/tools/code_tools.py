@@ -4,11 +4,9 @@
 提供代码生成、分析、格式化等功能
 """
 
-from typing import Any, Optional
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
-
 
 logger = structlog.get_logger(__name__)
 
@@ -23,17 +21,17 @@ class CodeTools(BaseTool):
     - 代码分析
     - 代码转换
     """
-    
+
     NAME = "code_tools"
     DESCRIPTION = "代码相关工具集合"
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         # 代码格式化配置
         self.formatter = kwargs.get("formatter", "black")
         self.line_length = kwargs.get("line_length", 100)
-    
+
     @property
     def parameters(self) -> list[ToolParameter]:
         return [
@@ -64,14 +62,14 @@ class CodeTools(BaseTool):
                 required=False,
             ),
         ]
-    
+
     async def execute(self, **kwargs) -> ToolResult:
         """执行代码工具"""
         action = kwargs.get("action")
         code = kwargs.get("code")
         language = kwargs.get("language", "python")
         options = kwargs.get("options", {})
-        
+
         if action == "format":
             return await self._format_code(code, language, options)
         elif action == "analyze":
@@ -85,7 +83,7 @@ class CodeTools(BaseTool):
                 success=False,
                 error=f"Unknown action: {action}",
             )
-    
+
     async def _format_code(
         self,
         code: str,
@@ -95,7 +93,7 @@ class CodeTools(BaseTool):
         """格式化代码"""
         # TODO: 集成真实格式化器 (black, prettier 等)
         formatted_code = code  # 临时实现
-        
+
         return ToolResult(
             success=True,
             data={
@@ -108,7 +106,7 @@ class CodeTools(BaseTool):
                 "formatted_length": len(formatted_code),
             },
         )
-    
+
     async def _analyze_code(
         self,
         code: str,
@@ -127,7 +125,7 @@ class CodeTools(BaseTool):
                 "issues": [],
             },
         )
-    
+
     async def _convert_code(
         self,
         code: str,
@@ -136,7 +134,7 @@ class CodeTools(BaseTool):
     ) -> ToolResult:
         """转换代码"""
         target_language = options.get("target_language", "python")
-        
+
         # TODO: 实现代码转换
         return ToolResult(
             success=True,
@@ -146,7 +144,7 @@ class CodeTools(BaseTool):
                 "converted_code": "# TODO: 转换后的代码",
             },
         )
-    
+
     async def _generate_code(
         self,
         options: dict,
@@ -154,7 +152,7 @@ class CodeTools(BaseTool):
         """生成代码"""
         prompt = options.get("prompt", "")
         language = options.get("language", "python")
-        
+
         # TODO: 调用 LLM 生成代码
         return ToolResult(
             success=True,

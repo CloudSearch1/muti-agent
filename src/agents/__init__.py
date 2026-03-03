@@ -2,12 +2,14 @@
 Agent 模块
 """
 
-from .base import BaseAgent
-from .planner import PlannerAgent
 from .architect import ArchitectAgent
+from .base import BaseAgent
 from .coder import CoderAgent
-from .tester import TesterAgent
 from .doc_writer import DocWriterAgent
+from .planner import PlannerAgent
+from .research import ResearchAgent
+from .senior_architect import SeniorArchitectAgent
+from .tester import TesterAgent
 
 __all__ = [
     "BaseAgent",
@@ -16,4 +18,6 @@ __all__ = [
     "CoderAgent",
     "TesterAgent",
     "DocWriterAgent",
+    "SeniorArchitectAgent",
+    "ResearchAgent",
 ]
