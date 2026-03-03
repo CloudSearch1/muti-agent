@@ -1,0 +1,25 @@
+# Ruff 配置
+
+line-length = 100
+target-version = "py311"
+
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # Pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # function call in default argument
+]
+
+# 允许使用 assert
+extend-ignore = ["S101"]
+
+[per-file-ignores]
+"tests/*" = ["S101"]
