@@ -1,0 +1,84 @@
+# 告警规则配置
+
+groups:
+  - name: intelliteam
+    rules:
+      # API 错误率告警
+      - alert: HighAPIErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 错误率过高"
+          description: "API 错误率超过 5% (当前值：{{ $value }})"
+
+      # 响应时间告警
+      - alert: SlowAPIResponse
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API 响应时间过慢"
+          description: "95% 的 API 请求响应时间超过 2 秒 (当前值：{{ $value }}s)"
+
+      # WebSocket 连接数告警
+      - alert: HighWebSocketConnections
+        expr: websocket_connections > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WebSocket 连接数过高"
+          description: "WebSocket 连接数超过 1000 (当前值：{{ $value }})"
+
+      # Agent 任务失败告警
+      - alert: HighAgentTaskFailure
+        expr: sum(rate(agent_tasks_total{status="failed"}[5m])) / sum(rate(agent_tasks_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Agent 任务失败率过高"
+          description: "Agent 任务失败率超过 10% (当前值：{{ $value }})"
+
+      # 缓存命中率告警
+      - alert: LowCacheHitRate
+        expr: sum(rate(cache_hits_total[5m])) / (sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m]))) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "缓存命中率过低"
+          description: "缓存命中率低于 80% (当前值：{{ $value }})"
+
+      # 数据库连接数告警
+      - alert: HighDatabaseConnections
+        expr: database_connections > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "数据库连接数过高"
+          description: "数据库连接数超过 50 (当前值：{{ $value }})"
+
+      # 系统 CPU 使用率告警
+      - alert: HighCPUUsage
+        expr: system_cpu_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "系统 CPU 使用率过高"
+          description: "CPU 使用率超过 80% (当前值：{{ $value }}%)"
+
+      # 系统内存使用率告警
+      - alert: HighMemoryUsage
+        expr: system_memory_bytes / (1024 * 1024 * 1024) > 14  # 假设 16GB 内存
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "系统内存使用率过高"
+          description: "内存使用超过 14GB (当前值：{{ $value }}GB)"
