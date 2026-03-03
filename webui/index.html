@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntelliTeam - 智能研发协作平台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/css/all.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="app">
+        <!-- 顶部导航栏 -->
+        <nav class="gradient-bg text-white shadow-lg">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-robot text-3xl"></i>
+                        <h1 class="text-2xl font-bold">IntelliTeam</h1>
+                        <span class="text-sm opacity-80">智能研发协作平台</span>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button @click="currentTab = 'dashboard'" :class="{'bg-white text-purple-600': currentTab === 'dashboard'}" class="px-4 py-2 rounded-lg hover:bg-white hover:text-purple-600 transition">
+                            <i class="fas fa-home mr-2"></i>仪表盘
+                        </button>
+                        <button @click="currentTab = 'tasks'" :class="{'bg-white text-purple-600': currentTab === 'tasks'}" class="px-4 py-2 rounded-lg hover:bg-white hover:text-purple-600 transition">
+                            <i class="fas fa-tasks mr-2"></i>任务
+                        </button>
+                        <button @click="currentTab = 'agents'" :class="{'bg-white text-purple-600': currentTab === 'agents'}" class="px-4 py-2 rounded-lg hover:bg-white hover:text-purple-600 transition">
+                            <i class="fas fa-users mr-2"></i>Agent
+                        </button>
+                        <button @click="currentTab = 'workflows'" :class="{'bg-white text-purple-600': currentTab === 'workflows'}" class="px-4 py-2 rounded-lg hover:bg-white hover:text-purple-600 transition">
+                            <i class="fas fa-project-diagram mr-2"></i>工作流
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <div class="container mx-auto px-4 py-8">
+            <!-- 仪表盘 -->
+            <div v-if="currentTab === 'dashboard'" class="space-y-6">
+                <!-- 统计卡片 -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm">总任务数</p>
+                                <p class="text-3xl font-bold text-gray-800">{{ stats.totalTasks }}</p>
+                            </div>
+                            <div class="bg-blue-100 p-4 rounded-full">
+                                <i class="fas fa-tasks text-blue-600 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm">活跃 Agent</p>
+                                <p class="text-3xl font-bold text-gray-800">{{ stats.activeAgents }}</p>
+                            </div>
+                            <div class="bg-green-100 p-4 rounded-full">
+                                <i class="fas fa-robot text-green-600 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm">完成率</p>
+                                <p class="text-3xl font-bold text-gray-800">{{ stats.completionRate }}%</p>
+                            </div>
+                            <div class="bg-purple-100 p-4 rounded-full">
+                                <i class="fas fa-chart-line text-purple-600 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-md p-6 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm">系统状态</p>
+                                <p class="text-lg font-bold text-green-600">运行中</p>
+                            </div>
+                            <div class="bg-green-100 p-4 rounded-full">
+                                <i class="fas fa-check-circle text-green-600 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Agent 状态 -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-robot mr-2 text-purple-600"></i>Agent 状态
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div v-for="agent in agents" :key="agent.name" class="border rounded-lg p-4 hover:shadow-md transition">
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="font-semibold text-gray-800">{{ agent.name }}</h3>
+                                <span :class="agent.status === 'idle' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'" class="px-2 py-1 rounded text-xs">
+                                    {{ agent.status === 'idle' ? '空闲' : '工作中' }}
+                                </span>
+                            </div>
+                            <p class="text-sm text-gray-600">{{ agent.role }}</p>
+                            <div class="mt-2 flex items-center text-xs text-gray-500">
+                                <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                                <span>完成：{{ agent.tasksCompleted }}</span>
+                                <span class="mx-2">|</span>
+                                <i class="fas fa-clock text-blue-500 mr-1"></i>
+                                <span>平均：{{ agent.avgTime }}s</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近任务 -->
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">
+                        <i class="fas fa-list mr-2 text-blue-600"></i>最近任务
+                    </h2>
+                    <div class="space-y-3">
+                        <div v-for="task in recentTasks" :key="task.id" class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                            <div class="flex items-center space-x-3">
+                                <span :class="statusColor(task.status)" class="w-3 h-3 rounded-full"></span>
+                                <div>
+                                    <p class="font-medium text-gray-800">{{ task.title }}</p>
+                                    <p class="text-xs text-gray-500">{{ task.description }}</p>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                <i class="fas fa-clock mr-1"></i>
+                                {{ task.time }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务管理 -->
+            <div v-if="currentTab === 'tasks'" class="space-y-6">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">
+                            <i class="fas fa-tasks mr-2 text-blue-600"></i>任务管理
+                        </h2>
+                        <button @click="showCreateTask = true" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                            <i class="fas fa-plus mr-2"></i>创建任务
+                        </button>
+                    </div>
+
+                    <!-- 任务列表 -->
+                    <div class="space-y-4">
+                        <div v-for="task in tasks" :key="task.id" class="border rounded-lg p-4 hover:shadow-md transition">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-3 mb-2">
+                                        <h3 class="font-semibold text-gray-800">{{ task.title }}</h3>
+                                        <span :class="priorityColor(task.priority)" class="px-2 py-1 rounded text-xs text-white">
+                                            {{ task.priorityText }}
+                                        </span>
+                                        <span :class="statusBadge(task.status)" class="px-2 py-1 rounded text-xs">
+                                            {{ task.statusText }}
+                                        </span>
+                                    </div>
+                                    <p class="text-gray-600 text-sm mb-3">{{ task.description }}</p>
+                                    <div class="flex items-center space-x-4 text-sm text-gray-500">
+                                        <span><i class="fas fa-user mr-1"></i>{{ task.assignee }}</span>
+                                        <span><i class="fas fa-clock mr-1"></i>{{ task.createdAt }}</span>
+                                        <span><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2">
+                                    <button class="p-2 text-blue-600 hover:bg-blue-50 rounded">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="p-2 text-red-600 hover:bg-red-50 rounded">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent 管理 -->
+            <div v-if="currentTab === 'agents'" class="space-y-6">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-robot mr-2 text-purple-600"></i>Agent 团队
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div v-for="agent in agents" :key="agent.name" class="border rounded-xl p-6 hover:shadow-lg transition card-hover">
+                            <div class="flex items-center space-x-4 mb-4">
+                                <div class="bg-purple-100 p-3 rounded-full">
+                                    <i :class="agent.icon" class="text-purple-600 text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-gray-800">{{ agent.name }}</h3>
+                                    <p class="text-sm text-gray-600">{{ agent.role }}</p>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-4">{{ agent.description }}</p>
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">任务完成</span>
+                                    <span class="font-medium">{{ agent.tasksCompleted }}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">平均耗时</span>
+                                    <span class="font-medium">{{ agent.avgTime }}s</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">成功率</span>
+                                    <span class="font-medium text-green-600">{{ agent.successRate }}%</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t">
+                                <div class="flex justify-between items-center">
+                                    <span :class="agent.status === 'idle' ? 'text-green-600' : 'text-blue-600'" class="text-sm font-medium">
+                                        <i class="fas fa-circle text-xs mr-1"></i>
+                                        {{ agent.status === 'idle' ? '空闲' : '工作中' }}
+                                    </span>
+                                    <button class="text-purple-600 hover:text-purple-700 text-sm font-medium">
+                                        查看详情 →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 工作流 -->
+            <div v-if="currentTab === 'workflows'" class="space-y-6">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-6">
+                        <i class="fas fa-project-diagram mr-2 text-green-600"></i>工作流
+                    </h2>
+                    <div class="space-y-6">
+                        <div class="border rounded-lg p-6">
+                            <h3 class="font-bold text-gray-800 mb-4">标准研发流程</h3>
+                            <div class="flex items-center justify-between">
+                                <div class="flex-1 flex items-center">
+                                    <div class="text-center">
+                                        <div class="bg-blue-100 p-3 rounded-full mb-2">
+                                            <i class="fas fa-clipboard-list text-blue-600 text-xl"></i>
+                                        </div>
+                                        <p class="text-sm font-medium">需求分析</p>
+                                        <p class="text-xs text-gray-500">Planner</p>
+                                    </div>
+                                    <div class="flex-1 mx-4">
+                                        <i class="fas fa-arrow-right text-gray-400"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex items-center">
+                                    <div class="text-center">
+                                        <div class="bg-purple-100 p-3 rounded-full mb-2">
+                                            <i class="fas fa-sitemap text-purple-600 text-xl"></i>
+                                        </div>
+                                        <p class="text-sm font-medium">架构设计</p>
+                                        <p class="text-xs text-gray-500">Architect</p>
+                                    </div>
+                                    <div class="flex-1 mx-4">
+                                        <i class="fas fa-arrow-right text-gray-400"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex items-center">
+                                    <div class="text-center">
+                                        <div class="bg-green-100 p-3 rounded-full mb-2">
+                                            <i class="fas fa-code text-green-600 text-xl"></i>
+                                        </div>
+                                        <p class="text-sm font-medium">代码开发</p>
+                                        <p class="text-xs text-gray-500">Coder</p>
+                                    </div>
+                                    <div class="flex-1 mx-4">
+                                        <i class="fas fa-arrow-right text-gray-400"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex items-center">
+                                    <div class="text-center">
+                                        <div class="bg-yellow-100 p-3 rounded-full mb-2">
+                                            <i class="fas fa-vial text-yellow-600 text-xl"></i>
+                                        </div>
+                                        <p class="text-sm font-medium">测试</p>
+                                        <p class="text-xs text-gray-500">Tester</p>
+                                    </div>
+                                    <div class="flex-1 mx-4">
+                                        <i class="fas fa-arrow-right text-gray-400"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex items-center">
+                                    <div class="text-center">
+                                        <div class="bg-red-100 p-3 rounded-full mb-2">
+                                            <i class="fas fa-file-alt text-red-600 text-xl"></i>
+                                        </div>
+                                        <p class="text-sm font-medium">文档</p>
+                                        <p class="text-xs text-gray-500">DocWriter</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 创建任务弹窗 -->
+        <div v-if="showCreateTask" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">创建新任务</h3>
+                    <button @click="showCreateTask = false" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">任务标题</label>
+                        <input v-model="newTask.title" type="text" class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="输入任务标题">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">任务描述</label>
+                        <textarea v-model="newTask.description" rows="3" class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="输入任务描述"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">优先级</label>
+                        <select v-model="newTask.priority" class="w-full border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="low">低</option>
+                            <option value="normal">中</option>
+                            <option value="high">高</option>
+                            <option value="critical">紧急</option>
+                        </select>
+                    </div>
+                    <div class="flex space-x-3 pt-4">
+                        <button @click="createTask" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
+                            创建
+                        </button>
+                        <button @click="showCreateTask = false" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg hover:bg-gray-300 transition">
+                            取消
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    currentTab: 'dashboard',
+                    showCreateTask: false,
+                    stats: {
+                        totalTasks: 156,
+                        activeAgents: 6,
+                        completionRate: 93
+                    },
+                    agents: [
+                        {
+                            name: 'Planner',
+                            role: '任务规划师',
+                            icon: 'fas fa-chess',
+                            description: '负责任务分解和优先级排序',
+                            status: 'idle',
+                            tasksCompleted: 45,
+                            avgTime: 2.3,
+                            successRate: 98
+                        },
+                        {
+                            name: 'Architect',
+                            role: '系统架构师',
+                            icon: 'fas fa-building',
+                            description: '负责系统架构设计和技术选型',
+                            status: 'busy',
+                            tasksCompleted: 38,
+                            avgTime: 5.7,
+                            successRate: 96
+                        },
+                        {
+                            name: 'Coder',
+                            role: '代码工程师',
+                            icon: 'fas fa-laptop-code',
+                            description: '负责代码实现和功能开发',
+                            status: 'busy',
+                            tasksCompleted: 89,
+                            avgTime: 8.2,
+                            successRate: 94
+                        },
+                        {
+                            name: 'Tester',
+                            role: '测试工程师',
+                            icon: 'fas fa-bug',
+                            description: '负责测试用例和质量保障',
+                            status: 'idle',
+                            tasksCompleted: 67,
+                            avgTime: 4.5,
+                            successRate: 97
+                        },
+                        {
+                            name: 'DocWriter',
+                            role: '文档工程师',
+                            icon: 'fas fa-file-alt',
+                            description: '负责技术文档编写',
+                            status: 'idle',
+                            tasksCompleted: 52,
+                            avgTime: 3.8,
+                            successRate: 99
+                        }
+                    ],
+                    tasks: [
+                        {
+                            id: 1,
+                            title: '创建用户管理 API',
+                            description: '实现用户注册、登录、权限管理等功能',
+                            priority: 'high',
+                            priorityText: '高优先级',
+                            status: 'in_progress',
+                            statusText: '进行中',
+                            assignee: '张三',
+                            agent: 'Coder',
+                            createdAt: '2026-03-03 10:30'
+                        },
+                        {
+                            id: 2,
+                            title: '数据库设计',
+                            description: '设计用户表和权限表结构',
+                            priority: 'normal',
+                            priorityText: '中优先级',
+                            status: 'completed',
+                            statusText: '已完成',
+                            assignee: '李四',
+                            agent: 'Architect',
+                            createdAt: '2026-03-03 09:15'
+                        },
+                        {
+                            id: 3,
+                            title: '编写测试用例',
+                            description: '为 API 接口编写单元测试',
+                            priority: 'normal',
+                            priorityText: '中优先级',
+                            status: 'pending',
+                            statusText: '待处理',
+                            assignee: '王五',
+                            agent: 'Tester',
+                            createdAt: '2026-03-03 11:00'
+                        }
+                    ],
+                    recentTasks: [
+                        { id: 1, title: '创建用户管理 API', description: '实现用户注册、登录', status: 'success', time: '10 分钟前' },
+                        { id: 2, title: '数据库设计', description: '设计表结构', status: 'success', time: '30 分钟前' },
+                        { id: 3, title: '编写测试用例', description: '单元测试', status: 'pending', time: '1 小时前' }
+                    ],
+                    newTask: {
+                        title: '',
+                        description: '',
+                        priority: 'normal'
+                    }
+                }
+            },
+            methods: {
+                statusColor(status) {
+                    const colors = {
+                        success: 'bg-green-500',
+                        pending: 'bg-yellow-500',
+                        error: 'bg-red-500'
+                    };
+                    return colors[status] || 'bg-gray-500';
+                },
+                priorityColor(priority) {
+                    const colors = {
+                        low: 'bg-gray-500',
+                        normal: 'bg-blue-500',
+                        high: 'bg-orange-500',
+                        critical: 'bg-red-600'
+                    };
+                    return colors[priority] || 'bg-gray-500';
+                },
+                statusBadge(status) {
+                    const badges = {
+                        pending: 'bg-yellow-100 text-yellow-700',
+                        in_progress: 'bg-blue-100 text-blue-700',
+                        completed: 'bg-green-100 text-green-700',
+                        failed: 'bg-red-100 text-red-700'
+                    };
+                    return badges[status] || 'bg-gray-100 text-gray-700';
+                },
+                createTask() {
+                    console.log('创建任务:', this.newTask);
+                    this.showCreateTask = false;
+                    this.newTask = { title: '', description: '', priority: 'normal' };
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
