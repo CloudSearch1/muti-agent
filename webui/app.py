@@ -4,11 +4,14 @@ IntelliTeam Web UI
 基于 FastAPI + Vue 3 的 Web 管理界面
 """
 
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import asyncio
+from datetime import datetime
+from typing import Dict, List
 
 app = FastAPI(title="IntelliTeam Web UI")
 
@@ -26,6 +29,162 @@ try:
     app.mount("/static", StaticFiles(directory="webui/static"), name="static")
 except:
     pass
+
+# ============ API 路由 ============
+
+@app.get("/api/v1/stats")
+async def get_stats():
+    """获取系统统计"""
+    return {
+        "totalTasks": 156,
+        "activeAgents": 8,
+        "completionRate": 93,
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api/v1/agents")
+async def get_agents():
+    """获取 Agent 列表"""
+    return [
+        {
+            "name": "Planner",
+            "role": "任务规划师",
+            "icon": "📋",
+            "description": "负责任务分解和优先级排序",
+            "status": "idle",
+            "tasksCompleted": 45,
+            "avgTime": 2.3,
+            "successRate": 98
+        },
+        {
+            "name": "Architect",
+            "role": "系统架构师",
+            "icon": "🏗️",
+            "description": "负责系统架构设计和技术选型",
+            "status": "busy",
+            "tasksCompleted": 38,
+            "avgTime": 5.7,
+            "successRate": 96
+        },
+        {
+            "name": "Coder",
+            "role": "代码工程师",
+            "icon": "💻",
+            "description": "负责代码实现和功能开发",
+            "status": "busy",
+            "tasksCompleted": 89,
+            "avgTime": 8.2,
+            "successRate": 94
+        },
+        {
+            "name": "Tester",
+            "role": "测试工程师",
+            "icon": "🧪",
+            "description": "负责测试用例和质量保障",
+            "status": "idle",
+            "tasksCompleted": 67,
+            "avgTime": 4.5,
+            "successRate": 97
+        },
+        {
+            "name": "DocWriter",
+            "role": "文档工程师",
+            "icon": "📄",
+            "description": "负责技术文档编写",
+            "status": "idle",
+            "tasksCompleted": 52,
+            "avgTime": 3.8,
+            "successRate": 99
+        },
+        {
+            "name": "SeniorArchitect",
+            "role": "资深架构师",
+            "icon": "🎯",
+            "description": "负责复杂系统设计和代码审查",
+            "status": "idle",
+            "tasksCompleted": 23,
+            "avgTime": 12.5,
+            "successRate": 98
+        },
+        {
+            "name": "ResearchAgent",
+            "role": "研究助手",
+            "icon": "🔍",
+            "description": "负责文献调研和技术分析",
+            "status": "idle",
+            "tasksCompleted": 15,
+            "avgTime": 6.8,
+            "successRate": 95
+        }
+    ]
+
+@app.get("/api/v1/tasks")
+async def get_tasks():
+    """获取任务列表"""
+    return [
+        {
+            "id": 1,
+            "title": "创建用户管理 API",
+            "description": "实现用户注册、登录、权限管理等功能",
+            "priority": "high",
+            "priorityText": "高优先级",
+            "status": "in_progress",
+            "statusText": "进行中",
+            "assignee": "张三",
+            "agent": "Coder",
+            "createdAt": "2026-03-03 10:30"
+        },
+        {
+            "id": 2,
+            "title": "数据库设计",
+            "description": "设计用户表和权限表结构",
+            "priority": "normal",
+            "priorityText": "中优先级",
+            "status": "completed",
+            "statusText": "已完成",
+            "assignee": "李四",
+            "agent": "Architect",
+            "createdAt": "2026-03-03 09:15"
+        },
+        {
+            "id": 3,
+            "title": "编写测试用例",
+            "description": "为 API 接口编写单元测试",
+            "priority": "normal",
+            "priorityText": "中优先级",
+            "status": "pending",
+            "statusText": "待处理",
+            "assignee": "王五",
+            "agent": "Tester",
+            "createdAt": "2026-03-03 11:00"
+        }
+    ]
+
+@app.post("/api/v1/tasks")
+async def create_task(task: dict):
+    """创建新任务"""
+    return {
+        "status": "success",
+        "message": "任务创建成功",
+        "taskId": f"task-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    }
+
+@app.get("/api/v1/workflows")
+async def get_workflows():
+    """获取工作流列表"""
+    return [
+        {
+            "id": 1,
+            "name": "标准研发流程",
+            "steps": [
+                {"name": "需求分析", "agent": "Planner", "icon": "📋"},
+                {"name": "架构设计", "agent": "Architect", "icon": "🏗️"},
+                {"name": "代码开发", "agent": "Coder", "icon": "💻"},
+                {"name": "测试", "agent": "Tester", "icon": "🧪"},
+                {"name": "文档", "agent": "DocWriter", "icon": "📄"}
+            ]
+        }
+    ]
 
 
 @app.get("/", response_class=HTMLResponse)
