@@ -22,15 +22,15 @@ class TaskModel(Base):
     __tablename__ = "tasks"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String(200), nullable=False)
+    title = Column(String(200), nullable=False, index=True)
     description = Column(Text, default="")
-    status = Column(String(50), default="pending")
-    priority = Column(String(50), default="normal")
-    assignee = Column(String(100))
-    agent = Column(String(100))
-    created_at = Column(DateTime, default=datetime.now)
+    status = Column(String(50), default="pending", index=True)
+    priority = Column(String(50), default="normal", index=True)
+    assignee = Column(String(100), index=True)
+    agent = Column(String(100), index=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    completed_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True, index=True)
 
 
 class AgentModel(Base):
@@ -38,14 +38,14 @@ class AgentModel(Base):
     __tablename__ = "agents"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), unique=True, nullable=False)
-    role = Column(String(100), nullable=False)
+    name = Column(String(100), unique=True, nullable=False, index=True)
+    role = Column(String(100), nullable=False, index=True)
     description = Column(Text)
-    status = Column(String(50), default="idle")
+    status = Column(String(50), default="idle", index=True)
     tasks_completed = Column(Integer, default=0)
     avg_time = Column(Float, default=0.0)
     success_rate = Column(Float, default=100.0)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=datetime.now, index=True)
 
 
 class WorkflowModel(Base):
@@ -53,12 +53,12 @@ class WorkflowModel(Base):
     __tablename__ = "workflows"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(200), nullable=False)
-    state = Column(String(50), default="running")
+    name = Column(String(200), nullable=False, index=True)
+    state = Column(String(50), default="running", index=True)
     input_data = Column(Text)  # JSON string
     output_data = Column(Text)  # JSON string
-    created_at = Column(DateTime, default=datetime.now)
-    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    completed_at = Column(DateTime, nullable=True, index=True)
 
 
 class UserModel(Base):
@@ -88,10 +88,16 @@ class DatabaseManager:
     
     def connect(self) -> None:
         """连接数据库"""
+        # 优化连接池配置
         self.engine = create_async_engine(
             self.database_url,
             echo=False,
-            future=True
+            future=True,
+            pool_size=20,  # 连接池大小
+            max_overflow=10,  # 最大溢出连接数
+            pool_pre_ping=True,  # 连接前检查
+            pool_recycle=3600,  # 连接回收时间（秒）
+            pool_timeout=30  # 连接超时
         )
         self.async_session_maker = async_sessionmaker(
             self.engine,

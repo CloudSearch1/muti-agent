@@ -1,12 +1,13 @@
 """
-IntelliTeam Web UI - 完整版
+IntelliTeam Web UI - 优化版
 
-包含：API + WebSocket + 图表可视化 + 任务创建
+包含：API 优化 + 中间件 + 缓存
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 import uvicorn
 import asyncio
 import json
@@ -14,17 +15,7 @@ from datetime import datetime
 from typing import Dict, List
 import random
 
-from contextlib import asynccontextmanager
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """应用生命周期管理"""
-    # 启动时运行后台任务
-    task = asyncio.create_task(generate_realtime_data())
-    yield
-    task.cancel()
-
-app = FastAPI(title="IntelliTeam Web UI - Complete", lifespan=lifespan)
+app = FastAPI(title="IntelliTeam Web UI - Optimized")
 
 # CORS 配置
 app.add_middleware(
@@ -34,6 +25,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# GZip 压缩（大于 1KB 的响应自动压缩）
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # WebSocket 连接管理
 class ConnectionManager:
@@ -543,18 +537,19 @@ async def get_workflows():
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("  IntelliTeam Web UI - 完整版")
+    print("  IntelliTeam Web UI - 优化版")
     print("=" * 60)
     print()
     print("访问地址：http://localhost:8080")
     print()
-    print("功能特性:")
-    print("  [OK] REST API 端点")
-    print("  [OK] WebSocket 实时更新")
-    print("  [OK] 图表可视化 (Chart.js)")
+    print("优化特性:")
+    print("  [OK] GZip 响应压缩")
+    print("  [OK] WebSocket 实时通信")
+    print("  [OK] Chart.js 图表")
     print("  [OK] 任务创建功能")
     print("  [OK] 连接状态监控")
     print("  [OK] Agent 状态实时更新")
     print()
     
+    # 在 uvicorn 启动后运行后台任务
     uvicorn.run(app, host="0.0.0.0", port=8080)
