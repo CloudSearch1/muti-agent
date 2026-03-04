@@ -97,11 +97,18 @@ class TestTools(BaseTool):
         logger.info("Running tests", cmd=cmd)
 
         try:
+            import os
+            # 设置 PYTHONPATH 确保模块导入正确
+            env = os.environ.copy()
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            env["PYTHONPATH"] = project_root + ":" + env.get("PYTHONPATH", "")
+            
             # 执行测试
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
 
             stdout, stderr = await process.communicate()
