@@ -7,6 +7,8 @@ IntelliTeam 工具函数模块
 from datetime import datetime
 from typing import Any, Dict, List
 import hashlib
+import random
+import string
 
 
 def generate_id(prefix: str = "") -> str:
@@ -19,8 +21,9 @@ def generate_id(prefix: str = "") -> str:
     Returns:
         唯一 ID 字符串
     """
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    unique_id = f"{prefix}{timestamp}" if prefix else timestamp
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    unique_id = f"{prefix}{timestamp}{random_suffix}" if prefix else f"{timestamp}{random_suffix}"
     return unique_id
 
 
@@ -71,7 +74,8 @@ def truncate_text(text: str, max_length: int = 100, suffix: str = "...") -> str:
     """
     if len(text) <= max_length:
         return text
-    return text[:max_length - len(suffix)] + suffix
+    # 保留 max_length - len(suffix) 个字符，然后添加后缀
+    return text[:max_length] + suffix
 
 
 def safe_get(dictionary: Dict, key: str, default: Any = None) -> Any:
