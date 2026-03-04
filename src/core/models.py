@@ -319,6 +319,8 @@ class MessageType(str, Enum):
     RESPONSE = "response"
     ERROR = "error"
     STATUS = "status"
+    TASK = "task"
+    INFO = "info"
 
 
 class Message(BaseModel):
