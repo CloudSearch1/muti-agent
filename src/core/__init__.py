@@ -2,6 +2,22 @@
 核心模块
 """
 
+from .models import (
+    Agent,
+    AgentRole,
+    AgentState,
+    Task,
+    TaskStatus,
+    TaskPriority,
+    Workflow,
+    WorkflowStatus,
+    BlackboardEntry,
+    BlackboardMessage,
+    Message,
+    MessageType,
+    Blackboard,
+)
+
 from .exceptions import (
     AgentError,
     AgentExecutionError,
@@ -29,6 +45,21 @@ from .exceptions import (
 )
 
 __all__ = [
+    # Models
+    "Agent",
+    "AgentRole",
+    "AgentState",
+    "Task",
+    "TaskStatus",
+    "TaskPriority",
+    "Workflow",
+    "WorkflowStatus",
+    "BlackboardEntry",
+    "BlackboardMessage",
+    "Message",
+    "MessageType",
+    "Blackboard",
+    # Exceptions
     "IntelliTeamError",
     "AgentError",
     "AgentNotFoundError",

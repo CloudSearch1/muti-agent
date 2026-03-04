@@ -26,7 +26,7 @@ class ResearchAgent(BaseAgent):
     - 技术方案对比
     """
 
-    ROLE = AgentRole.ANALYST
+    ROLE = AgentRole.RESEARCHER
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
