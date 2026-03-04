@@ -63,8 +63,8 @@ class TestAuth:
         token = auth.create_token(user_id=1, username="test")
         token_data = auth.verify_token(token)
         assert token_data is not None
-        assert token_data.user_id == 1
-        assert token_data.username == "test"
+        assert token_data["user_id"] == 1
+        assert token_data["username"] == "test"
     
     def test_auth_manager_refresh_token(self):
         """测试刷新 Token"""

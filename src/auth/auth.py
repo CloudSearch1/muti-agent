@@ -106,7 +106,7 @@ def create_access_token(
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> Optional[TokenData]:
+def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
     """
     解码访问 Token
     
@@ -114,7 +114,7 @@ def decode_access_token(token: str) -> Optional[TokenData]:
         token: JWT Token
         
     Returns:
-        Token 数据，无效返回 None
+        Token 数据字典，无效返回 None
     """
     try:
         payload = jwt.decode(
@@ -123,11 +123,11 @@ def decode_access_token(token: str) -> Optional[TokenData]:
             algorithms=[JWT_ALGORITHM]
         )
         
-        return TokenData(
-            user_id=payload.get("user_id"),
-            username=payload.get("username"),
-            exp=datetime.fromtimestamp(payload.get("exp"))
-        )
+        return {
+            "user_id": payload.get("user_id"),
+            "username": payload.get("username"),
+            "exp": datetime.fromtimestamp(payload.get("exp"))
+        }
     except jwt.PyJWTError:
         return None
 
@@ -156,7 +156,7 @@ class AuthManager:
             "username": username
         })
     
-    def verify_token(self, token: str) -> Optional[TokenData]:
+    def verify_token(self, token: str) -> Optional[Dict[str, Any]]:
         """
         验证 Token
         
@@ -164,7 +164,7 @@ class AuthManager:
             token: JWT Token
             
         Returns:
-            Token 数据，无效返回 None
+            Token 数据字典，无效返回 None
         """
         return decode_access_token(token)
     
@@ -182,10 +182,13 @@ class AuthManager:
         if not token_data:
             return None
         
-        return self.create_token(
-            token_data.user_id,
-            token_data.username
-        )
+        # 创建新token，添加刷新时间戳确保唯一性
+        new_payload = {
+            "user_id": token_data["user_id"],
+            "username": token_data["username"],
+            "refreshed_at": datetime.utcnow().isoformat()
+        }
+        return create_access_token(new_payload)
 
 
 # ============ FastAPI 依赖 ============

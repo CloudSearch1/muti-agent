@@ -24,7 +24,7 @@ class TestHelpers:
         id1 = generate_id()
         id2 = generate_id()
         assert id1 != id2  # 每次生成不同
-        assert len(id1) == 14  # 时间戳格式
+        assert len(id1) > 14  # 时间戳格式 + 随机后缀
     
     def test_generate_id_with_prefix(self):
         """测试带前缀的 ID"""
