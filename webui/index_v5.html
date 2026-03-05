@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="IntelliTeam - 智能研发协作平台">
+    <title>IntelliTeam - 智能研发协作平台</title>
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://unpkg.com">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.js"></script>
+    
+    <!-- Vue 3 (使用 jsdelivr CDN，更可靠) -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.js" defer></script>
+    
+    <!-- Chart.js (使用 jsdelivr CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    
+    <!-- FontAwesome (使用 jsdelivr CDN) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+    
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95' },
+                        dark: { 100: '#1e1e2e', 200: '#181825', 300: '#11111b', 400: '#0d0d14' }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* 自定义样式 */
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-dark { background: linear-gradient(135deg, #1e1e2e 0%, #2d1b69 100%); }
+        .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.15); }
+        .dark .card-hover:hover { box-shadow: 0 12px 24px rgba(0,0,0,0.4); }
+        
+        /* 加载动画 */
+        .loading-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        /* 脉冲动画 */
+        .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .hide-mobile { display: none; }
+            .nav-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .nav-scroll::-webkit-scrollbar { display: none; }
+        }
+        
+        /* 深色模式过渡 */
+        html { transition: background-color 0.3s ease, color 0.3s ease; }
+        
+        /* 快捷键提示 */
+        .kbd { 
+            display: inline-block; 
+            padding: 2px 6px; 
+            font-size: 11px; 
+            font-family: monospace; 
+            background: rgba(0,0,0,0.1); 
+            border-radius: 4px; 
+            border: 1px solid rgba(0,0,0,0.2);
+        }
+        .dark .kbd { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+        
+        /* 滚动条美化 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a78bfa; }
+        .dark ::-webkit-scrollbar-thumb { background: #4c1d95; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #6d28d9; }
+        
+        /* 触摸优化 */
+        @media (hover: none) {
+            .card-hover:hover { transform: none; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-dark-300 text-gray-900 dark:text-gray-100 transition-colors">
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="fixed inset-0 bg-white/80 dark:bg-dark-300/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div class="text-center">
+                <i class="fas fa-circle-notch text-4xl text-primary-600 loading-spin mb-4"></i>
+                <p class="text-gray-600 dark:text-gray-400">加载中...</p>
+            </div>
+        </div>
+        
+        <!-- 顶部导航栏 -->
+        <nav class="gradient-bg dark:gradient-dark text-white shadow-lg sticky top-0 z-40">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex justify-between items-center">
+                    <!-- Logo -->
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-robot text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-bold">IntelliTeam</h1>
+                            <p class="text-xs opacity-70 hide-mobile">智能研发协作平台</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 主导航 (桌面端) -->
+                    <div class="hidden md:flex items-center space-x-2 nav-scroll">
+                        <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-home mr-2"></i><span class="hide-mobile">仪表盘</span>
+                        </button>
+                        <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-tasks mr-2"></i><span class="hide-mobile">任务</span>
+                        </button>
+                        <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-users mr-2"></i><span class="hide-mobile">Agent</span>
+                        </button>
+                        <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-project-diagram mr-2"></i><span class="hide-mobile">工作流</span>
+                        </button>
+                        <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-chart-line mr-2"></i><span class="hide-mobile">分析</span>
+                        </button>
+                    </div>
+                    
+                    <!-- 右侧工具 -->
+                    <div class="flex items-center space-x-2">
+                        <!-- 搜索框 (桌面端) -->
+                        <div class="hidden md:block relative">
+                            <input 
+                                v-model="searchQuery" 
+                                @input="debouncedSearch"
+                                type="text" 
+                                placeholder="搜索... (Ctrl+K)" 
+                                class="w-48 pl-10 pr-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:bg-white/20 focus:border-white/40 transition"
+                            >
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-white/60"></i>
+                        </div>
+                        
+                        <!-- 深色模式切换 -->
+                        <button @click="toggleDarkMode" :title="isDark ? '浅色模式' : '深色模式'" class="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition">
+                            <i :class="isDark ? 'fas fa-sun' : 'fas fa-moon'"></i>
+                        </button>
+                        
+                        <!-- 通知 -->
+                        <button @click="showNotifications = !showNotifications" class="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition relative">
+                            <i class="fas fa-bell"></i>
+                            <span v-if="notifications.length > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center">{{ notifications.length }}</span>
+                        </button>
+                        
+                        <!-- 快捷键帮助 -->
+                        <button @click="showShortcuts = true" class="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition hide-mobile" title="快捷键 (?">
+                            <i class="fas fa-keyboard"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 移动端导航 -->
+                <div class="md:hidden flex justify-center space-x-1 mt-3 nav-scroll pb-1">
+                    <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                        <i class="fas fa-home"></i>
+                    </button>
+                    <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                        <i class="fas fa-tasks"></i>
+                    </button>
+                    <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                        <i class="fas fa-users"></i>
+                    </button>
+                    <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                        <i class="fas fa-project-diagram"></i>
+                    </button>
+                    <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                        <i class="fas fa-chart-line"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <!-- 仪表盘 -->
+            <div v-if="currentTab === 'dashboard'" class="space-y-6">
+                <!-- 统计卡片 -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-5 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400 text-sm">总任务数</p>
+                                <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ stats.totalTasks }}</p>
+                                <p class="text-xs text-green-600 mt-1"><i class="fas fa-arrow-up"></i> +12% 本周</p>
+                            </div>
+                            <div class="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-xl">
+                                <i class="fas fa-tasks text-blue-600 dark:text-blue-400 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-5 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400 text-sm">活跃 Agent</p>
+                                <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ stats.activeAgents }}</p>
+                                <p class="text-xs text-green-600 mt-1"><i class="fas fa-check"></i> 全部在线</p>
+                            </div>
+                            <div class="bg-green-100 dark:bg-green-900/30 p-4 rounded-xl">
+                                <i class="fas fa-robot text-green-600 dark:text-green-400 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-5 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400 text-sm">完成率</p>
+                                <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ stats.completionRate }}%</p>
+                                <p class="text-xs text-green-600 mt-1"><i class="fas fa-arrow-up"></i> +3% 上周</p>
+                            </div>
+                            <div class="bg-purple-100 dark:bg-purple-900/30 p-4 rounded-xl">
+                                <i class="fas fa-chart-line text-purple-600 dark:text-purple-400 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-5 card-hover">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400 text-sm">系统状态</p>
+                                <p class="text-lg font-bold text-green-600 dark:text-green-400">运行中</p>
+                                <p class="text-xs text-gray-500 mt-1">延迟：{{ systemLatency }}ms</p>
+                            </div>
+                            <div class="bg-green-100 dark:bg-green-900/30 p-4 rounded-xl">
+                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-2xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 实时图表 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+                            <i class="fas fa-chart-area mr-2 text-primary-600"></i>任务趋势
+                        </h3>
+                        <canvas id="taskTrendChart" height="200"></canvas>
+                    </div>
+                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
+                            <i class="fas fa-chart-pie mr-2 text-primary-600"></i>Agent 效率分布
+                        </h3>
+                        <canvas id="agentEfficiencyChart" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Agent 状态 -->
+                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">
+                            <i class="fas fa-robot mr-2 text-primary-600"></i>Agent 实时状态
+                        </h3>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">
+                            <i class="fas fa-circle text-green-500 mr-1 pulse-dot"></i>实时更新
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div v-for="agent in agents" :key="agent.name" class="border dark:border-dark-100 rounded-xl p-4 hover:shadow-md transition">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center">
+                                        <i :class="agent.icon" class="text-primary-600 dark:text-primary-400"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-gray-800 dark:text-gray-100">{{ agent.name }}</h4>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ agent.role }}</p>
+                                    </div>
+                                </div>
+                                <span :class="agent.status === 'idle' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'" class="px-2 py-1 rounded text-xs font-medium">
+                                    {{ agent.status === 'idle' ? '空闲' : '工作中' }}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                                <span><i class="fas fa-check-circle text-green-500 mr-1"></i>{{ agent.tasksCompleted }} 完成</span>
+                                <span><i class="fas fa-clock text-blue-500 mr-1"></i>{{ agent.avgTime }}s</span>
+                            </div>
+                            <div class="mt-3 bg-gray-200 dark:bg-dark-100 rounded-full h-2 overflow-hidden">
+                                <div :class="agent.status === 'busy' ? 'bg-gradient-to-r from-primary-500 to-purple-500' : 'bg-green-500'" class="h-full rounded-full transition-all duration-500" :style="{ width: agent.status === 'busy' ? '75%' : '0%' }"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近任务 -->
+                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">
+                            <i class="fas fa-list mr-2 text-primary-600"></i>最近任务
+                        </h3>
+                        <button @click="currentTab = 'tasks'" class="text-primary-600 hover:text-primary-700 text-sm font-medium">查看全部 →</button>
+                    </div>
+                    <div class="space-y-3">
+                        <div v-for="task in recentTasks" :key="task.id" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-100 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-100/50 transition cursor-pointer" @click="viewTask(task.id)">
+                            <div class="flex items-center space-x-3 flex-1 min-w-0">
+                                <span :class="statusColor(task.status)" class="w-3 h-3 rounded-full flex-shrink-0"></span>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-gray-800 dark:text-gray-100 truncate">{{ task.title }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ task.description }}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+                                <span class="hide-mobile"><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
+                                <span><i class="fas fa-clock mr-1"></i>{{ task.time }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务管理 -->
+            <div v-if="currentTab === 'tasks'" class="space-y-6">
+                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                <i class="fas fa-tasks mr-2 text-primary-600"></i>任务管理
+                            </h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">共 {{ filteredTasks.length }} 个任务</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <!-- 搜索框 (移动端) -->
+                            <div class="relative md:hidden">
+                                <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="搜索任务..." class="w-40 pl-8 pr-3 py-2 rounded-lg border dark:border-dark-100 bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            </div>
+                            <button @click="showCreateTask = true" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition flex items-center">
+                                <i class="fas fa-plus mr-2"></i>新建任务
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 过滤器 -->
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <button @click="taskFilter = 'all'" :class="taskFilter === 'all' ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300'" class="px-3 py-1.5 rounded-lg text-sm transition">全部</button>
+                        <button @click="taskFilter = 'pending'" :class="taskFilter === 'pending' ? 'bg-yellow-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300'" class="px-3 py-1.5 rounded-lg text-sm transition">待处理</button>
+                        <button @click="taskFilter = 'in_progress'" :class="taskFilter === 'in_progress' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300'" class="px-3 py-1.5 rounded-lg text-sm transition">进行中</button>
+                        <button @click="taskFilter = 'completed'" :class="taskFilter === 'completed' ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300'" class="px-3 py-1.5 rounded-lg text-sm transition">已完成</button>
+                    </div>
+
+                    <!-- 任务列表 -->
+                    <div class="space-y-3">
+                        <div v-for="task in filteredTasks" :key="task.id" class="border dark:border-dark-100 rounded-xl p-4 hover:shadow-md transition cursor-pointer" @click="viewTask(task.id)">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                                        <h3 class="font-semibold text-gray-800 dark:text-gray-100">{{ task.title }}</h3>
+                                        <span :class="priorityClass(task.priority)" class="px-2 py-0.5 rounded text-xs text-white font-medium">{{ task.priorityText }}</span>
+                                        <span :class="statusBadge(task.status)" class="px-2 py-0.5 rounded text-xs font-medium">{{ task.statusText }}</span>
+                                    </div>
+                                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">{{ task.description }}</p>
+                                    <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                                        <span><i class="fas fa-user mr-1"></i>{{ task.assignee }}</span>
+                                        <span><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
+                                        <span><i class="fas fa-clock mr-1"></i>{{ task.createdAt }}</span>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <button @click.stop="editTask(task)" class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition" title="编辑">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button @click.stop="deleteTask(task.id)" class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition" title="删除">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 空状态 -->
+                    <div v-if="filteredTasks.length === 0" class="text-center py-12">
+                        <i class="fas fa-inbox text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
+                        <p class="text-gray-500 dark:text-gray-400">暂无任务</p>
+                        <button @click="showCreateTask = true" class="mt-4 text-primary-600 hover:text-primary-700 font-medium">创建第一个任务 →</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent 管理 -->
+            <div v-if="currentTab === 'agents'" class="space-y-6">
+                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
+                                <i class="fas fa-users mr-2 text-primary-600"></i>Agent 团队
+                            </h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ agents.length }} 个智能体</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-500 dark:text-gray-400">
+                                <i class="fas fa-circle text-green-500 mr-1"></i>{{ activeAgentsCount }} 在线
+                            </span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div v-for="agent in agents" :key="agent.name" class="border dark:border-dark-100 rounded-xl p-6 hover:shadow-lg transition card-hover">
+                            <div class="flex items-center space-x-4 mb-4">
+                                <div class="w-14 h-14 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                    <i :class="agent.icon" class="text-white text-2xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-lg text-gray-800 dark:text-gray-100">{{ agent.name }}</h3>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ agent.role }}</p>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ agent.description }}</p>
+                            <div class="space-y-2 mb-4">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500 dark:text-gray-400">任务完成</span>
+                                    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ agent.tasksCompleted }}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500 dark:text-gray-400">平均耗时</span>
+                                    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ agent.avgTime }}s</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500 dark:text-gray-400">成功率</span>
+                                    <span class="font-semibold text-green-600 dark:text-green-400">{{ agent.successRate }}%</span>
+                                </div>
+                            </div>
+                            <div class="pt-4 border-t dark:border-dark-100">
+                                <div class="flex justify-between items-center">
+                                    <span :class="agent.status === 'idle' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'" class="text-sm font-medium flex items-center">
+                                        <i class="fas fa-circle text-xs mr-2" :class="agent.status === 'idle' ? 'text-green-500' : 'text-blue-500'"></i>
+                                        {{ agent.status === 'idle' ? '空闲' : '工作中' }}
+                                    </span>
+                                    <button class="text-primary-600 hover:text-primary-700 text-sm font-medium">详情 →</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 工作流 -->
+            <div v-if="currentTab === 'workflows'" class="space-y-6">
+                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                        <i class="fas fa-project-diagram mr-2 text-primary-600"></i>工作流
+                    </h2>
+                    
+                    <!-- 标准研发流程 -->
+                    <div class="border dark:border-dark-100 rounded-xl p-6 mb-6">
+                        <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-6">标准研发流程</h3>
+                        <div class="flex flex-wrap items-center justify-center gap-4">
+                            <div v-for="(step, index) in workflowSteps" :key="step.name" class="flex items-center">
+                                <div class="text-center">
+                                    <div class="w-16 h-16 mx-auto bg-gradient-to-br from-primary-500 to-purple-600 rounded-2xl flex items-center justify-center mb-2 shadow-lg">
+                                        <i :class="step.icon" class="text-white text-2xl"></i>
+                                    </div>
+                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ step.name }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ step.agent }}</p>
+                                </div>
+                                <div v-if="index < workflowSteps.length - 1" class="mx-2 md:mx-4 text-gray-300 dark:text-gray-600">
+                                    <i class="fas fa-chevron-right text-lg"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 工作流统计 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-blue-100 text-sm">活跃工作流</p>
+                                    <p class="text-3xl font-bold mt-1">12</p>
+                                </div>
+                                <i class="fas fa-sync text-4xl opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-5 text-white">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-green-100 text-sm">已完成</p>
+                                    <p class="text-3xl font-bold mt-1">145</p>
+                                </div>
+                                <i class="fas fa-check-circle text-4xl opacity-50"></i>
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-purple-100 text-sm">平均耗时</p>
+                                    <p class="text-3xl font-bold mt-1">4.2h</p>
+                                </div>
+                                <i class="fas fa-clock text-4xl opacity-50"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 数据分析 -->
+            <div v-if="currentTab === 'analytics'" class="space-y-6">
+                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">
+                        <i class="fas fa-chart-line mr-2 text-primary-600"></i>数据分析
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="border dark:border-dark-100 rounded-xl p-6">
+                            <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">任务完成趋势</h3>
+                            <canvas id="analyticsTaskTrend" height="250"></canvas>
+                        </div>
+                        <div class="border dark:border-dark-100 rounded-xl p-6">
+                            <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">Agent 效率对比</h3>
+                            <canvas id="analyticsAgentEfficiency" height="250"></canvas>
+                        </div>
+                        <div class="border dark:border-dark-100 rounded-xl p-6">
+                            <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">任务类型分布</h3>
+                            <canvas id="analyticsTaskType" height="250"></canvas>
+                        </div>
+                        <div class="border dark:border-dark-100 rounded-xl p-6">
+                            <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">每周活跃度</h3>
+                            <canvas id="analyticsWeeklyActivity" height="250"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 底部状态栏 -->
+        <footer class="bg-white dark:bg-dark-200 border-t dark:border-dark-100 py-3 px-4">
+            <div class="container mx-auto flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+                <div class="flex items-center space-x-4">
+                    <span><i class="fas fa-circle text-green-500 mr-1"></i>系统正常</span>
+                    <span class="hide-mobile">WebSocket: <span :class="wsConnected ? 'text-green-600' : 'text-yellow-600'">{{ wsConnected ? '已连接' : '重连中...' }}</span></span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="hide-mobile">最后更新：{{ lastUpdateTime }}</span>
+                    <span>IntelliTeam v2.0</span>
+                </div>
+            </div>
+        </footer>
+
+        <!-- 创建任务弹窗 -->
+        <div v-if="showCreateTask" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showCreateTask = false">
+            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center p-6 border-b dark:border-dark-100">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">创建新任务</h3>
+                    <button @click="showCreateTask = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">任务标题 <span class="text-red-500">*</span></label>
+                        <input v-model="newTask.title" type="text" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100" placeholder="输入任务标题">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">任务描述</label>
+                        <textarea v-model="newTask.description" rows="3" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100" placeholder="输入任务描述"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">优先级</label>
+                            <select v-model="newTask.priority" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100">
+                                <option value="low">低</option>
+                                <option value="normal">中</option>
+                                <option value="high">高</option>
+                                <option value="critical">紧急</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">负责人</label>
+                            <select v-model="newTask.assignee" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100">
+                                <option value="">选择负责人</option>
+                                <option value="张三">张三</option>
+                                <option value="李四">李四</option>
+                                <option value="王五">王五</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">分配 Agent</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button v-for="agent in agents" :key="agent.name" @click="newTask.agent = agent.name" :class="newTask.agent === agent.name ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-300 dark:border-dark-100 hover:border-primary-500'" class="px-3 py-2 border rounded-lg text-sm transition">
+                                {{ agent.name }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex space-x-3 p-6 border-t dark:border-dark-100 bg-gray-50 dark:bg-dark-100/50 rounded-b-2xl">
+                    <button @click="createTask" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2.5 rounded-lg transition font-medium">创建任务</button>
+                    <button @click="showCreateTask = false" class="flex-1 bg-gray-200 dark:bg-dark-100 hover:bg-gray-300 dark:hover:bg-dark-100 text-gray-700 dark:text-gray-300 py-2.5 rounded-lg transition font-medium">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 通知面板 -->
+        <div v-if="showNotifications" class="fixed top-20 right-4 w-80 bg-white dark:bg-dark-200 rounded-xl shadow-2xl z-50 border dark:border-dark-100" @click.self="showNotifications = false">
+            <div class="p-4 border-b dark:border-dark-100 flex justify-between items-center">
+                <h3 class="font-bold text-gray-800 dark:text-gray-100">通知</h3>
+                <button @click="markAllRead" class="text-sm text-primary-600 hover:text-primary-700">全部已读</button>
+            </div>
+            <div class="max-h-96 overflow-y-auto">
+                <div v-if="notifications.length === 0" class="p-8 text-center text-gray-500 dark:text-gray-400">
+                    <i class="fas fa-bell-slash text-4xl mb-3 opacity-50"></i>
+                    <p>暂无通知</p>
+                </div>
+                <div v-for="notif in notifications" :key="notif.id" :class="notif.read ? 'opacity-60' : ''" class="p-4 border-b dark:border-dark-100 hover:bg-gray-50 dark:hover:bg-dark-100 transition cursor-pointer">
+                    <div class="flex items-start space-x-3">
+                        <i :class="notif.icon" class="text-xl mt-0.5" :class="notif.type === 'success' ? 'text-green-500' : notif.type === 'warning' ? 'text-yellow-500' : 'text-blue-500'"></i>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ notif.message }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ notif.time }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快捷键帮助 -->
+        <div v-if="showShortcuts" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showShortcuts = false">
+            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-md">
+                <div class="flex justify-between items-center p-6 border-b dark:border-dark-100">
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">快捷键</h3>
+                    <button @click="showShortcuts = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700 dark:text-gray-300">搜索</span>
+                        <span class="kbd">Ctrl</span><span class="kbd">K</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700 dark:text-gray-300">新建任务</span>
+                        <span class="kbd">Ctrl</span><span class="kbd">N</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700 dark:text-gray-300">切换深色模式</span>
+                        <span class="kbd">Ctrl</span><span class="kbd">D</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700 dark:text-gray-300">刷新数据</span>
+                        <span class="kbd">Ctrl</span><span class="kbd">R</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700 dark:text-gray-300">显示快捷键</span>
+                        <span class="kbd">?</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast 通知 -->
+        <transition-group name="toast">
+            <div v-for="toast in toasts" :key="toast.id" :class="toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-blue-500'" class="fixed bottom-20 right-4 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 z-50">
+                <i :class="toast.type === 'success' ? 'fas fa-check-circle' : toast.type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle'"></i>
+                <span>{{ toast.message }}</span>
+            </div>
+        </transition-group>
+    </div>
+
+    <!-- 加载失败备用方案 -->
+    <script>
+        // 检测 Vue 是否加载成功
+        function checkVueLoaded() {
+            if (typeof Vue === 'undefined') {
+                console.warn('Vue CDN 加载失败，尝试备用 CDN...');
+                const script = document.createElement('script');
+                script.src = 'https://cdn.bootcdn.net/ajax/libs/vue/3.4.21/vue.global.min.js';
+                script.onload = () => console.log('Vue 从备用 CDN 加载成功');
+                script.onerror = () => console.error('Vue 所有 CDN 均失败');
+                document.head.appendChild(script);
+            }
+        }
+        
+        // 检测 Chart.js 是否加载成功
+        function checkChartLoaded() {
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js CDN 加载失败，尝试备用 CDN...');
+                const script = document.createElement('script');
+                script.src = 'https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+                script.onload = () => console.log('Chart.js 从备用 CDN 加载成功');
+                script.onerror = () => console.error('Chart.js 所有 CDN 均失败');
+                document.head.appendChild(script);
+            }
+        }
+        
+        // 页面加载完成后检测
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                checkVueLoaded();
+                checkChartLoaded();
+            }, 2000);
+        });
+        
+        // 延迟初始化，确保库已加载
+        function initApp() {
+            if (typeof Vue === 'undefined') {
+                console.warn('Vue 尚未加载，等待 1 秒后重试...');
+                setTimeout(initApp, 1000);
+                return;
+            }
+            
+            const { createApp } = Vue;
+
+            createApp({
+            data() {
+                return {
+                    loading: true,
+                    currentTab: 'dashboard',
+                    isDark: false,
+                    searchQuery: '',
+                    taskFilter: 'all',
+                    showCreateTask: false,
+                    showNotifications: false,
+                    showShortcuts: false,
+                    wsConnected: false,
+                    systemLatency: 0,
+                    lastUpdateTime: '--:--:--',
+                    
+                    stats: {
+                        totalTasks: 156,
+                        activeAgents: 8,
+                        completionRate: 93
+                    },
+                    
+                    agents: [
+                        { name: 'Planner', role: '任务规划师', icon: 'fas fa-clipboard-list', description: '负责任务分解和优先级排序', status: 'idle', tasksCompleted: 45, avgTime: 2.3, successRate: 98 },
+                        { name: 'Architect', role: '系统架构师', icon: 'fas fa-building', description: '负责系统架构设计和技术选型', status: 'busy', tasksCompleted: 38, avgTime: 5.7, successRate: 96 },
+                        { name: 'Coder', role: '代码工程师', icon: 'fas fa-laptop-code', description: '负责代码实现和功能开发', status: 'busy', tasksCompleted: 89, avgTime: 8.2, successRate: 94 },
+                        { name: 'Tester', role: '测试工程师', icon: 'fas fa-vial', description: '负责测试用例和质量保障', status: 'idle', tasksCompleted: 67, avgTime: 4.5, successRate: 97 },
+                        { name: 'DocWriter', role: '文档工程师', icon: 'fas fa-file-alt', description: '负责技术文档编写', status: 'idle', tasksCompleted: 52, avgTime: 3.8, successRate: 99 },
+                        { name: 'SeniorArchitect', role: '资深架构师', icon: 'fas fa-chess', description: '负责复杂系统设计和代码审查', status: 'idle', tasksCompleted: 23, avgTime: 12.5, successRate: 98 },
+                        { name: 'ResearchAgent', role: '研究助手', icon: 'fas fa-search', description: '负责文献调研和技术分析', status: 'idle', tasksCompleted: 15, avgTime: 6.8, successRate: 95 }
+                    ],
+                    
+                    tasks: [
+                        { id: 1, title: '创建用户管理 API', description: '实现用户注册、登录、权限管理等功能', priority: 'high', priorityText: '高优先级', status: 'in_progress', statusText: '进行中', assignee: '张三', agent: 'Coder', createdAt: '2026-03-03 10:30', time: '2 小时前' },
+                        { id: 2, title: '数据库设计', description: '设计用户表和权限表结构', priority: 'normal', priorityText: '中优先级', status: 'completed', statusText: '已完成', assignee: '李四', agent: 'Architect', createdAt: '2026-03-03 09:15', time: '3 小时前' },
+                        { id: 3, title: '编写测试用例', description: '为 API 接口编写单元测试', priority: 'normal', priorityText: '中优先级', status: 'pending', statusText: '待处理', assignee: '王五', agent: 'Tester', createdAt: '2026-03-03 11:00', time: '1 小时前' },
+                        { id: 4, title: '性能优化', description: '优化系统响应速度', priority: 'critical', priorityText: '紧急', status: 'in_progress', statusText: '进行中', assignee: '张三', agent: 'SeniorArchitect', createdAt: '2026-03-04 14:20', time: '30 分钟前' },
+                        { id: 5, title: '文档更新', description: '更新 API 文档和使用说明', priority: 'low', priorityText: '低优先级', status: 'pending', statusText: '待处理', assignee: '李四', agent: 'DocWriter', createdAt: '2026-03-04 16:45', time: '15 分钟前' }
+                    ],
+                    
+                    newTask: { title: '', description: '', priority: 'normal', assignee: '', agent: '' },
+                    
+                    workflowSteps: [
+                        { name: '需求分析', agent: 'Planner', icon: 'fas fa-clipboard-list' },
+                        { name: '架构设计', agent: 'Architect', icon: 'fas fa-building' },
+                        { name: '代码开发', agent: 'Coder', icon: 'fas fa-laptop-code' },
+                        { name: '测试', agent: 'Tester', icon: 'fas fa-vial' },
+                        { name: '文档', agent: 'DocWriter', icon: 'fas fa-file-alt' }
+                    ],
+                    
+                    notifications: [
+                        { id: 1, message: '任务 "创建用户管理 API" 已完成', type: 'success', icon: 'fas fa-check-circle', time: '5 分钟前', read: false },
+                        { id: 2, message: '系统检测到 3 个待处理任务', type: 'warning', icon: 'fas fa-exclamation-triangle', time: '10 分钟前', read: false },
+                        { id: 3, message: 'Coder 开始处理新任务', type: 'info', icon: 'fas fa-info-circle', time: '15 分钟前', read: true }
+                    ],
+                    
+                    toasts: [],
+                    
+                    charts: {}
+                }
+            },
+            
+            computed: {
+                filteredTasks() {
+                    let result = this.tasks;
+                    if (this.taskFilter !== 'all') {
+                        result = result.filter(t => t.status === this.taskFilter);
+                    }
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        result = result.filter(t => t.title.toLowerCase().includes(query) || t.description.toLowerCase().includes(query));
+                    }
+                    return result;
+                },
+                
+                recentTasks() {
+                    return this.tasks.slice(0, 5);
+                },
+                
+                activeAgentsCount() {
+                    return this.agents.filter(a => a.status === 'busy').length;
+                }
+            },
+            
+            methods: {
+                // 深色模式
+                toggleDarkMode() {
+                    this.isDark = !this.isDark;
+                    document.documentElement.classList.toggle('dark');
+                    localStorage.setItem('darkMode', this.isDark);
+                },
+                
+                // 加载深色模式偏好
+                loadDarkMode() {
+                    const saved = localStorage.getItem('darkMode');
+                    if (saved === 'true' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                        this.isDark = true;
+                        document.documentElement.classList.add('dark');
+                    }
+                },
+                
+                // 防抖搜索
+                debouncedSearch: function() {
+                    clearTimeout(this.searchTimeout);
+                    this.searchTimeout = setTimeout(() => {
+                        // 搜索逻辑
+                    }, 300);
+                },
+                
+                // 状态颜色
+                statusColor(status) {
+                    const colors = { pending: 'bg-yellow-500', in_progress: 'bg-blue-500', completed: 'bg-green-500', failed: 'bg-red-500' };
+                    return colors[status] || 'bg-gray-500';
+                },
+                
+                priorityClass(priority) {
+                    const classes = { low: 'bg-gray-500', normal: 'bg-blue-500', high: 'bg-orange-500', critical: 'bg-red-600' };
+                    return classes[priority] || 'bg-gray-500';
+                },
+                
+                statusBadge(status) {
+                    const badges = { 
+                        pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', 
+                        in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', 
+                        completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', 
+                        failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                    };
+                    return badges[status] || 'bg-gray-100 text-gray-700';
+                },
+                
+                // 创建任务
+                createTask() {
+                    if (!this.newTask.title) {
+                        this.showToast('请输入任务标题', 'error');
+                        return;
+                    }
+                    const task = {
+                        id: Date.now(),
+                        ...this.newTask,
+                        priorityText: { low: '低优先级', normal: '中优先级', high: '高优先级', critical: '紧急' }[this.newTask.priority],
+                        statusText: '待处理',
+                        status: 'pending',
+                        createdAt: new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                        time: '刚刚'
+                    };
+                    this.tasks.unshift(task);
+                    this.showCreateTask = false;
+                    this.newTask = { title: '', description: '', priority: 'normal', assignee: '', agent: '' };
+                    this.showToast('任务创建成功', 'success');
+                    this.addNotification('新任务已创建', 'info', 'fas fa-plus-circle');
+                },
+                
+                // 编辑任务
+                editTask(task) {
+                    this.showToast('编辑功能开发中', 'info');
+                },
+                
+                // 删除任务
+                deleteTask(taskId) {
+                    if (confirm('确定要删除这个任务吗？')) {
+                        this.tasks = this.tasks.filter(t => t.id !== taskId);
+                        this.showToast('任务已删除', 'success');
+                    }
+                },
+                
+                // 查看任务
+                viewTask(taskId) {
+                    this.showToast('任务详情开发中', 'info');
+                },
+                
+                // Toast 通知
+                showToast(message, type = 'info') {
+                    const id = Date.now();
+                    this.toasts.push({ id, message, type });
+                    setTimeout(() => {
+                        this.toasts = this.toasts.filter(t => t.id !== id);
+                    }, 3000);
+                },
+                
+                // 添加通知
+                addNotification(message, type = 'info', icon = 'fas fa-info-circle') {
+                    const id = Date.now();
+                    this.notifications.unshift({
+                        id, message, type, icon,
+                        time: new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                        read: false
+                    });
+                },
+                
+                // 全部已读
+                markAllRead() {
+                    this.notifications = this.notifications.map(n => ({ ...n, read: true }));
+                },
+                
+                // 初始化图表
+                initCharts() {
+                    if (this.currentTab === 'dashboard') {
+                        this.initDashboardCharts();
+                    } else if (this.currentTab === 'analytics') {
+                        this.$nextTick(() => {
+                            this.initAnalyticsCharts();
+                        });
+                    }
+                },
+                
+                initDashboardCharts() {
+                    this.$nextTick(() => {
+                        // 任务趋势图
+                        const taskTrendCtx = document.getElementById('taskTrendChart');
+                        if (taskTrendCtx) {
+                            this.charts.taskTrend = new Chart(taskTrendCtx, {
+                                type: 'line',
+                                data: {
+                                    labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                                    datasets: [{
+                                        label: '完成任务',
+                                        data: [12, 19, 15, 25, 22, 18, 24],
+                                        borderColor: '#8b5cf6',
+                                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                        fill: true,
+                                        tension: 0.4
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: { legend: { display: false } },
+                                    scales: {
+                                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                                        x: { grid: { display: false } }
+                                    }
+                                }
+                            });
+                        }
+                        
+                        // Agent 效率图
+                        const agentEfficiencyCtx = document.getElementById('agentEfficiencyChart');
+                        if (agentEfficiencyCtx) {
+                            this.charts.agentEfficiency = new Chart(agentEfficiencyCtx, {
+                                type: 'doughnut',
+                                data: {
+                                    labels: ['Planner', 'Architect', 'Coder', 'Tester', 'DocWriter'],
+                                    datasets: [{
+                                        data: [45, 38, 89, 67, 52],
+                                        backgroundColor: ['#8b5cf6', '#667eea', '#10b981', '#f59e0b', '#ef4444']
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: { legend: { position: 'right' } }
+                                }
+                            });
+                        }
+                    });
+                },
+                
+                initAnalyticsCharts() {
+                    this.$nextTick(() => {
+                        // 分析页面图表
+                        const charts = [
+                            { id: 'analyticsTaskTrend', type: 'line', label: '任务完成', data: [10, 15, 13, 20, 25, 30, 28] },
+                            { id: 'analyticsAgentEfficiency', type: 'bar', label: '效率', data: [98, 96, 94, 97, 99] },
+                            { id: 'analyticsTaskType', type: 'pie', label: '类型', data: [40, 30, 20, 10] },
+                            { id: 'analyticsWeeklyActivity', type: 'line', label: '活跃度', data: [65, 72, 68, 85, 90, 75, 80] }
+                        ];
+                        
+                        charts.forEach(chart => {
+                            const ctx = document.getElementById(chart.id);
+                            if (ctx && !this.charts[chart.id]) {
+                                this.charts[chart.id] = new Chart(ctx, {
+                                    type: chart.type,
+                                    data: {
+                                        labels: chart.type === 'pie' ? ['开发', '测试', '文档', '其他'] : ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                                        datasets: [{
+                                            label: chart.label,
+                                            data: chart.data,
+                                            backgroundColor: ['#8b5cf6', '#667eea', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899'],
+                                            borderColor: '#8b5cf6',
+                                            tension: 0.4
+                                        }]
+                                    },
+                                    options: { responsive: true, maintainAspectRatio: false }
+                                });
+                            }
+                        });
+                    });
+                },
+                
+                // WebSocket 连接 (模拟)
+                connectWebSocket() {
+                    // 模拟 WebSocket 连接
+                    setTimeout(() => {
+                        this.wsConnected = true;
+                        this.updateSystemLatency();
+                    }, 1000);
+                    
+                    // 模拟实时数据更新
+                    setInterval(() => {
+                        this.lastUpdateTime = new Date().toLocaleTimeString('zh-CN');
+                        // 随机更新 Agent 状态
+                        const randomAgent = this.agents[Math.floor(Math.random() * this.agents.length)];
+                        randomAgent.status = randomAgent.status === 'idle' ? 'busy' : 'idle';
+                    }, 5000);
+                },
+                
+                updateSystemLatency() {
+                    this.systemLatency = Math.floor(Math.random() * 50) + 10;
+                    setTimeout(() => this.updateSystemLatency(), 3000);
+                },
+                
+                // 快捷键
+                handleKeydown(e) {
+                    // Ctrl+K 搜索
+                    if (e.ctrlKey && e.key === 'k') {
+                        e.preventDefault();
+                        document.querySelector('input[placeholder*="搜索"]')?.focus();
+                    }
+                    // Ctrl+N 新建任务
+                    if (e.ctrlKey && e.key === 'n') {
+                        e.preventDefault();
+                        this.showCreateTask = true;
+                    }
+                    // Ctrl+D 深色模式
+                    if (e.ctrlKey && e.key === 'd') {
+                        e.preventDefault();
+                        this.toggleDarkMode();
+                    }
+                    // Ctrl+R 刷新
+                    if (e.ctrlKey && e.key === 'r') {
+                        e.preventDefault();
+                        this.showToast('数据已刷新', 'success');
+                    }
+                    // ? 快捷键帮助
+                    if (e.key === '?' && !e.ctrlKey) {
+                        e.preventDefault();
+                        this.showShortcuts = true;
+                    }
+                },
+                
+                // 加载数据
+                async loadData() {
+                    try {
+                        // 模拟 API 调用
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                        this.loading = false;
+                    } catch (error) {
+                        this.showToast('加载失败', 'error');
+                    }
+                }
+            },
+            
+            mounted() {
+                this.loadDarkMode();
+                this.loadData();
+                this.connectWebSocket();
+                document.addEventListener('keydown', this.handleKeydown);
+            },
+            
+            watch: {
+                currentTab(newTab) {
+                    this.initCharts();
+                }
+            },
+            
+            beforeUnmount() {
+                document.removeEventListener('keydown', this.handleKeydown);
+                Object.values(this.charts).forEach(chart => chart.destroy());
+            }
+        }).mount('#app');
+        
+        console.log('✅ IntelliTeam Web UI v5.0 初始化成功');
+    </script>
+    
+    <!-- Toast 动画 -->
+    <style>
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(100%); }
+    </style>
+</body>
+</html>
