@@ -86,8 +86,8 @@ class TestTools(BaseTool):
         verbose = options.get("verbose", False)
         fail_fast = options.get("fail_fast", False)
 
-        # 构建命令
-        cmd = [self.test_framework, test_path]
+        # 构建命令 - 使用 python -m pytest 确保能找到模块
+        cmd = ["python3", "-m", self.test_framework, test_path]
 
         if verbose:
             cmd.append("-v")
