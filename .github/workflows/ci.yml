@@ -39,30 +39,6 @@ jobs:
   # 单元测试
   test:
     runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: intelliteam_test
-          POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    
     steps:
       - uses: actions/checkout@v4
       
@@ -78,11 +54,19 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-asyncio
       
-      - name: Run tests
-        env:
-          PYTHONPATH: ${{ github.workspace }}
+      - name: Debug - Check Python path
         run: |
-          pytest tests/ -v --cov=src --cov-report=xml --tb=short
+          echo "Current directory: $(pwd)"
+          echo "Python version: $(python --version)"
+          echo "PYTHONPATH: $PYTHONPATH"
+          echo "Files in current directory:"
+          ls -la
+          echo "Files in src/:"
+          ls -la src/
+      
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short
       
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -150,6 +134,9 @@ jobs:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production..."
       - name: Deploy to production
         run: |
           echo "Deploying to production..."
