@@ -9,7 +9,7 @@ import pytest
 from src.tools.base import BaseTool, ToolParameter, ToolResult
 from src.tools.code_tools import CodeTools
 from src.tools.registry import ToolRegistry, get_registry
-from src.tools.test_tools import TestTools
+from src.tools.test_tools import TestingTools
 
 # ===========================================
 # BaseTool 测试
@@ -249,9 +249,9 @@ class TestTestTools:
 
     def test_test_tools_creation(self):
         """测试测试工具创建"""
-        tools = TestTools()
+        tools = TestingTools()
 
-        assert tools.NAME == "test_tools"
+        assert tools.NAME == "testing_tools"
         assert tools.test_framework == "pytest"
 
     @pytest.mark.asyncio
@@ -260,9 +260,9 @@ class TestTestTools:
         # 这个测试会递归运行测试，导致无限循环
         # 在实际环境中，应该使用模拟或特定的测试文件
         # 这里我们只是验证 TestTools 可以正确初始化
-        tools = TestTools()
+        tools = TestingTools()
         assert tools is not None
-        assert tools.NAME == "test_tools"
+        assert tools.NAME == "testing_tools"
 
 
 # ===========================================

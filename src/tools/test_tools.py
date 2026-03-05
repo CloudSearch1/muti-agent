@@ -14,7 +14,8 @@ from .base import BaseTool, ToolParameter, ToolResult
 logger = structlog.get_logger(__name__)
 
 
-class TestTools(BaseTool):
+class TestingTools(BaseTool):
+    __test__ = False  # Prevent pytest from collecting this as a test class
     """
     测试工具集
 
@@ -24,7 +25,7 @@ class TestTools(BaseTool):
     - 测试报告生成
     """
 
-    NAME = "test_tools"
+    NAME = "testing_tools"
     DESCRIPTION = "测试相关工具集合"
 
     def __init__(self, **kwargs):

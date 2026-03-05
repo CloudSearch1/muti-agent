@@ -7,7 +7,7 @@
 from typing import Any
 
 import structlog
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from .base import BaseTool, ToolResult
 
@@ -21,11 +21,10 @@ class ToolRegistry(BaseModel):
     单例模式，管理所有可用工具
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     tools: dict[str, BaseTool] = {}
     enabled: bool = True
-
-    class Config:
-        arbitrary_types_allowed = True
 
     def register(self, tool: BaseTool) -> bool:
         """

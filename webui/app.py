@@ -5,20 +5,17 @@ IntelliTeam Web UI - v5.1
 优化版本：添加 Gzip 压缩、响应缓存、性能优化
 """
 
-from fastapi import FastAPI, Request, HTTPException, WebSocket
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-import uvicorn
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-import random
-import hashlib
-import json
 import csv
 import io
+import random
+from datetime import datetime, timedelta
+
+import uvicorn
+from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="IntelliTeam Web UI v5.1")
 
@@ -45,23 +42,23 @@ except Exception as e:
 class ResponseCache:
     """简单的内存缓存"""
     def __init__(self, ttl_seconds: int = 60):
-        self._cache: Dict[str, dict] = {}
+        self._cache: dict[str, dict] = {}
         self._ttl = timedelta(seconds=ttl_seconds)
-    
-    def get(self, key: str) -> Optional[dict]:
+
+    def get(self, key: str) -> dict | None:
         if key in self._cache:
             entry = self._cache[key]
             if datetime.now() < entry['expires']:
                 return entry['data']
             del self._cache[key]
         return None
-    
+
     def set(self, key: str, data: dict):
         self._cache[key] = {
             'data': data,
             'expires': datetime.now() + self._ttl
         }
-    
+
     def invalidate(self, key: str):
         if key in self._cache:
             del self._cache[key]
@@ -108,45 +105,41 @@ WORKFLOWS_DATA = [
 async def root():
     """返回主页面"""
     from starlette.responses import HTMLResponse
-    
-    with open("webui/index_v5.html", "r", encoding="utf-8") as f:
+
+    with open("webui/index_v5.html", encoding="utf-8") as f:
         content = f.read()
-    
+
     return HTMLResponse(content=content)
 
 
 @app.get("/manifest.json")
 async def get_manifest():
     """返回 PWA manifest"""
-    from fastapi.responses import FileResponse
     return FileResponse(path="webui/manifest.json", media_type="application/json")
 
 
 @app.get("/offline.html")
 async def get_offline():
     """返回离线页面"""
-    from fastapi.responses import FileResponse
     return FileResponse(path="webui/offline.html", media_type="text/html")
 
 
 @app.get("/static/js/{filename:path}")
 async def get_static_js(filename: str):
     """返回静态 JS 文件"""
-    from fastapi.responses import FileResponse
     return FileResponse(path=f"webui/static/js/{filename}", media_type="application/javascript")
 
 
 @app.get("/static/images/{filename:path}")
 async def get_static_images(filename: str):
     """返回静态图片文件"""
-    from fastapi.responses import FileResponse
     import os
-    
+
     filepath = f"webui/static/images/{filename}"
     if not os.path.exists(filepath):
         # 如果具体尺寸图标不存在，返回 SVG 占位图
         return FileResponse(path="webui/static/images/icon.svg", media_type="image/svg+xml")
-    
+
     return FileResponse(path=filepath, media_type="image/png")
 
 
@@ -157,7 +150,7 @@ async def get_stats():
     cached = response_cache.get(cache_key)
     if cached:
         return cached
-    
+
     data = {
         "totalTasks": len(TASKS_DATA),
         "activeAgents": len([a for a in AGENTS_DATA if a["status"] == "busy"]),
@@ -185,7 +178,7 @@ async def get_tasks():
     cached = response_cache.get(cache_key)
     if cached:
         return cached
-    
+
     response_cache.set(cache_key, TASKS_DATA)
     return TASKS_DATA
 
@@ -212,13 +205,13 @@ async def update_task(task_id: int, task_update: dict):
                     "in_progress": "进行中",
                     "completed": "已完成"
                 }.get(task_update["status"], task["statusText"])
-            
+
             if "title" in task_update:
                 task["title"] = task_update["title"]
-            
+
             if "description" in task_update:
                 task["description"] = task_update["description"]
-            
+
             if "priority" in task_update:
                 task["priority"] = task_update["priority"]
                 task["priorityText"] = {
@@ -227,10 +220,10 @@ async def update_task(task_id: int, task_update: dict):
                     "high": "高优先级",
                     "critical": "紧急"
                 }.get(task_update["priority"], task["priorityText"])
-            
+
             task["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             return {"status": "success", "message": "任务已更新", "task": task}
-    
+
     raise HTTPException(status_code=404, detail="任务不存在")
 
 
@@ -301,13 +294,10 @@ async def report_error(error: dict):
 @app.get("/api/v1/export/tasks")
 async def export_tasks(format: str = "json"):
     """导出任务数据"""
-    from fastapi.responses import JSONResponse, PlainTextResponse
-    import csv
-    import io
-    
+
     if format == "json":
         return JSONResponse(content=TASKS_DATA)
-    
+
     elif format == "csv":
         output = io.StringIO()
         if TASKS_DATA:
@@ -315,7 +305,7 @@ async def export_tasks(format: str = "json"):
             writer.writeheader()
             writer.writerows(TASKS_DATA)
         return PlainTextResponse(content=output.getvalue(), media_type="text/csv")
-    
+
     elif format == "markdown":
         md = "# 任务导出\n\n"
         md += "| ID | 标题 | 状态 | 优先级 | 负责人 | Agent |\n"
@@ -323,7 +313,7 @@ async def export_tasks(format: str = "json"):
         for task in TASKS_DATA:
             md += f"| {task['id']} | {task['title']} | {task['statusText']} | {task['priorityText']} | {task['assignee']} | {task['agent']} |\n"
         return PlainTextResponse(content=md, media_type="text/markdown")
-    
+
     else:
         raise HTTPException(status_code=400, detail="不支持的导出格式")
 
@@ -348,7 +338,7 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     client_id = id(websocket)
     print(f"WebSocket 客户端连接：{client_id}")
-    
+
     try:
         while True:
             # 推送系统状态
@@ -360,7 +350,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "timestamp": datetime.now().isoformat()
                 }
             })
-            
+
             # 随机更新 Agent 状态
             if random.random() < 0.3:
                 agent = random.choice(AGENTS_DATA)
@@ -369,7 +359,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "type": "agent_update",
                     "data": agent
                 })
-            
+
             await asyncio.sleep(5)
     except Exception as e:
         print(f"WebSocket 连接断开：{client_id}, 错误：{e}")
@@ -401,5 +391,5 @@ if __name__ == "__main__":
     print("  GET  /api/v1/workflows  - 工作流")
     print("  WS   /ws                - WebSocket 实时推送")
     print()
-    
+
     uvicorn.run(app, host="0.0.0.0", port=8080)
