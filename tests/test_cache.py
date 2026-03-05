@@ -1,4 +1,5 @@
 """缓存模块测试"""
+
 from src.utils.cache import REDIS_AVAILABLE, CacheManager
 
 
@@ -24,4 +25,4 @@ class TestCacheManager:
         """测试缓存管理器属性"""
         cache = CacheManager()
         # 检查是否有必要的属性
-        assert hasattr(cache, '__init__')
+        assert hasattr(cache, "__init__")

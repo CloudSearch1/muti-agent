@@ -1,4 +1,5 @@
 """核心模型测试"""
+
 from src.core.models import (
     Agent,
     AgentRole,

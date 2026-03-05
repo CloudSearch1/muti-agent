@@ -1,4 +1,5 @@
 """异常模块测试"""
+
 import pytest
 
 from src.core.exceptions import (
