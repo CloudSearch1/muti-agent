@@ -5,9 +5,7 @@ IntelliTeam Web UI API 测试脚本
 测试 API 逻辑，无需 FastAPI 依赖
 """
 
-import json
 from datetime import datetime
-from typing import Dict, List
 
 # ===========================================
 # 模拟数据库（复制自 server_enhanced.py）
@@ -121,15 +119,15 @@ def test_get_stats():
 def test_filter_tasks():
     """测试任务筛选"""
     print("\n🔍 测试：任务筛选")
-    
+
     # 按状态筛选
     pending = [t for t in _tasks_db.values() if t["status"] == "pending"]
     print(f"✅ 待处理任务：{len(pending)}")
-    
+
     # 按优先级筛选
     high = [t for t in _tasks_db.values() if t["priority"] == "high"]
     print(f"✅ 高优先级任务：{len(high)}")
-    
+
     return {"pending": len(pending), "high": len(high)}
 
 def test_update_task():
@@ -146,7 +144,7 @@ def test_delete_task():
     print("\n🗑️ 测试：删除任务")
     if "3" in _tasks_db:
         del _tasks_db["3"]
-        print(f"✅ 删除成功：任务 #3")
+        print("✅ 删除成功：任务 #3")
     return True
 
 # ===========================================
@@ -158,27 +156,27 @@ def run_all_tests():
     print("=" * 60)
     print("🧪 IntelliTeam Web UI API 测试")
     print("=" * 60)
-    
+
     results = []
-    
+
     # 基础查询
     results.append(("获取任务", test_get_tasks()))
     results.append(("获取 Agent", test_get_agents()))
     results.append(("系统统计", test_get_stats()))
     results.append(("任务筛选", test_filter_tasks()))
-    
+
     # CRUD 操作
     results.append(("创建任务", test_create_task()))
     results.append(("更新任务", test_update_task()))
     results.append(("删除任务", test_delete_task()))
-    
+
     # 总结
     print("\n" + "=" * 60)
     print("✅ 测试完成！")
     print("=" * 60)
     print(f"\n📊 通过：{len(results)}/{len(results)}")
     print("\n所有 API 逻辑测试通过！✨\n")
-    
+
     return results
 
 if __name__ == "__main__":
