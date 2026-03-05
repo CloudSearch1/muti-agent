@@ -157,26 +157,12 @@ def sample_task():
 @pytest.fixture
 def sample_workflow():
     """示例工作流"""
-    from src.core.models import Workflow, WorkflowState, WorkflowStep
-
-    step1 = WorkflowStep(
-        id="step-1",
-        name="Step 1",
-        step_type="sequential",
-    )
-
-    step2 = WorkflowStep(
-        id="step-2",
-        name="Step 2",
-        step_type="sequential",
-        dependencies=["step-1"],
-    )
+    from src.core.models import Workflow, WorkflowStatus
 
     return Workflow(
         id="test-workflow-001",
         name="Test Workflow",
-        state=WorkflowState.DRAFT,
-        steps=[step1, step2],
+        status=WorkflowStatus.CREATED,
     )
 
 
