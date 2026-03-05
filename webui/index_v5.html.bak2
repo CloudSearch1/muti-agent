@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IntelliTeam v4.0 - 智能研发协作平台</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free/css/all.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#8b5cf6'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [v-cloak] { display: none; }
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        .slide-enter-active, .slide-leave-active { transition: transform 0.3s; }
+        .slide-enter-from { transform: translateX(-100%); }
+        .slide-leave-to { transform: translateX(100%); }
+        .kbd {
+            background: linear-gradient(180deg, #f0f0f0, #e0e0e0);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 12px;
+            box-shadow: 0 2px 0 #999;
+        }
+        .dark .kbd {
+            background: linear-gradient(180deg, #444, #333);
+            border-color: #555;
+            box-shadow: 0 2px 0 #111;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+    <div id="app" v-cloak>
+        <!-- 顶部导航 -->
+        <nav class="bg-white dark:bg-gray-800 shadow-lg fixed w-full z-50">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <i class="fas fa-robot text-3xl text-primary mr-3"></i>
+                        <span class="text-xl font-bold text-gray-800 dark:text-white">IntelliTeam</span>
+                        <span class="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">v4.0</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button @click="toggleTheme" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <i :class="darkMode ? 'fas fa-sun text-yellow-400' : 'fas fa-moon text-gray-600'"></i>
+                        </button>
+                        <button @click="showShortcuts = true" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <i class="fas fa-keyboard text-gray-600 dark:text-gray-300"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <div class="pt-20 pb-8 px-4 max-w-7xl mx-auto">
+            <!-- 标签页导航 -->
+            <div class="flex space-x-1 mb-6 bg-white dark:bg-gray-800 rounded-lg p-1 shadow">
+                <button v-for="tab in tabs" :key="tab.id" 
+                    @click="currentTab = tab.id"
+                    :class="currentTab === tab.id ? 'bg-blue-500 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'"
+                    class="px-6 py-2 rounded-lg font-medium transition-all">
+                    <i :class="tab.icon" class="mr-2"></i>{{ tab.name }}
+                </button>
+            </div>
+
+            <!-- 仪表盘 -->
+            <div v-if="currentTab === 'dashboard'" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                                <i class="fas fa-tasks text-2xl text-blue-600 dark:text-blue-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-gray-500 dark:text-gray-400 text-sm">总任务</p>
+                                <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ stats.totalTasks }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
+                                <i class="fas fa-check-circle text-2xl text-green-600 dark:text-green-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-gray-500 dark:text-gray-400 text-sm">已完成</p>
+                                <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ stats.completedTasks }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
+                                <i class="fas fa-clock text-2xl text-yellow-600 dark:text-yellow-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-gray-500 dark:text-gray-400 text-sm">进行中</p>
+                                <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ stats.runningTasks }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                                <i class="fas fa-robot text-2xl text-purple-600 dark:text-purple-400"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-gray-500 dark:text-gray-400 text-sm">活跃Agent</p>
+                                <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ stats.activeAgents }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 图表 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">任务趋势</h3>
+                        <canvas id="taskChart"></canvas>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Agent 性能</h3>
+                        <canvas id="agentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务管理 -->
+            <div v-if="currentTab === 'tasks'" class="space-y-4">
+                <!-- 创建任务表单 -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+                        <i class="fas fa-plus-circle mr-2 text-blue-500"></i>创建新任务
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <input v-model="newTask.title" type="text" placeholder="任务标题" 
+                            class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <select v-model="newTask.priority" 
+                            class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <option value="low">低优先级</option>
+                            <option value="medium">中优先级</option>
+                            <option value="high">高优先级</option>
+                            <option value="critical">紧急</option>
+                        </select>
+                        <button @click="createTask" 
+                            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>创建任务
+                        </button>
+                    </div>
+                    <textarea v-model="newTask.description" placeholder="任务描述（可选）" rows="2"
+                        class="mt-4 w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"></textarea>
+                </div>
+
+                <!-- 任务列表 -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">任务</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">优先级</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">状态</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">创建时间</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <tr v-for="task in tasks" :key="task.id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                                <td class="px-6 py-4">
+                                    <div class="text-sm font-medium text-gray-900 dark:text-white">{{ task.title }}</div>
+                                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ task.description }}</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span :class="{
+                                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300': task.priority === 'low',
+                                        'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200': task.priority === 'medium',
+                                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200': task.priority === 'high',
+                                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200': task.priority === 'critical'
+                                    }" class="px-2 py-1 text-xs rounded-full">{{ priorityText(task.priority) }}</span>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span :class="{
+                                        'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300': task.status === 'pending',
+                                        'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200': task.status === 'running',
+                                        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200': task.status === 'completed',
+                                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200': task.status === 'failed'
+                                    }" class="px-2 py-1 text-xs rounded-full">{{ statusText(task.status) }}</span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{{ task.createdAt }}</td>
+                                <td class="px-6 py-4 text-center">
+                                    <button v-if="task.status === 'pending'" @click="runTask(task)" 
+                                        class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 mr-3">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button v-if="task.status === 'running'" @click="stopTask(task)" 
+                                        class="text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-300 mr-3">
+                                        <i class="fas fa-stop"></i>
+                                    </button>
+                                    <button @click="deleteTask(task.id)" 
+                                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Agent管理 -->
+            <div v-if="currentTab === 'agents'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div v-for="agent in agents" :key="agent.id" 
+                    class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow hover:shadow-lg transition-shadow">
+                    <div class="flex items-center mb-4">
+                        <div :class="{
+                            'bg-blue-100 dark:bg-blue-900': agent.status === 'idle',
+                            'bg-green-100 dark:bg-green-900': agent.status === 'busy',
+                            'bg-red-100 dark:bg-red-900': agent.status === 'error'
+                        }" class="p-3 rounded-lg">
+                            <i :class="agent.icon" class="text-2xl" :class="{
+                                'text-blue-600 dark:text-blue-400': agent.status === 'idle',
+                                'text-green-600 dark:text-green-400': agent.status === 'busy',
+                                'text-red-600 dark:text-red-400': agent.status === 'error'
+                            }"></i>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">{{ agent.name }}</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ agent.role }}</p>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500 dark:text-gray-400">状态:</span>
+                            <span :class="{
+                                'text-blue-600 dark:text-blue-400': agent.status === 'idle',
+                                'text-green-600 dark:text-green-400': agent.status === 'busy',
+                                'text-red-600 dark:text-red-400': agent.status === 'error'
+                            }">{{ statusText(agent.status) }}</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-gray-500 dark:text-gray-400">完成任务:</span>
+                            <span class="text-gray-800 dark:text-white font-medium">{{ agent.tasksCompleted }}</span>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t dark:border-gray-700">
+                        <button @click="viewAgentLog(agent)" 
+                            class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            <i class="fas fa-eye mr-2"></i>查看日志
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日志页面 -->
+            <div v-if="currentTab === 'logs'" class="space-y-4">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+                    <div class="flex items-center space-x-4">
+                        <select v-model="logFilter.level" class="px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <option value="all">全部级别</option>
+                            <option value="info">信息</option>
+                            <option value="warning">警告</option>
+                            <option value="error">错误</option>
+                        </select>
+                        <input v-model="logFilter.search" type="text" placeholder="搜索日志..." 
+                            class="flex-1 px-4 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <button @click="clearLogs" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                            <i class="fas fa-trash mr-2"></i>清空日志
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                    <div class="divide-y divide-gray-200 dark:divide-gray-700 max-h-96 overflow-y-auto">
+                        <div v-for="log in filteredLogs" :key="log.id" 
+                            :class="{
+                                'bg-blue-50 dark:bg-blue-900/20': log.level === 'info',
+                                'bg-yellow-50 dark:bg-yellow-900/20': log.level === 'warning',
+                                'bg-red-50 dark:bg-red-900/20': log.level === 'error'
+                            }" class="p-4">
+                            <div class="flex items-start">
+                                <i :class="{
+                                    'fas fa-info-circle text-blue-500': log.level === 'info',
+                                    'fas fa-exclamation-triangle text-yellow-500': log.level === 'warning',
+                                    'fas fa-times-circle text-red-500': log.level === 'error'
+                                }" class="mt-1 mr-3"></i>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-medium text-gray-800 dark:text-white">{{ log.message }}</span>
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">{{ log.timestamp }}</span>
+                                    </div>
+                                    <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">{{ log.details }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快捷键帮助 -->
+        <div v-if="showShortcuts" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showShortcuts = false">
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white">快捷键</h3>
+                    <button @click="showShortcuts = false" class="text-gray-500 hover:text-gray-700 dark:text-gray-400">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-300">切换仪表盘</span>
+                        <span class="kbd">Alt + 1</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-300">切换任务</span>
+                        <span class="kbd">Alt + 2</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-300">切换Agent</span>
+                        <span class="kbd">Alt + 3</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-300">切换日志</span>
+                        <span class="kbd">Alt + 4</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-300">深色/浅色模式</span>
+                        <span class="kbd">Alt + D</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600 dark:text-gray-300">新建任务</span>
+                        <span class="kbd">Alt + N</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+
+        createApp({
+            data() {
+                return {
+                    darkMode: false,
+                    currentTab: 'dashboard',
+                    showShortcuts: false,
+                    tabs: [
+                        { id: 'dashboard', name: '仪表盘', icon: 'fas fa-chart-line' },
+                        { id: 'tasks', name: '任务', icon: 'fas fa-tasks' },
+                        { id: 'agents', name: 'Agent', icon: 'fas fa-robot' },
+                        { id: 'logs', name: '日志', icon: 'fas fa-file-alt' }
+                    ],
+                    stats: {
+                        totalTasks: 0,
+                        completedTasks: 0,
+                        runningTasks: 0,
+                        activeAgents: 0
+                    },
+                    newTask: {
+                        title: '',
+                        description: '',
+                        priority: 'medium'
+                    },
+                    tasks: [],
+                    agents: [
+                        { id: 1, name: 'Planner', role: '任务规划', status: 'idle', icon: 'fas fa-project-diagram', tasksCompleted: 15 },
+                        { id: 2, name: 'Coder', role: '代码生成', status: 'idle', icon: 'fas fa-code', tasksCompleted: 28 },
+                        { id: 3, name: 'Tester', role: '测试执行', status: 'idle', icon: 'fas fa-vial', tasksCompleted: 45 },
+                        { id: 4, name: 'Architect', role: '架构设计', status: 'idle', icon: 'fas fa-drafting-compass', tasksCompleted: 12 },
+                        { id: 5, name: 'DocWriter', role: '文档编写', status: 'idle', icon: 'fas fa-book', tasksCompleted: 20 },
+                        { id: 6, name: 'Reviewer', role: '代码审查', status: 'idle', icon: 'fas fa-search', tasksCompleted: 35 }
+                    ],
+                    logs: [],
+                    logFilter: {
+                        level: 'all',
+                        search: ''
+                    }
+                }
+            },
+            computed: {
+                filteredLogs() {
+                    let filtered = this.logs
+                    if (this.logFilter.level !== 'all') {
+                        filtered = filtered.filter(log => log.level === this.logFilter.level)
+                    }
+                    if (this.logFilter.search) {
+                        const search = this.logFilter.search.toLowerCase()
+                        filtered = filtered.filter(log => 
+                            log.message.toLowerCase().includes(search) || 
+                            log.details.toLowerCase().includes(search)
+                        )
+                    }
+                    return filtered
+                }
+            },
+            methods: {
+                toggleTheme() {
+                    this.darkMode = !this.darkMode
+                    document.documentElement.classList.toggle('dark', this.darkMode)
+                    localStorage.setItem('darkMode', this.darkMode)
+                },
+                priorityText(priority) {
+                    const map = { low: '低', medium: '中', high: '高', critical: '紧急' }
+                    return map[priority] || priority
+                },
+                statusText(status) {
+                    const map = { 
+                        pending: '待执行', running: '执行中', completed: '已完成', failed: '失败',
+                        idle: '空闲', busy: '忙碌', error: '错误'
+                    }
+                    return map[status] || status
+                },
+                createTask() {
+                    if (!this.newTask.title.trim()) {
+                        alert('请输入任务标题')
+                        return
+                    }
+                    const task = {
+                        id: Date.now(),
+                        title: this.newTask.title,
+                        description: this.newTask.description,
+                        priority: this.newTask.priority,
+                        status: 'pending',
+                        createdAt: new Date().toLocaleString()
+                    }
+                    this.tasks.unshift(task)
+                    this.stats.totalTasks++
+                    this.newTask = { title: '', description: '', priority: 'medium' }
+                    this.addLog('info', '任务创建成功', `任务 "${task.title}" 已创建`)
+                },
+                runTask(task) {
+                    task.status = 'running'
+                    this.stats.runningTasks++
+                    this.addLog('info', '任务开始执行', `任务 "${task.title}" 开始运行`)
+                    
+                    // 模拟任务执行
+                    setTimeout(() => {
+                        task.status = 'completed'
+                        this.stats.runningTasks--
+                        this.stats.completedTasks++
+                        this.addLog('info', '任务执行完成', `任务 "${task.title}" 已完成`)
+                    }, 3000)
+                },
+                stopTask(task) {
+                    task.status = 'pending'
+                    this.stats.runningTasks--
+                    this.addLog('warning', '任务已停止', `任务 "${task.title}" 已停止`)
+                },
+                deleteTask(taskId) {
+                    if (confirm('确定要删除这个任务吗？')) {
+                        const task = this.tasks.find(t => t.id === taskId)
+                        if (task) {
+                            if (task.status === 'running') {
+                                this.stats.runningTasks--
+                            }
+                            this.tasks = this.tasks.filter(t => t.id !== taskId)
+                            this.stats.totalTasks--
+                            this.addLog('info', '任务已删除', `任务 "${task.title}" 已删除`)
+                        }
+                    }
+                },
+                viewAgentLog(agent) {
+                    this.addLog('info', '查看Agent日志', `查看 ${agent.name} 的日志`)
+                    this.currentTab = 'logs'
+                },
+                addLog(level, message, details) {
+                    this.logs.unshift({
+                        id: Date.now(),
+                        level,
+                        message,
+                        details,
+                        timestamp: new Date().toLocaleString()
+                    })
+                },
+                clearLogs() {
+                    if (confirm('确定要清空所有日志吗？')) {
+                        this.logs = []
+                    }
+                },
+                loadTasks() {
+                    const saved = localStorage.getItem('intelliteam_tasks')
+                    if (saved) {
+                        this.tasks = JSON.parse(saved)
+                        this.stats.totalTasks = this.tasks.length
+                        this.stats.completedTasks = this.tasks.filter(t => t.status === 'completed').length
+                        this.stats.runningTasks = this.tasks.filter(t => t.status === 'running').length
+                    }
+                },
+                saveTasks() {
+                    localStorage.setItem('intelliteam_tasks', JSON.stringify(this.tasks))
+                },
+                initCharts() {
+                    // 任务趋势图
+                    const taskCtx = document.getElementById('taskChart')
+                    if (taskCtx) {
+                        new Chart(taskCtx, {
+                            type: 'line',
+                            data: {
+                                labels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                                datasets: [{
+                                    label: '任务数',
+                                    data: [12, 19, 15, 25, 22, 30, 28],
+                                    borderColor: '#3b82f6',
+                                    tension: 0.4
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { display: false }
+                                }
+                            }
+                        })
+                    }
+
+                    // Agent性能图
+                    const agentCtx = document.getElementById('agentChart')
+                    if (agentCtx) {
+                        new Chart(agentCtx, {
+                            type: 'bar',
+                            data: {
+                                labels: this.agents.map(a => a.name),
+                                datasets: [{
+                                    label: '完成任务数',
+                                    data: this.agents.map(a => a.tasksCompleted),
+                                    backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1']
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { display: false }
+                                }
+                            }
+                        })
+                    }
+                }
+            },
+            mounted() {
+                // 加载主题设置
+                this.darkMode = localStorage.getItem('darkMode') === 'true'
+                document.documentElement.classList.toggle('dark', this.darkMode)
+
+                // 加载任务
+                this.loadTasks()
+
+                // 初始化图表
+                this.$nextTick(() => {
+                    this.initCharts()
+                })
+
+                // 统计活跃Agent
+                this.stats.activeAgents = this.agents.filter(a => a.status !== 'error').length
+
+                // 快捷键
+                document.addEventListener('keydown', (e) => {
+                    if (e.altKey) {
+                        switch(e.key) {
+                            case '1': this.currentTab = 'dashboard'; break
+                            case '2': this.currentTab = 'tasks'; break
+                            case '3': this.currentTab = 'agents'; break
+                            case '4': this.currentTab = 'logs'; break
+                            case 'd': this.toggleTheme(); break
+                            case 'n': 
+                                this.currentTab = 'tasks'
+                                this.$nextTick(() => {
+                                    document.querySelector('input[placeholder="任务标题"]').focus()
+                                })
+                                break
+                        }
+                    }
+                })
+
+                // 自动保存任务
+                setInterval(() => this.saveTasks(), 5000)
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
