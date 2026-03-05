@@ -1,5 +1,4 @@
 """配置模块测试"""
-import pytest
 from src.config.settings import Settings, get_settings
 
 

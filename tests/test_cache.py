@@ -1,6 +1,5 @@
 """缓存模块测试"""
-import pytest
-from src.utils.cache import CacheManager, REDIS_AVAILABLE
+from src.utils.cache import REDIS_AVAILABLE, CacheManager
 
 
 class TestCacheManager:

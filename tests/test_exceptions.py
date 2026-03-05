@@ -1,20 +1,20 @@
 """异常模块测试"""
 import pytest
+
 from src.core.exceptions import (
-    IntelliTeamError,
     AgentError,
+    AgentExecutionError,
     AgentNotFoundError,
     AgentTimeoutError,
-    AgentExecutionError,
+    ConfigurationError,
+    IntelliTeamError,
     TaskError,
+    TaskExecutionError,
     TaskNotFoundError,
     TaskValidationError,
-    TaskExecutionError,
-    WorkflowError,
     ToolError,
     ToolNotFoundError,
-    ToolExecutionError,
-    ConfigurationError,
+    WorkflowError,
 )
 
 

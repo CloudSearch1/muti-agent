@@ -1,13 +1,12 @@
 """核心模型测试"""
-import pytest
 from src.core.models import (
+    Agent,
     AgentRole,
     AgentState,
-    TaskStatus,
-    TaskPriority,
-    WorkflowStatus,
-    Agent,
     Task,
+    TaskPriority,
+    TaskStatus,
+    WorkflowStatus,
 )
 
 
