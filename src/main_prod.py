@@ -71,9 +71,7 @@ def setup_monitoring(settings: Settings) -> None:
         from prometheus_client import Counter, Histogram, start_http_server
 
         # 定义指标
-        Counter(
-            "http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
-        )
+        Counter("http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"])
 
         Histogram(
             "http_request_duration_seconds",

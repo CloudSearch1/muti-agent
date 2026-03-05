@@ -15,7 +15,7 @@ from ..core.models import (
     Task,
     TaskPriority,
 )
-from ..llm.agent_llm import get_planner_llm
+from .llm_helper import get_planner_llm
 from .base import BaseAgent
 
 logger = structlog.get_logger(__name__)
