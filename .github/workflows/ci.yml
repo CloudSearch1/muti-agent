@@ -37,7 +37,7 @@ jobs:
         run: black --check src/ tests/ --diff
       
       - name: Run MyPy
-        run: mypy src/ --ignore-missing-imports
+        run: mypy src/ --ignore-missing-imports --explicit-package-bases
 
   # 单元测试
   test:
