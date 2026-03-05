@@ -3,11 +3,9 @@
 """
 
 from collections.abc import AsyncGenerator
-from typing import Optional
 
 import structlog
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from ..config.settings import Settings, get_settings
 

@@ -11,7 +11,6 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
-from .llm_helper import get_tester_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -19,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class TesterAgent(BaseAgent):
     """
     测试工程师
-    
+
     负责：
     - 编写单元测试、集成测试
     - 执行测试并生成报告
@@ -55,11 +54,13 @@ class TesterAgent(BaseAgent):
         test_scope = task.input_data.get("test_scope", "unit")
 
         # 思考测试策略
-        test_plan = await self.think({
-            "code_files": code_files,
-            "requirements": requirements,
-            "test_scope": test_scope,
-        })
+        test_plan = await self.think(
+            {
+                "code_files": code_files,
+                "requirements": requirements,
+                "test_scope": test_scope,
+            }
+        )
 
         # 生成测试用例
         test_cases = self._generate_test_cases(test_plan)
@@ -140,7 +141,7 @@ class TesterAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         模拟测试计划 (临时实现)
-        
+
         TODO: 替换为真实 LLM 调用
         """
         return {
@@ -177,7 +178,7 @@ class TesterAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         执行测试用例
-        
+
         TODO: 实现真实测试执行
         """
         # 模拟测试结果
@@ -228,10 +229,10 @@ class TesterAgent(BaseAgent):
     ) -> list[dict[str, Any]]:
         """
         根据缺陷报告生成回归测试
-        
+
         Args:
             bug_report: 缺陷报告
-            
+
         Returns:
             回归测试用例列表
         """

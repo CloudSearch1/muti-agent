@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 class AgentState(BaseModel):
     """
     LangGraph 工作流状态
-    
+
     在节点之间传递的状态对象
     """
 
@@ -69,7 +69,7 @@ class AgentState(BaseModel):
 class WorkflowState(BaseModel):
     """
     工作流级别的状态
-    
+
     用于管理多个并行或顺序的任务
     """
 

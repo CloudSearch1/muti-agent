@@ -45,7 +45,7 @@ def setup_logging(settings: Settings) -> None:
     # 文件处理器
     file_handler = RotatingFileHandler(
         log_dir / "intelliteam.log",
-        maxBytes=10*1024*1024,  # 10MB
+        maxBytes=10 * 1024 * 1024,  # 10MB
         backupCount=5,
         encoding="utf-8",
     )
@@ -71,22 +71,21 @@ def setup_monitoring(settings: Settings) -> None:
         from prometheus_client import Counter, Histogram, start_http_server
 
         # 定义指标
-        REQUEST_COUNT = Counter(
-            'http_requests_total',
-            'Total HTTP requests',
-            ['method', 'endpoint', 'status']
+        Counter(
+            "http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
         )
 
-        REQUEST_DURATION = Histogram(
-            'http_request_duration_seconds',
-            'HTTP request duration in seconds',
-            ['method', 'endpoint']
+        Histogram(
+            "http_request_duration_seconds",
+            "HTTP request duration in seconds",
+            ["method", "endpoint"],
         )
 
         # 启动 Prometheus 服务器
         start_http_server(settings.api_port + 1)  # 默认 9091
 
         import logging
+
         logging.getLogger(__name__).info(
             "Prometheus metrics enabled",
             port=settings.api_port + 1,
@@ -94,9 +93,8 @@ def setup_monitoring(settings: Settings) -> None:
 
     except ImportError:
         import logging
-        logging.getLogger(__name__).warning(
-            "Prometheus not installed, monitoring disabled"
-        )
+
+        logging.getLogger(__name__).warning("Prometheus not installed, monitoring disabled")
 
 
 def main():

@@ -21,7 +21,7 @@ logger = structlog.get_logger(__name__)
 class ShortTermMemory:
     """
     短期记忆系统
-    
+
     使用 Redis 存储临时数据，支持 TTL 自动过期
     """
 
@@ -33,7 +33,7 @@ class ShortTermMemory:
     ):
         """
         初始化短期记忆
-        
+
         Args:
             redis_url: Redis 连接 URL
             default_ttl: 默认 TTL (秒)
@@ -74,12 +74,12 @@ class ShortTermMemory:
     ) -> bool:
         """
         设置记忆
-        
+
         Args:
             key: 键名
             value: 值 (会自动序列化)
             ttl: 过期时间 (秒)，None 则使用默认值
-            
+
         Returns:
             是否成功
         """
@@ -122,11 +122,11 @@ class ShortTermMemory:
     ) -> Any:
         """
         获取记忆
-        
+
         Args:
             key: 键名
             default: 默认值
-            
+
         Returns:
             值，不存在则返回默认值
         """

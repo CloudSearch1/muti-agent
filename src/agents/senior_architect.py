@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class SeniorArchitectAgent(BaseAgent):
     """
     资深架构师 Agent
-    
+
     负责：
     - 复杂系统架构设计
     - 技术方案评审
@@ -60,11 +60,13 @@ class SeniorArchitectAgent(BaseAgent):
         logger.info("Starting code review")
 
         # 思考审查要点
-        review_result = await self.think({
-            "type": "code_review",
-            "code": code,
-            "criteria": criteria,
-        })
+        review_result = await self.think(
+            {
+                "type": "code_review",
+                "code": code,
+                "criteria": criteria,
+            }
+        )
 
         # 计算评分
         score = review_result.get("score", 0)
@@ -84,7 +86,7 @@ class SeniorArchitectAgent(BaseAgent):
             "summary": review_result.get("summary", ""),
         }
 
-    async def _arbitrate_conflict(self, Task) -> dict[str, Any]:
+    async def _arbitrate_conflict(self, task) -> dict[str, Any]:
         """冲突仲裁"""
         conflict_type = task.input_data.get("conflict_type", "")
         agents_involved = task.input_data.get("agents_involved", [])
@@ -97,12 +99,14 @@ class SeniorArchitectAgent(BaseAgent):
         )
 
         # 思考仲裁方案
-        arbitration_result = await self.think({
-            "type": "arbitration",
-            "conflict_type": conflict_type,
-            "agents_involved": agents_involved,
-            "proposals": proposals,
-        })
+        arbitration_result = await self.think(
+            {
+                "type": "arbitration",
+                "conflict_type": conflict_type,
+                "agents_involved": agents_involved,
+                "proposals": proposals,
+            }
+        )
 
         decision = arbitration_result.get("decision", "")
         rationale = arbitration_result.get("rationale", "")
@@ -127,12 +131,14 @@ class SeniorArchitectAgent(BaseAgent):
         )
 
         # 思考设计方案
-        design_result = await self.think({
-            "type": "complex_design",
-            "requirements": requirements,
-            "constraints": constraints,
-            "scale": scale,
-        })
+        design_result = await self.think(
+            {
+                "type": "complex_design",
+                "requirements": requirements,
+                "constraints": constraints,
+                "scale": scale,
+            }
+        )
 
         return {
             "status": "design_complete",
@@ -149,10 +155,12 @@ class SeniorArchitectAgent(BaseAgent):
 
         logger.info("Processing general task")
 
-        result = await self.think({
-            "type": "general",
-            "description": description,
-        })
+        result = await self.think(
+            {
+                "type": "general",
+                "description": description,
+            }
+        )
 
         return {
             "status": "complete",
@@ -177,7 +185,7 @@ class SeniorArchitectAgent(BaseAgent):
     def _simulate_code_review(self, context: dict[str, Any]) -> dict[str, Any]:
         """模拟代码审查"""
         code = context.get("code", "")
-        criteria = context.get("criteria", [])
+        context.get("criteria", [])
 
         # 简单分析代码
         lines = code.split("\n")
@@ -230,7 +238,7 @@ class SeniorArchitectAgent(BaseAgent):
 
     def _simulate_arbitration(self, context: dict[str, Any]) -> dict[str, Any]:
         """模拟冲突仲裁"""
-        conflict_type = context.get("conflict_type", "")
+        context.get("conflict_type", "")
         proposals = context.get("proposals", [])
 
         # 简单仲裁逻辑
@@ -249,8 +257,8 @@ class SeniorArchitectAgent(BaseAgent):
 
     def _simulate_complex_design(self, context: dict[str, Any]) -> dict[str, Any]:
         """模拟复杂系统设计"""
-        requirements = context.get("requirements", [])
-        scale = context.get("scale", "medium")
+        context.get("requirements", [])
+        context.get("scale", "medium")
 
         # 生成设计框架
         return {
@@ -297,11 +305,11 @@ class SeniorArchitectAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         架构评审
-        
+
         Args:
             architecture: 架构设计文档
             criteria: 评审标准
-            
+
         Returns:
             评审结果
         """
@@ -319,10 +327,10 @@ class SeniorArchitectAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         安全评审
-        
+
         Args:
             design: 设计方案
-            
+
         Returns:
             安全评审结果
         """

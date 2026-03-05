@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class ToolRegistry(BaseModel):
     """
     工具注册中心
-    
+
     单例模式，管理所有可用工具
     """
 
@@ -30,10 +30,10 @@ class ToolRegistry(BaseModel):
     def register(self, tool: BaseTool) -> bool:
         """
         注册工具
-        
+
         Args:
             tool: 工具实例
-            
+
         Returns:
             是否注册成功
         """
@@ -60,10 +60,10 @@ class ToolRegistry(BaseModel):
     def unregister(self, tool_name: str) -> bool:
         """
         注销工具
-        
+
         Args:
             tool_name: 工具名称
-            
+
         Returns:
             是否注销成功
         """
@@ -86,10 +86,10 @@ class ToolRegistry(BaseModel):
     def get(self, tool_name: str) -> BaseTool | None:
         """
         获取工具
-        
+
         Args:
             tool_name: 工具名称
-            
+
         Returns:
             工具实例，不存在则返回 None
         """
@@ -98,10 +98,10 @@ class ToolRegistry(BaseModel):
     def list_tools(self, enabled_only: bool = True) -> list[dict[str, Any]]:
         """
         列出所有工具
-        
+
         Args:
             enabled_only: 是否只列出启用的工具
-            
+
         Returns:
             工具信息列表
         """
@@ -122,11 +122,11 @@ class ToolRegistry(BaseModel):
     ) -> ToolResult:
         """
         执行工具
-        
+
         Args:
             tool_name: 工具名称
             **kwargs: 工具参数
-            
+
         Returns:
             执行结果
         """

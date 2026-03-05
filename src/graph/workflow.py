@@ -11,7 +11,7 @@ import structlog
 
 try:
     from langgraph.graph import END, StateGraph
-    from langgraph.graph.message import add_messages
+
     LANGGRAPH_AVAILABLE = True
 except ImportError:
     LANGGRAPH_AVAILABLE = False
@@ -45,14 +45,14 @@ NodeType = Literal[
 class AgentWorkflow:
     """
     Agent 工作流
-    
+
     使用 LangGraph 编排多 Agent 协同
     """
 
     def __init__(self, workflow_id: str | None = None):
         """
         初始化工作流
-        
+
         Args:
             workflow_id: 工作流 ID
         """
@@ -61,7 +61,7 @@ class AgentWorkflow:
         self.compiled_graph = None
 
         # 初始化 Agent
-        settings = get_settings()
+        get_settings()
         self.planner = PlannerAgent()
         self.architect = ArchitectAgent()
         self.coder = CoderAgent()
@@ -76,7 +76,7 @@ class AgentWorkflow:
     def build_graph(self) -> StateGraph:
         """
         构建工作流图
-        
+
         Returns:
             StateGraph 实例
         """
@@ -128,7 +128,7 @@ class AgentWorkflow:
     def compile(self) -> Any:
         """
         编译工作流
-        
+
         Returns:
             编译后的工作流
         """
@@ -238,7 +238,10 @@ class AgentWorkflow:
             result = await self.coder.process_task(task)
 
             state.add_agent_result("coder", result.output_data)
-            state.add_message("assistant", f"Coding complete: {result.output_data.get('files_created', 0)} files created")
+            state.add_message(
+                "assistant",
+                f"Coding complete: {result.output_data.get('files_created', 0)} files created",
+            )
 
         except Exception as e:
             logger.error("Coder failed", error=str(e))
@@ -353,13 +356,13 @@ class AgentWorkflow:
     ) -> AgentState:
         """
         运行工作流
-        
+
         Args:
             task_id: 任务 ID
             task_title: 任务标题
             task_description: 任务描述
             input_data: 输入数据
-            
+
         Returns:
             最终状态
         """
@@ -389,10 +392,10 @@ class AgentWorkflow:
 def create_workflow(workflow_id: str | None = None) -> AgentWorkflow:
     """
     创建工作流
-    
+
     Args:
         workflow_id: 工作流 ID
-        
+
     Returns:
         AgentWorkflow 实例
     """

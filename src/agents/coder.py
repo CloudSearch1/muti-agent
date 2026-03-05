@@ -18,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class CoderAgent(BaseAgent):
     """
     代码工程师
-    
+
     负责：
     - 根据设计文档编写代码
     - 代码重构和优化
@@ -35,7 +35,7 @@ class CoderAgent(BaseAgent):
         self.coding_model = kwargs.get("coding_model", "gpt-4")
         self.preferred_language = kwargs.get("preferred_language", "python")
         self.code_style = kwargs.get("code_style", "pep8")
-        
+
         # LLM 辅助
         self.llm_helper = get_coder_llm()
 
@@ -57,11 +57,13 @@ class CoderAgent(BaseAgent):
         existing_code = task.input_data.get("existing_code", None)
 
         # 思考实现方案
-        implementation = await self.think({
-            "requirements": requirements,
-            "architecture": architecture,
-            "existing_code": existing_code,
-        })
+        implementation = await self.think(
+            {
+                "requirements": requirements,
+                "architecture": architecture,
+                "existing_code": existing_code,
+            }
+        )
 
         # 生成代码
         code_files = self._generate_code(implementation)
@@ -98,7 +100,7 @@ class CoderAgent(BaseAgent):
 
         # Fallback: 使用模拟实现
         return self._simulate_implementation(requirements)
-    
+
     async def _llm_design(
         self,
         requirements: str,
@@ -137,10 +139,10 @@ class CoderAgent(BaseAgent):
             prompt=prompt,
             system_prompt=f"你是一位资深{self.preferred_language}软件工程师。请以 JSON 格式输出代码设计方案。",
         )
-        
+
         if result:
             return result
-        
+
         return None
 
     def _build_coding_prompt(
@@ -175,7 +177,7 @@ class CoderAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         模拟代码实现结果 (临时实现)
-        
+
         TODO: 替换为真实 LLM 调用
         """
         return {
@@ -212,11 +214,11 @@ class CoderAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         代码审查
-        
+
         Args:
             code: 待审查的代码
             criteria: 审查标准
-            
+
         Returns:
             审查结果
         """
@@ -235,11 +237,11 @@ class CoderAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         代码重构
-        
+
         Args:
             code: 待重构的代码
             goals: 重构目标
-            
+
         Returns:
             重构结果
         """

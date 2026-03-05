@@ -20,8 +20,10 @@ router = APIRouter()
 # 请求/响应模型
 # ===========================================
 
+
 class AgentResponse(BaseModel):
     """Agent 响应"""
+
     id: str
     name: str
     role: str
@@ -40,6 +42,7 @@ _agents_db: dict[str, dict] = {}
 # ===========================================
 # API 端点
 # ===========================================
+
 
 @router.get(
     "/",

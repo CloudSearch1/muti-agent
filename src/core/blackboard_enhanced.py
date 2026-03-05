@@ -51,7 +51,7 @@ class MessageSubscription:
 class EnhancedBlackboard(Blackboard):
     """
     增强黑板
-    
+
     在基础黑板功能上增加：
     - 消息订阅/发布
     - 条目变更通知
@@ -85,7 +85,7 @@ class EnhancedBlackboard(Blackboard):
     ) -> None:
         """
         订阅消息
-        
+
         Args:
             callback: 消息回调函数
             message_type: 消息类型过滤
@@ -108,18 +108,15 @@ class EnhancedBlackboard(Blackboard):
     def unsubscribe(self, callback: Callable) -> int:
         """
         取消订阅
-        
+
         Args:
             callback: 要移除的回调函数
-            
+
         Returns:
             移除的订阅数量
         """
         original_count = len(self._subscriptions)
-        self._subscriptions = [
-            s for s in self._subscriptions
-            if s.callback != callback
-        ]
+        self._subscriptions = [s for s in self._subscriptions if s.callback != callback]
 
         removed_count = original_count - len(self._subscriptions)
 
@@ -133,7 +130,7 @@ class EnhancedBlackboard(Blackboard):
     def post_message(self, message: Message) -> None:
         """
         发布消息（增强版）
-        
+
         除了存储消息，还会通知订阅者
         """
         # 调用父类方法存储消息
@@ -150,6 +147,7 @@ class EnhancedBlackboard(Blackboard):
             if subscription.matches(message):
                 # 异步通知（不阻塞）
                 import asyncio
+
                 asyncio.create_task(subscription.notify(message))
                 notified_count += 1
 
@@ -170,7 +168,7 @@ class EnhancedBlackboard(Blackboard):
     ) -> None:
         """
         注册条目变更回调
-        
+
         Args:
             key: 条目键名
             callback: 回调函数 (key, old_value, new_value)
@@ -194,7 +192,7 @@ class EnhancedBlackboard(Blackboard):
     ) -> BlackboardEntry:
         """
         放置条目（增强版）
-        
+
         会触发变更通知
         """
         # 获取旧值
@@ -234,11 +232,11 @@ class EnhancedBlackboard(Blackboard):
     def set_ttl(self, key: str, ttl_seconds: int) -> bool:
         """
         设置条目 TTL
-        
+
         Args:
             key: 条目键名
             ttl_seconds: TTL（秒）
-            
+
         Returns:
             是否设置成功
         """
@@ -259,10 +257,10 @@ class EnhancedBlackboard(Blackboard):
     def get_ttl(self, key: str) -> int | None:
         """
         获取条目剩余 TTL
-        
+
         Args:
             key: 条目键名
-            
+
         Returns:
             剩余秒数，None 表示不存在或无 TTL
         """
@@ -280,7 +278,7 @@ class EnhancedBlackboard(Blackboard):
     def cleanup_expired(self) -> int:
         """
         清理过期条目和消息
-        
+
         Returns:
             清理的数量
         """
@@ -306,12 +304,12 @@ class EnhancedBlackboard(Blackboard):
     ) -> list[BlackboardEntry]:
         """
         查找条目
-        
+
         Args:
             owner_id: 所有者 ID 过滤
             tags: 标签过滤
             expired: 是否包含过期条目
-            
+
         Returns:
             条目列表
         """
@@ -341,19 +339,21 @@ class EnhancedBlackboard(Blackboard):
     ) -> list[Message]:
         """
         搜索消息
-        
+
         Args:
             keyword: 搜索关键词
             limit: 结果数量限制
-            
+
         Returns:
             消息列表
         """
         results = []
 
         for msg in self.messages:
-            if keyword.lower() in msg.subject.lower() or \
-               keyword.lower() in str(msg.content).lower():
+            if (
+                keyword.lower() in msg.subject.lower()
+                or keyword.lower() in str(msg.content).lower()
+            ):
                 results.append(msg)
 
                 if len(results) >= limit:
@@ -414,10 +414,11 @@ class EnhancedBlackboard(Blackboard):
 # 黑板管理器
 # ===========================================
 
+
 class BlackboardManager:
     """
     黑板管理器
-    
+
     管理多个黑板实例
     """
 
@@ -436,13 +437,13 @@ class BlackboardManager:
     ) -> EnhancedBlackboard:
         """
         创建黑板
-        
+
         Args:
             name: 黑板名称
             description: 描述
             max_messages: 最大消息数
             max_entries: 最大条目数
-            
+
         Returns:
             黑板实例
         """

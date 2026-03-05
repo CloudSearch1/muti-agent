@@ -15,6 +15,7 @@ logger = structlog.get_logger(__name__)
 
 class ToolParameter(BaseModel):
     """工具参数定义"""
+
     name: str = Field(..., description="参数名称")
     description: str = Field(..., description="参数描述")
     type: str = Field(..., description="参数类型")
@@ -25,6 +26,7 @@ class ToolParameter(BaseModel):
 
 class ToolResult(BaseModel):
     """工具执行结果"""
+
     success: bool = Field(..., description="是否成功")
     data: Any | None = Field(default=None, description="返回数据")
     error: str | None = Field(default=None, description="错误信息")
@@ -34,7 +36,7 @@ class ToolResult(BaseModel):
 class BaseTool(ABC):
     """
     工具抽象基类
-    
+
     所有工具必须继承此类并实现核心方法
     """
 
@@ -45,7 +47,7 @@ class BaseTool(ABC):
     def __init__(self, **kwargs):
         """
         初始化工具
-        
+
         Args:
             **kwargs: 工具配置参数
         """
@@ -63,7 +65,7 @@ class BaseTool(ABC):
     def parameters(self) -> list[ToolParameter]:
         """
         获取工具参数定义
-        
+
         Returns:
             参数定义列表
         """
@@ -73,10 +75,10 @@ class BaseTool(ABC):
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行工具
-        
+
         Args:
             **kwargs: 工具参数
-            
+
         Returns:
             执行结果
         """
@@ -85,10 +87,10 @@ class BaseTool(ABC):
     def validate_params(self, **kwargs) -> tuple[bool, str | None]:
         """
         验证参数
-        
+
         Args:
             **kwargs: 待验证的参数
-            
+
         Returns:
             (是否有效，错误信息)
         """
@@ -123,7 +125,7 @@ class BaseTool(ABC):
     def to_dict(self) -> dict[str, Any]:
         """
         转换为字典 (用于 MCP 注册)
-        
+
         Returns:
             工具信息字典
         """

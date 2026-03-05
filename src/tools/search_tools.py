@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class SearchTools(BaseTool):
     """
     搜索工具集
-    
+
     提供：
     - 文件内容搜索
     - 文件名搜索
@@ -110,16 +110,20 @@ class SearchTools(BaseTool):
 
                         for i, line in enumerate(lines, 1):
                             if query.lower() in line.lower():
-                                matching_lines.append({
-                                    "line": i,
-                                    "content": line.strip()[:200],
-                                })
+                                matching_lines.append(
+                                    {
+                                        "line": i,
+                                        "content": line.strip()[:200],
+                                    }
+                                )
 
-                        results.append({
-                            "file": str(file_path.relative_to(self.root_dir)),
-                            "matches": matching_lines[:10],  # 限制每文件显示行数
-                            "total_matches": len(matching_lines),
-                        })
+                        results.append(
+                            {
+                                "file": str(file_path.relative_to(self.root_dir)),
+                                "matches": matching_lines[:10],  # 限制每文件显示行数
+                                "total_matches": len(matching_lines),
+                            }
+                        )
 
                         if len(results) >= self.max_results:
                             break
@@ -148,11 +152,13 @@ class SearchTools(BaseTool):
 
             for file_path in path.glob(f"**/*{query}*"):
                 rel_path = file_path.relative_to(self.root_dir)
-                results.append({
-                    "path": str(rel_path),
-                    "is_file": file_path.is_file(),
-                    "size": file_path.stat().st_size if file_path.is_file() else 0,
-                })
+                results.append(
+                    {
+                        "path": str(rel_path),
+                        "is_file": file_path.is_file(),
+                        "size": file_path.stat().st_size if file_path.is_file() else 0,
+                    }
+                )
 
                 if len(results) >= self.max_results:
                     break
@@ -194,18 +200,22 @@ class SearchTools(BaseTool):
                     for i, line in enumerate(lines, 1):
                         matches = regex.findall(line)
                         if matches:
-                            file_matches.append({
-                                "line": i,
-                                "matches": matches,
-                                "content": line.strip()[:200],
-                            })
+                            file_matches.append(
+                                {
+                                    "line": i,
+                                    "matches": matches,
+                                    "content": line.strip()[:200],
+                                }
+                            )
 
                     if file_matches:
-                        results.append({
-                            "file": str(file_path.relative_to(self.root_dir)),
-                            "matches": file_matches[:10],
-                            "total_matches": sum(len(m["matches"]) for m in file_matches),
-                        })
+                        results.append(
+                            {
+                                "file": str(file_path.relative_to(self.root_dir)),
+                                "matches": file_matches[:10],
+                                "total_matches": sum(len(m["matches"]) for m in file_matches),
+                            }
+                        )
 
                         if len(results) >= self.max_results:
                             break

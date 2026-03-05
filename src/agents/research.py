@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class ResearchAgent(BaseAgent):
     """
     研究助手 Agent
-    
+
     负责：
     - 技术文献调研
     - 竞品分析
@@ -66,11 +66,13 @@ class ResearchAgent(BaseAgent):
         )
 
         # 思考调研方向
-        review_result = await self.think({
-            "type": "literature_review",
-            "topic": topic,
-            "keywords": keywords,
-        })
+        review_result = await self.think(
+            {
+                "type": "literature_review",
+                "topic": topic,
+                "keywords": keywords,
+            }
+        )
 
         return {
             "status": "review_complete",
@@ -92,11 +94,13 @@ class ResearchAgent(BaseAgent):
             competitors_count=len(competitors),
         )
 
-        analysis_result = await self.think({
-            "type": "competitive_analysis",
-            "product": product,
-            "competitors": competitors,
-        })
+        analysis_result = await self.think(
+            {
+                "type": "competitive_analysis",
+                "product": product,
+                "competitors": competitors,
+            }
+        )
 
         return {
             "status": "analysis_complete",
@@ -119,11 +123,13 @@ class ResearchAgent(BaseAgent):
             time_range=time_range,
         )
 
-        trend_result = await self.think({
-            "type": "trend_analysis",
-            "technology": technology,
-            "time_range": time_range,
-        })
+        trend_result = await self.think(
+            {
+                "type": "trend_analysis",
+                "technology": technology,
+                "time_range": time_range,
+            }
+        )
 
         return {
             "status": "trend_complete",
@@ -145,11 +151,13 @@ class ResearchAgent(BaseAgent):
             criteria_count=len(criteria),
         )
 
-        comparison_result = await self.think({
-            "type": "technology_comparison",
-            "technologies": technologies,
-            "criteria": criteria,
-        })
+        comparison_result = await self.think(
+            {
+                "type": "technology_comparison",
+                "technologies": technologies,
+                "criteria": criteria,
+            }
+        )
 
         return {
             "status": "comparison_complete",
@@ -165,10 +173,12 @@ class ResearchAgent(BaseAgent):
 
         logger.info("Starting general research", topic=topic)
 
-        research_result = await self.think({
-            "type": "general_research",
-            "topic": topic,
-        })
+        research_result = await self.think(
+            {
+                "type": "general_research",
+                "topic": topic,
+            }
+        )
 
         return {
             "status": "research_complete",
@@ -211,7 +221,7 @@ class ResearchAgent(BaseAgent):
 
     def _simulate_competitive_analysis(self, context: dict[str, Any]) -> dict[str, Any]:
         """模拟竞品分析"""
-        product = context.get("product", "")
+        context.get("product", "")
         competitors = context.get("competitors", [])
 
         return {

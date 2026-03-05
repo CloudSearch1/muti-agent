@@ -14,7 +14,7 @@ logger = structlog.get_logger(__name__)
 class CodeTools(BaseTool):
     """
     代码工具集
-    
+
     提供：
     - 代码生成
     - 代码格式化
@@ -150,7 +150,7 @@ class CodeTools(BaseTool):
         options: dict,
     ) -> ToolResult:
         """生成代码"""
-        prompt = options.get("prompt", "")
+        options.get("prompt", "")
         language = options.get("language", "python")
 
         # TODO: 调用 LLM 生成代码

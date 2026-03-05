@@ -20,8 +20,10 @@ router = APIRouter()
 # 请求/响应模型
 # ===========================================
 
+
 class TaskCreateRequest(BaseModel):
     """创建任务请求"""
+
     title: str
     description: str = ""
     priority: str = "normal"
@@ -30,6 +32,7 @@ class TaskCreateRequest(BaseModel):
 
 class TaskResponse(BaseModel):
     """任务响应"""
+
     id: str
     title: str
     description: str
@@ -49,6 +52,7 @@ _tasks_db: dict[str, dict] = {}
 # ===========================================
 # API 端点
 # ===========================================
+
 
 @router.post(
     "/",

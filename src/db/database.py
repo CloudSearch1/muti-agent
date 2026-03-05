@@ -4,12 +4,13 @@ IntelliTeam 数据库模块
 提供 SQLAlchemy 异步数据库支持
 """
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey, Text, Float
-from datetime import datetime
-from typing import Optional, AsyncGenerator
 import os
+from collections.abc import AsyncGenerator
+from datetime import datetime
+
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 # 基础模型类
 Base = declarative_base()
@@ -17,10 +18,12 @@ Base = declarative_base()
 
 # ============ 数据模型 ============
 
+
 class TaskModel(Base):
     """任务模型"""
+
     __tablename__ = "tasks"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(200), nullable=False, index=True)
     description = Column(Text, default="")
@@ -35,8 +38,9 @@ class TaskModel(Base):
 
 class AgentModel(Base):
     """Agent 模型"""
+
     __tablename__ = "agents"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), unique=True, nullable=False, index=True)
     role = Column(String(100), nullable=False, index=True)
@@ -50,8 +54,9 @@ class AgentModel(Base):
 
 class WorkflowModel(Base):
     """工作流模型"""
+
     __tablename__ = "workflows"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(200), nullable=False, index=True)
     state = Column(String(50), default="running", index=True)
@@ -63,8 +68,9 @@ class WorkflowModel(Base):
 
 class UserModel(Base):
     """用户模型"""
+
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(100), unique=True, nullable=False)
     email = Column(String(200), unique=True, nullable=False)
@@ -75,17 +81,17 @@ class UserModel(Base):
 
 # ============ 数据库管理器 ============
 
+
 class DatabaseManager:
     """数据库管理器"""
-    
-    def __init__(self, database_url: Optional[str] = None):
+
+    def __init__(self, database_url: str | None = None):
         self.database_url = database_url or os.getenv(
-            "DATABASE_URL",
-            "sqlite+aiosqlite:///./intelliteam.db"
+            "DATABASE_URL", "sqlite+aiosqlite:///./intelliteam.db"
         )
         self.engine = None
         self.async_session_maker = None
-    
+
     def connect(self) -> None:
         """连接数据库"""
         # 优化连接池配置
@@ -97,24 +103,22 @@ class DatabaseManager:
             max_overflow=10,  # 最大溢出连接数
             pool_pre_ping=True,  # 连接前检查
             pool_recycle=3600,  # 连接回收时间（秒）
-            pool_timeout=30  # 连接超时
+            pool_timeout=30,  # 连接超时
         )
         self.async_session_maker = async_sessionmaker(
-            self.engine,
-            class_=AsyncSession,
-            expire_on_commit=False
+            self.engine, class_=AsyncSession, expire_on_commit=False
         )
-    
+
     async def disconnect(self) -> None:
         """断开连接"""
         if self.engine:
             await self.engine.dispose()
-    
+
     async def create_tables(self) -> None:
         """创建所有表"""
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-    
+
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         """获取数据库会话"""
         async with self.async_session_maker() as session:
@@ -130,10 +134,10 @@ class DatabaseManager:
 
 # ============ 全局实例 ============
 
-_db_manager: Optional[DatabaseManager] = None
+_db_manager: DatabaseManager | None = None
 
 
-def get_database_manager(database_url: Optional[str] = None) -> DatabaseManager:
+def get_database_manager(database_url: str | None = None) -> DatabaseManager:
     """获取数据库管理器单例"""
     global _db_manager
     if _db_manager is None:
@@ -142,7 +146,7 @@ def get_database_manager(database_url: Optional[str] = None) -> DatabaseManager:
     return _db_manager
 
 
-async def init_database(database_url: Optional[str] = None) -> None:
+async def init_database(database_url: str | None = None) -> None:
     """初始化数据库"""
     db = get_database_manager(database_url)
     await db.create_tables()

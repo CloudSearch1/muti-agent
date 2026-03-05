@@ -31,7 +31,7 @@ logger = structlog.get_logger(__name__)
 
 class BaseAgent(ABC):
     """Agent 抽象基类 - 所有具体 Agent 必须继承此类并实现核心方法"""
-    
+
     ROLE: AgentRole = None
 
     def __init__(
@@ -181,7 +181,7 @@ class BaseAgent(ABC):
                 await self._on_task_error(task, TimeoutError(error_msg))
 
             self.logger.error("Task timeout", task_id=task.id)
-            raise AgentTimeoutError(self.agent.name, self.agent.timeout_seconds)
+            raise AgentTimeoutError(self.agent.name, self.agent.timeout_seconds) from None
 
         except Exception as e:
             error_msg = str(e)

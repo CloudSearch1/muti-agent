@@ -17,12 +17,14 @@ logger = structlog.get_logger(__name__)
 
 class LLMMessage(BaseModel):
     """LLM 消息"""
+
     role: str = Field(..., description="角色 (system/user/assistant)")
     content: str = Field(..., description="消息内容")
 
 
 class LLMResponse(BaseModel):
     """LLM 响应"""
+
     content: str = Field(..., description="响应内容")
     model: str = Field(..., description="使用的模型")
     usage: dict[str, int] = Field(default_factory=dict, description="Token 使用量")
@@ -87,6 +89,7 @@ class OpenAIProvider(BaseProvider):
         """延迟导入 httpx"""
         if self._httpx is None:
             import httpx
+
             self._httpx = httpx
         return self._httpx
 
@@ -168,6 +171,7 @@ class OpenAIProvider(BaseProvider):
                             break
 
                         import json
+
                         try:
                             chunk = json.loads(data)
                             choice = chunk["choices"][0]
@@ -210,6 +214,7 @@ class AzureOpenAIProvider(BaseProvider):
     def httpx(self):
         if self._httpx is None:
             import httpx
+
             self._httpx = httpx
         return self._httpx
 
@@ -265,7 +270,7 @@ class AzureOpenAIProvider(BaseProvider):
 class LLMService:
     """
     LLM 服务
-    
+
     统一管理 LLM 调用，支持多提供商切换
     """
 
@@ -315,13 +320,13 @@ class LLMService:
     ) -> LLMResponse:
         """
         生成响应
-        
+
         Args:
             prompt: 用户提示
             system_prompt: 系统提示
             temperature: 温度
             max_tokens: 最大 token 数
-            
+
         Returns:
             LLM 响应
         """
@@ -378,20 +383,17 @@ class LLMService:
     ) -> LLMResponse:
         """
         对话
-        
+
         Args:
             messages: 消息列表 [{"role": "user", "content": "..."}]
-            
+
         Returns:
             LLM 响应
         """
         if not self._provider:
             raise RuntimeError("LLM provider not configured")
 
-        llm_messages = [
-            LLMMessage(role=m["role"], content=m["content"])
-            for m in messages
-        ]
+        llm_messages = [LLMMessage(role=m["role"], content=m["content"]) for m in messages]
 
         return await self._provider.generate(
             llm_messages,

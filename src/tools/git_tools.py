@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class GitTools(BaseTool):
     """
     Git 工具集
-    
+
     提供：
     - Git 状态查询
     - 提交历史

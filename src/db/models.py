@@ -2,8 +2,8 @@
 数据库模块
 """
 
-from .models import TaskModel, AgentModel, WorkflowModel, BlackboardEntryModel, Base
 from .__init__ import DatabaseManager, get_database_manager, get_db
+from .models import AgentModel, Base, BlackboardEntryModel, TaskModel, WorkflowModel
 
 __all__ = [
     "TaskModel",

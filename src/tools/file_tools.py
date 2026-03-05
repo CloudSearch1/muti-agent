@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class FileTools(BaseTool):
     """
     文件工具集
-    
+
     提供：
     - 文件读写
     - 目录管理
@@ -215,18 +215,22 @@ class FileTools(BaseTool):
             if recursive:
                 for item in path.rglob("*"):
                     rel_path = item.relative_to(path)
-                    items.append({
-                        "path": str(rel_path),
-                        "is_file": item.is_file(),
-                        "size": item.stat().st_size if item.is_file() else 0,
-                    })
+                    items.append(
+                        {
+                            "path": str(rel_path),
+                            "is_file": item.is_file(),
+                            "size": item.stat().st_size if item.is_file() else 0,
+                        }
+                    )
             else:
                 for item in path.iterdir():
-                    items.append({
-                        "name": item.name,
-                        "is_file": item.is_file(),
-                        "size": item.stat().st_size if item.is_file() else 0,
-                    })
+                    items.append(
+                        {
+                            "name": item.name,
+                            "is_file": item.is_file(),
+                            "size": item.stat().st_size if item.is_file() else 0,
+                        }
+                    )
 
             return ToolResult(
                 success=True,

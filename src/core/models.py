@@ -5,20 +5,21 @@
 """
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Optional
 from uuid import uuid4
 
 # 导入 Optional 到模块命名空间
-_Optional = Optional
-
 from pydantic import BaseModel, Field
 
+_Optional = Optional
 
 # ============ 枚举类型 ============
 
-class AgentRole(str, Enum):
+
+class AgentRole(StrEnum):
     """Agent 角色枚举"""
+
     PLANNER = "planner"
     ARCHITECT = "architect"
     CODER = "coder"
@@ -28,16 +29,18 @@ class AgentRole(str, Enum):
     SENIOR_ARCHITECT = "senior_architect"
 
 
-class AgentState(str, Enum):
+class AgentState(StrEnum):
     """Agent 状态枚举"""
+
     IDLE = "idle"
     BUSY = "busy"
     ERROR = "error"
     OFFLINE = "offline"
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     """任务状态枚举"""
+
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
@@ -45,16 +48,18 @@ class TaskStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class TaskPriority(str, Enum):
+class TaskPriority(StrEnum):
     """任务优先级枚举"""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
     CRITICAL = "critical"
 
 
-class WorkflowStatus(str, Enum):
+class WorkflowStatus(StrEnum):
     """工作流状态枚举"""
+
     CREATED = "created"
     RUNNING = "running"
     PAUSED = "paused"
@@ -64,79 +69,82 @@ class WorkflowStatus(str, Enum):
 
 # ============ Agent 模型 ============
 
+
 class Agent(BaseModel):
     """Agent 数据模型"""
-    
-    id: Optional[str] = Field(default_factory=lambda: str(uuid4()), description="Agent ID")
+
+    id: str | None = Field(default_factory=lambda: str(uuid4()), description="Agent ID")
     name: str = Field(..., description="Agent 名称")
     role: AgentRole = Field(..., description="Agent 角色")
     state: AgentState = Field(default=AgentState.IDLE, description="Agent 状态")
     enabled: bool = Field(default=True, description="是否启用")
     description: str = Field(default="", description="描述")
-    
+
     # 当前任务
-    current_task_id: Optional[str] = Field(default=None, description="当前任务 ID")
-    
+    current_task_id: str | None = Field(default=None, description="当前任务 ID")
+
     # 超时设置
-    timeout_seconds: Optional[int] = Field(default=300, description="任务超时时间(秒)")
-    
+    timeout_seconds: int | None = Field(default=300, description="任务超时时间(秒)")
+
     # 最后活跃时间
-    last_active_at: Optional[datetime] = Field(default=None, description="最后活跃时间")
-    
+    last_active_at: datetime | None = Field(default=None, description="最后活跃时间")
+
     # 统计信息
     tasks_completed: int = Field(default=0, description="完成任务数")
     tasks_failed: int = Field(default=0, description="失败任务数")
     total_execution_time: float = Field(default=0.0, description="总执行时间")
     avg_execution_time: float = Field(default=0.0, description="平均执行时间")
-    
+
     # 元数据
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
     updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
-    
+
     def __init__(self, **data):
         # 处理 id 为 None 的情况
-        if 'id' in data and data['id'] is None:
-            data['id'] = str(uuid4())
+        if "id" in data and data["id"] is None:
+            data["id"] = str(uuid4())
         super().__init__(**data)
-    
+
     def is_available(self) -> bool:
         """检查 Agent 是否可用"""
         return self.enabled and self.state == AgentState.IDLE
-    
+
     def assign_task(self, task_id: str) -> None:
         """分配任务"""
         self.current_task_id = task_id
         self.state = AgentState.BUSY
         self.updated_at = datetime.now()
-    
+
     def complete_task(self, success: bool = True, execution_time: float = 0.0) -> None:
         """完成任务"""
         if success:
             self.tasks_completed += 1
         else:
             self.tasks_failed += 1
-        
+
         self.total_execution_time += execution_time
         total_tasks = self.tasks_completed + self.tasks_failed
-        self.avg_execution_time = self.total_execution_time / total_tasks if total_tasks > 0 else 0.0
-        
+        self.avg_execution_time = (
+            self.total_execution_time / total_tasks if total_tasks > 0 else 0.0
+        )
+
         self.current_task_id = None
         self.state = AgentState.IDLE
         self.updated_at = datetime.now()
-    
+
     def fail_task(self) -> None:
         """任务失败"""
         self.tasks_failed += 1
         self.current_task_id = None
         self.state = AgentState.IDLE
         self.updated_at = datetime.now()
-    
+
     def get_statistics(self) -> dict[str, Any]:
         """获取统计信息"""
         total = self.tasks_completed + self.tasks_failed
         success_rate = (self.tasks_completed / total * 100) if total > 0 else 0.0
-        
+
         return {
             "tasks_completed": self.tasks_completed,
             "tasks_failed": self.tasks_failed,
@@ -148,59 +156,60 @@ class Agent(BaseModel):
 
 # ============ Task 模型 ============
 
+
 class Task(BaseModel):
     """任务数据模型"""
-    
+
     id: str = Field(default_factory=lambda: str(uuid4()), description="任务 ID")
     title: str = Field(..., description="任务标题")
     description: str = Field(default="", description="任务描述")
     status: TaskStatus = Field(default=TaskStatus.PENDING, description="任务状态")
     priority: TaskPriority = Field(default=TaskPriority.NORMAL, description="任务优先级")
-    
+
     # 分配信息
-    assignee: Optional[str] = Field(default=None, description="分配给谁")
-    assigned_to: Optional[str] = Field(default=None, description="分配给的 Agent ID")
-    agent_role: Optional[AgentRole] = Field(default=None, description="负责的 Agent 角色")
-    
+    assignee: str | None = Field(default=None, description="分配给谁")
+    assigned_to: str | None = Field(default=None, description="分配给的 Agent ID")
+    agent_role: AgentRole | None = Field(default=None, description="负责的 Agent 角色")
+
     # 输入输出
     input_data: dict[str, Any] = Field(default_factory=dict, description="输入数据")
     output_data: dict[str, Any] = Field(default_factory=dict, description="输出数据")
-    
+
     # 执行信息
-    error_message: Optional[str] = Field(default=None, description="错误信息")
+    error_message: str | None = Field(default=None, description="错误信息")
     retry_count: int = Field(default=0, description="重试次数")
     max_retries: int = Field(default=3, description="最大重试次数")
-    
+
     # 时间信息
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
-    started_at: Optional[datetime] = Field(default=None, description="开始时间")
-    completed_at: Optional[datetime] = Field(default=None, description="完成时间")
-    
+    started_at: datetime | None = Field(default=None, description="开始时间")
+    completed_at: datetime | None = Field(default=None, description="完成时间")
+
     # 依赖关系
     dependencies: list[str] = Field(default_factory=list, description="依赖的任务 ID")
-    
+
     # 元数据
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
-    
+
     def start(self) -> None:
         """开始任务"""
         self.status = TaskStatus.IN_PROGRESS
         self.started_at = datetime.now()
-    
+
     def complete(self, output_data: dict[str, Any] = None) -> None:
         """完成任务"""
         self.status = TaskStatus.COMPLETED
         self.completed_at = datetime.now()
         if output_data:
             self.output_data = output_data
-    
+
     def fail(self, error_message: str = None) -> None:
         """任务失败"""
         self.status = TaskStatus.FAILED
         self.completed_at = datetime.now()
         if error_message:
             self.error_message = error_message
-    
+
     def retry(self) -> bool:
         """重试任务"""
         if self.retry_count < self.max_retries:
@@ -211,15 +220,11 @@ class Task(BaseModel):
             self.completed_at = None
             return True
         return False
-    
+
     def is_terminal(self) -> bool:
         """检查是否为终端状态"""
-        return self.status in [
-            TaskStatus.COMPLETED,
-            TaskStatus.FAILED,
-            TaskStatus.CANCELLED
-        ]
-    
+        return self.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
+
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return self.model_dump()
@@ -227,46 +232,47 @@ class Task(BaseModel):
 
 # ============ Workflow 模型 ============
 
+
 class Workflow(BaseModel):
     """工作流数据模型"""
-    
+
     id: str = Field(default_factory=lambda: str(uuid4()), description="工作流 ID")
     name: str = Field(..., description="工作流名称")
     description: str = Field(default="", description="工作流描述")
     status: WorkflowStatus = Field(default=WorkflowStatus.CREATED, description="工作流状态")
-    
+
     # 任务列表
     task_ids: list[str] = Field(default_factory=list, description="任务 ID 列表")
-    
+
     # 输入输出
     input_data: dict[str, Any] = Field(default_factory=dict, description="输入数据")
     output_data: dict[str, Any] = Field(default_factory=dict, description="输出数据")
-    
+
     # 时间信息
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
-    started_at: Optional[datetime] = Field(default=None, description="开始时间")
-    completed_at: Optional[datetime] = Field(default=None, description="完成时间")
-    
+    started_at: datetime | None = Field(default=None, description="开始时间")
+    completed_at: datetime | None = Field(default=None, description="完成时间")
+
     # 元数据
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
-    
+
     def start(self) -> None:
         """开始工作流"""
         self.status = WorkflowStatus.RUNNING
         self.started_at = datetime.now()
-    
+
     def complete(self, output_data: dict[str, Any] = None) -> None:
         """完成工作流"""
         self.status = WorkflowStatus.COMPLETED
         self.completed_at = datetime.now()
         if output_data:
             self.output_data = output_data
-    
+
     def fail(self) -> None:
         """工作流失败"""
         self.status = WorkflowStatus.FAILED
         self.completed_at = datetime.now()
-    
+
     def add_task(self, task_id: str) -> None:
         """添加任务"""
         if task_id not in self.task_ids:
@@ -275,45 +281,47 @@ class Workflow(BaseModel):
 
 # ============ Blackboard 模型 ============
 
+
 class BlackboardEntry(BaseModel):
     """黑板条目模型"""
-    
+
     id: str = Field(default_factory=lambda: str(uuid4()), description="条目 ID")
     key: str = Field(..., description="键")
     value: Any = Field(..., description="值")
     entry_type: str = Field(default="generic", description="条目类型")
-    
+
     # 来源信息
-    source_agent: Optional[str] = Field(default=None, description="来源 Agent")
-    source_task: Optional[str] = Field(default=None, description="来源任务")
-    
+    source_agent: str | None = Field(default=None, description="来源 Agent")
+    source_task: str | None = Field(default=None, description="来源任务")
+
     # 时间信息
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
     updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
-    expires_at: Optional[datetime] = Field(default=None, description="过期时间")
-    
+    expires_at: datetime | None = Field(default=None, description="过期时间")
+
     # 元数据
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
 
 
 class BlackboardMessage(BaseModel):
     """黑板消息模型"""
-    
+
     id: str = Field(default_factory=lambda: str(uuid4()), description="消息 ID")
     sender: str = Field(..., description="发送者")
-    receiver: Optional[str] = Field(default=None, description="接收者（None 表示广播）")
+    receiver: str | None = Field(default=None, description="接收者（None 表示广播）")
     content: str = Field(..., description="消息内容")
     message_type: str = Field(default="info", description="消息类型")
-    
+
     # 时间信息
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
-    
+
     # 元数据
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
 
 
-class MessageType(str, Enum):
+class MessageType(StrEnum):
     """消息类型枚举"""
+
     NOTIFICATION = "notification"
     REQUEST = "request"
     RESPONSE = "response"
@@ -325,64 +333,59 @@ class MessageType(str, Enum):
 
 class Message(BaseModel):
     """消息模型"""
-    
+
     id: str = Field(default_factory=lambda: str(uuid4()), description="消息 ID")
     type: MessageType = Field(default=MessageType.NOTIFICATION, description="消息类型")
     priority: str = Field(default="normal", description="优先级")
     subject: str = Field(default="", description="主题")
     content: Any = Field(..., description="内容")
-    
+
     # 发送者信息
-    sender_id: Optional[str] = Field(default=None, description="发送者 ID")
-    sender_role: Optional[str] = Field(default=None, description="发送者角色")
-    
+    sender_id: str | None = Field(default=None, description="发送者 ID")
+    sender_role: str | None = Field(default=None, description="发送者角色")
+
     # 接收者信息
-    recipient_id: Optional[str] = Field(default=None, description="接收者 ID")
-    recipient_role: Optional[str] = Field(default=None, description="接收者角色")
-    
+    recipient_id: str | None = Field(default=None, description="接收者 ID")
+    recipient_role: str | None = Field(default=None, description="接收者角色")
+
     # 关联信息
-    task_id: Optional[str] = Field(default=None, description="关联任务 ID")
-    
+    task_id: str | None = Field(default=None, description="关联任务 ID")
+
     # 时间信息
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
-    read_at: Optional[datetime] = Field(default=None, description="阅读时间")
-    
+    read_at: datetime | None = Field(default=None, description="阅读时间")
+
     # 元数据
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
 
 
 class Blackboard(BaseModel):
     """黑板系统 - 用于 Agent 间通信和共享状态"""
-    
+
     id: str = Field(default_factory=lambda: str(uuid4()), description="黑板 ID")
     entries: dict[str, BlackboardEntry] = Field(default_factory=dict, description="条目字典")
     messages: list[Message] = Field(default_factory=list, description="消息列表")
-    
-    def put(self, key: str, value: Any, owner_id: Optional[str] = None, **kwargs) -> BlackboardEntry:
+
+    def put(self, key: str, value: Any, owner_id: str | None = None, **kwargs) -> BlackboardEntry:
         """写入数据"""
-        entry = BlackboardEntry(
-            key=key,
-            value=value,
-            source_agent=owner_id,
-            **kwargs
-        )
+        entry = BlackboardEntry(key=key, value=value, source_agent=owner_id, **kwargs)
         self.entries[key] = entry
         return entry
-    
+
     def get(self, key: str, default: Any = None) -> Any:
         """读取数据"""
         entry = self.entries.get(key)
         return entry.value if entry else default
-    
+
     def post_message(self, message: Message) -> None:
         """发布消息"""
         self.messages.append(message)
-    
+
     def get_messages(
         self,
-        recipient_id: Optional[str] = None,
-        recipient_role: Optional[str] = None,
-        message_type: Optional[MessageType] = None,
+        recipient_id: str | None = None,
+        recipient_role: str | None = None,
+        message_type: MessageType | None = None,
         unread_only: bool = False,
     ) -> list[Message]:
         """获取消息"""
@@ -398,7 +401,7 @@ class Blackboard(BaseModel):
                 continue
             result.append(msg)
         return result
-    
+
     def mark_message_read(self, message_id: str, reader_id: str) -> None:
         """标记消息已读"""
         for msg in self.messages:

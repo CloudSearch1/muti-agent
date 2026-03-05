@@ -8,62 +8,42 @@ import time
 from functools import wraps
 
 try:
-    from prometheus_client import Counter, Gauge, Histogram, Summary
+    from prometheus_client import Counter, Gauge, Histogram
 
     # HTTP 请求指标
     HTTP_REQUESTS = Counter(
-        'http_requests_total',
-        'Total HTTP requests',
-        ['method', 'endpoint', 'status']
+        "http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"]
     )
 
     HTTP_REQUEST_DURATION = Histogram(
-        'http_request_duration_seconds',
-        'HTTP request duration in seconds',
-        ['method', 'endpoint']
+        "http_request_duration_seconds", "HTTP request duration in seconds", ["method", "endpoint"]
     )
 
     # Agent 指标
     AGENT_TASKS = Counter(
-        'agent_tasks_total',
-        'Total tasks executed by agents',
-        ['agent_role', 'status']
+        "agent_tasks_total", "Total tasks executed by agents", ["agent_role", "status"]
     )
 
     AGENT_EXECUTION_TIME = Histogram(
-        'agent_execution_time_seconds',
-        'Agent execution time in seconds',
-        ['agent_role']
+        "agent_execution_time_seconds", "Agent execution time in seconds", ["agent_role"]
     )
 
-    AGENT_ACTIVE = Gauge(
-        'agent_active_tasks',
-        'Number of active agent tasks',
-        ['agent_role']
-    )
+    AGENT_ACTIVE = Gauge("agent_active_tasks", "Number of active agent tasks", ["agent_role"])
 
     # 工作流指标
     WORKFLOW_EXECUTIONS = Counter(
-        'workflow_executions_total',
-        'Total workflow executions',
-        ['workflow_name', 'status']
+        "workflow_executions_total", "Total workflow executions", ["workflow_name", "status"]
     )
 
     WORKFLOW_DURATION = Histogram(
-        'workflow_duration_seconds',
-        'Workflow duration in seconds',
-        ['workflow_name']
+        "workflow_duration_seconds", "Workflow duration in seconds", ["workflow_name"]
     )
 
     # 黑板指标
-    BLACKBOARD_ENTRIES = Gauge(
-        'blackboard_entries_total',
-        'Number of entries in blackboard'
-    )
+    BLACKBOARD_ENTRIES = Gauge("blackboard_entries_total", "Number of entries in blackboard")
 
     BLACKBOARD_MESSAGES = Counter(
-        'blackboard_messages_total',
-        'Total messages posted to blackboard'
+        "blackboard_messages_total", "Total messages posted to blackboard"
     )
 
     PROMETHEUS_AVAILABLE = True
@@ -75,16 +55,22 @@ except ImportError:
     class DummyMetric:
         def __init__(self, *args, **kwargs):
             pass
+
         def inc(self, *args, **kwargs):
             pass
+
         def set(self, *args, **kwargs):
             pass
+
         def observe(self, *args, **kwargs):
             pass
+
         def time(self):
             return self
+
         def __enter__(self):
             pass
+
         def __exit__(self, *args):
             pass
 
@@ -101,6 +87,7 @@ except ImportError:
 
 def track_request(method: str, endpoint: str):
     """装饰器：跟踪 HTTP 请求"""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -119,11 +106,13 @@ def track_request(method: str, endpoint: str):
                 HTTP_REQUEST_DURATION.labels(method=method, endpoint=endpoint).observe(duration)
 
         return wrapper
+
     return decorator
 
 
 def track_agent_execution(agent_role: str):
     """装饰器：跟踪 Agent 执行"""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -144,11 +133,13 @@ def track_agent_execution(agent_role: str):
                 AGENT_ACTIVE.labels(agent_role=agent_role).dec()
 
         return wrapper
+
     return decorator
 
 
 def track_workflow_execution(workflow_name: str):
     """装饰器：跟踪工作流执行"""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -167,4 +158,5 @@ def track_workflow_execution(workflow_name: str):
                 WORKFLOW_DURATION.labels(workflow_name=workflow_name).observe(duration)
 
         return wrapper
+
     return decorator

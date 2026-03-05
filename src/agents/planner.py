@@ -24,7 +24,7 @@ logger = structlog.get_logger(__name__)
 class PlannerAgent(BaseAgent):
     """
     任务规划师
-    
+
     负责：
     - 接收高层目标，分解为可执行任务
     - 评估任务优先级和依赖关系
@@ -40,7 +40,7 @@ class PlannerAgent(BaseAgent):
         # 规划师特有配置
         self.max_subtasks = kwargs.get("max_subtasks", 20)
         self.planning_model = kwargs.get("planning_model", "gpt-4")
-        
+
         # LLM 辅助
         self.llm_helper = get_planner_llm()
 
@@ -49,7 +49,7 @@ class PlannerAgent(BaseAgent):
     async def execute(self, task: Task) -> dict[str, Any]:
         """
         执行规划任务
-        
+
         将复杂目标分解为可执行的子任务
         """
         self.logger.info(
@@ -64,11 +64,13 @@ class PlannerAgent(BaseAgent):
         constraints = task.input_data.get("constraints", [])
 
         # 思考分解策略
-        thinking_result = await self.think({
-            "goal": goal,
-            "context": context,
-            "constraints": constraints,
-        })
+        thinking_result = await self.think(
+            {
+                "goal": goal,
+                "context": context,
+                "constraints": constraints,
+            }
+        )
 
         # 生成子任务
         subtasks = thinking_result.get("subtasks", [])
@@ -80,7 +82,7 @@ class PlannerAgent(BaseAgent):
                 generated=len(subtasks),
                 limit=self.max_subtasks,
             )
-            subtasks = subtasks[:self.max_subtasks]
+            subtasks = subtasks[: self.max_subtasks]
 
         # 创建任务对象
         created_tasks = []
@@ -127,7 +129,7 @@ class PlannerAgent(BaseAgent):
     async def think(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         思考任务分解策略
-        
+
         使用 LLM 进行任务分析和分解
         """
         goal = context.get("goal", "")
@@ -149,7 +151,7 @@ class PlannerAgent(BaseAgent):
             "subtasks": subtasks,
             "reasoning": "基于目标复杂度和依赖关系进行分解 (fallback)",
         }
-    
+
     async def _llm_plan(self, goal: str, constraints: list[str]) -> dict[str, Any] | None:
         """使用 LLM 进行任务规划"""
         prompt = f"""你是一个专业的任务规划师。请将以下目标分解为可执行的子任务。
@@ -185,10 +187,10 @@ class PlannerAgent(BaseAgent):
             prompt=prompt,
             system_prompt="你是一个专业的任务规划师。请以 JSON 格式输出任务分解结果。",
         )
-        
+
         if result and "subtasks" in result:
             return result
-        
+
         return None
 
     def _simulate_planning(
@@ -205,48 +207,50 @@ class PlannerAgent(BaseAgent):
         goal_lower = goal.lower()
 
         if "api" in goal_lower or "接口" in goal_lower:
-            subtasks.extend([
-                {
-                    "title": "分析 API 需求",
-                    "description": "理解 API 的功能需求和技术要求",
-                    "priority": "high",
-                    "assigned_role": "analyst",
-                    "dependencies": [],
-                    "input_data": {"goal": goal},
-                },
-                {
-                    "title": "设计 API 架构",
-                    "description": "设计 API 的端点、数据模型和认证机制",
-                    "priority": "high",
-                    "assigned_role": "architect",
-                    "dependencies": ["task_0"],
-                    "input_data": {"goal": goal},
-                },
-                {
-                    "title": "实现 API 代码",
-                    "description": "编写 API 的实现代码",
-                    "priority": "normal",
-                    "assigned_role": "coder",
-                    "dependencies": ["task_1"],
-                    "input_data": {"goal": goal},
-                },
-                {
-                    "title": "编写 API 测试",
-                    "description": "创建单元测试和集成测试",
-                    "priority": "normal",
-                    "assigned_role": "tester",
-                    "dependencies": ["task_2"],
-                    "input_data": {"goal": goal},
-                },
-                {
-                    "title": "编写 API 文档",
-                    "description": "生成 API 使用文档",
-                    "priority": "low",
-                    "assigned_role": "doc_writer",
-                    "dependencies": ["task_2"],
-                    "input_data": {"goal": goal},
-                },
-            ])
+            subtasks.extend(
+                [
+                    {
+                        "title": "分析 API 需求",
+                        "description": "理解 API 的功能需求和技术要求",
+                        "priority": "high",
+                        "assigned_role": "analyst",
+                        "dependencies": [],
+                        "input_data": {"goal": goal},
+                    },
+                    {
+                        "title": "设计 API 架构",
+                        "description": "设计 API 的端点、数据模型和认证机制",
+                        "priority": "high",
+                        "assigned_role": "architect",
+                        "dependencies": ["task_0"],
+                        "input_data": {"goal": goal},
+                    },
+                    {
+                        "title": "实现 API 代码",
+                        "description": "编写 API 的实现代码",
+                        "priority": "normal",
+                        "assigned_role": "coder",
+                        "dependencies": ["task_1"],
+                        "input_data": {"goal": goal},
+                    },
+                    {
+                        "title": "编写 API 测试",
+                        "description": "创建单元测试和集成测试",
+                        "priority": "normal",
+                        "assigned_role": "tester",
+                        "dependencies": ["task_2"],
+                        "input_data": {"goal": goal},
+                    },
+                    {
+                        "title": "编写 API 文档",
+                        "description": "生成 API 使用文档",
+                        "priority": "low",
+                        "assigned_role": "doc_writer",
+                        "dependencies": ["task_2"],
+                        "input_data": {"goal": goal},
+                    },
+                ]
+            )
         else:
             # 通用任务分解
             subtasks = [
@@ -285,11 +289,11 @@ class PlannerAgent(BaseAgent):
     ) -> list[Task]:
         """
         对任务进行优先级排序
-        
+
         Args:
             tasks: 任务列表
             criteria: 排序标准 (urgency/dependency/complexity)
-            
+
         Returns:
             排序后的任务列表
         """

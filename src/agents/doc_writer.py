@@ -18,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class DocWriterAgent(BaseAgent):
     """
     技术文档工程师
-    
+
     负责：
     - 编写技术文档和使用手册
     - 生成 API 文档
@@ -54,11 +54,13 @@ class DocWriterAgent(BaseAgent):
         target_audience = task.input_data.get("target_audience", "developers")
 
         # 思考文档结构
-        doc_plan = await self.think({
-            "content_type": content_type,
-            "source_material": source_material,
-            "target_audience": target_audience,
-        })
+        doc_plan = await self.think(
+            {
+                "content_type": content_type,
+                "source_material": source_material,
+                "target_audience": target_audience,
+            }
+        )
 
         # 生成文档
         document = self._generate_document(doc_plan, source_material)
@@ -136,7 +138,7 @@ class DocWriterAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         模拟文档计划 (临时实现)
-        
+
         TODO: 替换为真实 LLM 调用
         """
         if content_type == "api_doc":
@@ -231,11 +233,11 @@ A: Python 3.11+
     ) -> dict[str, Any]:
         """
         根据代码生成 API 文档
-        
+
         Args:
             code_files: 代码文件列表
             format: 文档格式
-            
+
         Returns:
             API 文档
         """
@@ -255,12 +257,12 @@ A: Python 3.11+
     ) -> dict[str, Any]:
         """
         更新知识库
-        
+
         Args:
             topic: 主题
             content: 内容
             tags: 标签列表
-            
+
         Returns:
             更新结果
         """
@@ -278,11 +280,11 @@ A: Python 3.11+
     ) -> dict[str, Any]:
         """
         文档审查
-        
+
         Args:
             document: 待审查的文档
             criteria: 审查标准
-            
+
         Returns:
             审查结果
         """

@@ -18,7 +18,7 @@ logger = structlog.get_logger(__name__)
 class ArchitectAgent(BaseAgent):
     """
     系统架构师
-    
+
     负责：
     - 系统架构设计
     - 技术栈选型
@@ -34,7 +34,7 @@ class ArchitectAgent(BaseAgent):
         # 架构师特有配置
         self.design_model = kwargs.get("design_model", "gpt-4")
         self.preferred_patterns = kwargs.get("preferred_patterns", [])
-        
+
         # LLM 辅助
         self.llm_helper = get_architect_llm()
 
@@ -56,11 +56,13 @@ class ArchitectAgent(BaseAgent):
         existing_system = task.input_data.get("existing_system", None)
 
         # 思考架构方案
-        design = await self.think({
-            "requirements": requirements,
-            "constraints": constraints,
-            "existing_system": existing_system,
-        })
+        design = await self.think(
+            {
+                "requirements": requirements,
+                "constraints": constraints,
+                "existing_system": existing_system,
+            }
+        )
 
         # 生成架构文档
         architecture_doc = self._generate_architecture_doc(design)
@@ -96,7 +98,7 @@ class ArchitectAgent(BaseAgent):
 
         # Fallback: 使用模拟设计
         return self._simulate_design(requirements, constraints)
-    
+
     async def _llm_design(
         self,
         requirements: list[str],
@@ -140,10 +142,10 @@ class ArchitectAgent(BaseAgent):
             prompt=prompt,
             system_prompt="你是一位资深系统架构师。请以 JSON 格式输出架构设计方案。",
         )
-        
+
         if result:
             return result
-        
+
         return None
 
     def _build_architecture_prompt(
@@ -176,7 +178,7 @@ class ArchitectAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         模拟架构设计结果 (临时实现)
-        
+
         TODO: 替换为真实 LLM 调用
         """
         return {
@@ -239,11 +241,11 @@ class ArchitectAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         评审架构设计
-        
+
         Args:
             architecture: 架构设计文档
             criteria: 评审标准列表
-            
+
         Returns:
             评审结果
         """

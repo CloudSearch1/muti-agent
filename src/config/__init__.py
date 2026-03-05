@@ -7,10 +7,6 @@
 - 多环境支持
 """
 
-from .celery_config import celery_app, CELERY_BROKER_URL, CELERY_RESULT_BACKEND
+from .celery_config import CELERY_BROKER_URL, CELERY_RESULT_BACKEND, celery_app
 
-__all__ = [
-    "celery_app",
-    "CELERY_BROKER_URL",
-    "CELERY_RESULT_BACKEND"
-]
+__all__ = ["celery_app", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"]

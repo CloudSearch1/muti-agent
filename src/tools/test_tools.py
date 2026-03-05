@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 class TestTools(BaseTool):
     """
     测试工具集
-    
+
     提供：
     - 测试执行
     - 覆盖率分析
@@ -98,11 +98,14 @@ class TestTools(BaseTool):
 
         try:
             import os
+
             # 设置 PYTHONPATH 确保模块导入正确
             env = os.environ.copy()
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            project_root = os.path.dirname(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
             env["PYTHONPATH"] = project_root + ":" + env.get("PYTHONPATH", "")
-            
+
             # 执行测试
             process = await asyncio.create_subprocess_exec(
                 *cmd,

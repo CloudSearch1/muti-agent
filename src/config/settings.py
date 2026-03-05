@@ -16,7 +16,7 @@ logger = structlog.get_logger(__name__)
 class Settings(BaseSettings):
     """
     应用配置
-    
+
     从环境变量和 .env 文件加载配置
     """
 

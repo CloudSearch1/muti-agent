@@ -33,8 +33,10 @@ class IntelliTeamError(Exception):
 # Agent 相关异常
 # ===========================================
 
+
 class AgentError(IntelliTeamError):
     """Agent 基础异常"""
+
     pass
 
 
@@ -75,8 +77,10 @@ class AgentTimeoutError(AgentError):
 # 任务相关异常
 # ===========================================
 
+
 class TaskError(IntelliTeamError):
     """任务基础异常"""
+
     pass
 
 
@@ -117,8 +121,10 @@ class TaskExecutionError(TaskError):
 # 工作流相关异常
 # ===========================================
 
+
 class WorkflowError(IntelliTeamError):
     """工作流基础异常"""
+
     pass
 
 
@@ -153,8 +159,10 @@ class WorkflowTransitionError(WorkflowError):
 # 知识库相关异常
 # ===========================================
 
+
 class KnowledgeError(IntelliTeamError):
     """知识库基础异常"""
+
     pass
 
 
@@ -195,8 +203,10 @@ class RetrievalError(KnowledgeError):
 # 工具相关异常
 # ===========================================
 
+
 class ToolError(IntelliTeamError):
     """工具基础异常"""
+
     pass
 
 
@@ -226,8 +236,10 @@ class ToolExecutionError(ToolError):
 # 协作相关异常
 # ===========================================
 
+
 class CollaborationError(IntelliTeamError):
     """协作基础异常"""
+
     pass
 
 
@@ -256,6 +268,7 @@ class ArbitrationRequiredError(CollaborationError):
 # ===========================================
 # 配置相关异常
 # ===========================================
+
 
 class ConfigurationError(IntelliTeamError):
     """配置错误"""

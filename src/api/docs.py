@@ -5,23 +5,23 @@ IntelliTeam OpenAPI 文档配置
 """
 
 from fastapi import FastAPI
-from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 
 
 def setup_openapi_docs(app: FastAPI):
     """
     配置 OpenAPI 文档
-    
+
     Args:
         app: FastAPI 应用实例
     """
-    
+
     # 自定义 OpenAPI 配置
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema
-        
+
         openapi_schema = get_openapi(
             title="IntelliTeam API",
             version="2.0.0",
@@ -59,44 +59,23 @@ def setup_openapi_docs(app: FastAPI):
             """,
             routes=app.routes,
         )
-        
+
         # 添加标签说明
         openapi_schema["tags"] = [
-            {
-                "name": "tasks",
-                "description": "任务管理 - 创建、查询、更新、删除任务"
-            },
-            {
-                "name": "agents",
-                "description": "Agent 管理 - 查询 Agent 状态和统计"
-            },
-            {
-                "name": "workflows",
-                "description": "工作流 - 工作流执行和监控"
-            },
-            {
-                "name": "auth",
-                "description": "认证 - 用户登录和 Token 管理"
-            },
-            {
-                "name": "users",
-                "description": "用户管理 - 用户 CRUD 操作"
-            },
-            {
-                "name": "monitoring",
-                "description": "监控 - Prometheus 指标和健康检查"
-            },
-            {
-                "name": "export",
-                "description": "导出 - 数据导出功能"
-            }
+            {"name": "tasks", "description": "任务管理 - 创建、查询、更新、删除任务"},
+            {"name": "agents", "description": "Agent 管理 - 查询 Agent 状态和统计"},
+            {"name": "workflows", "description": "工作流 - 工作流执行和监控"},
+            {"name": "auth", "description": "认证 - 用户登录和 Token 管理"},
+            {"name": "users", "description": "用户管理 - 用户 CRUD 操作"},
+            {"name": "monitoring", "description": "监控 - Prometheus 指标和健康检查"},
+            {"name": "export", "description": "导出 - 数据导出功能"},
         ]
-        
+
         app.openapi_schema = openapi_schema
         return openapi_schema
-    
+
     app.openapi = custom_openapi
-    
+
     # 自定义 Swagger UI
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
@@ -110,10 +89,10 @@ def setup_openapi_docs(app: FastAPI):
                 "docExpansion": "list",
                 "filter": True,
                 "showExtensions": True,
-                "showCommonExtensions": True
-            }
+                "showCommonExtensions": True,
+            },
         )
-    
+
     # 自定义 ReDoc
     @app.get("/redoc", include_in_schema=False)
     async def custom_redoc_html():
@@ -121,9 +100,9 @@ def setup_openapi_docs(app: FastAPI):
             openapi_url="/openapi.json",
             title="IntelliTeam API - ReDoc",
             redoc_favicon_url="https://fastapi.tiangolo.com/img/favicon.png",
-            redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js"
+            redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js",
         )
-    
+
     print("✅ OpenAPI 文档已配置")
     print("📚 Swagger UI: http://localhost:8080/docs")
     print("📖 ReDoc: http://localhost:8080/redoc")
@@ -132,46 +111,15 @@ def setup_openapi_docs(app: FastAPI):
 def add_api_examples(app: FastAPI):
     """
     添加 API 示例
-    
+
     Args:
         app: FastAPI 应用实例
     """
-    
+
     # 任务示例
-    task_example = {
-        "title": "创建用户管理 API",
-        "description": "实现用户注册、登录、权限管理等功能",
-        "priority": "high",
-        "assignee": "张三",
-        "agent": "Coder"
-    }
-    
+
     # Agent 示例
-    agent_example = {
-        "name": "Coder",
-        "role": "代码工程师",
-        "description": "负责代码实现和功能开发",
-        "status": "busy",
-        "tasksCompleted": 89,
-        "avgTime": 8.2,
-        "successRate": 94
-    }
-    
+
     # 错误响应示例
-    error_example = {
-        "error": "VALIDATION_ERROR",
-        "message": "请求验证失败",
-        "status_code": 400,
-        "details": {
-            "errors": [
-                {
-                    "field": "title",
-                    "message": "field required",
-                    "type": "value_error.missing"
-                }
-            ]
-        },
-        "timestamp": "2026-03-03T12:00:00"
-    }
-    
+
     print("✅ API 示例已添加")

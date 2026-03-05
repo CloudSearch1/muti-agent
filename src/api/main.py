@@ -56,10 +56,10 @@ async def lifespan(app: FastAPI):
 def create_app(settings: Settings = None) -> FastAPI:
     """
     创建 FastAPI 应用
-    
+
     Args:
         settings: 配置对象，None 则使用默认配置
-        
+
     Returns:
         FastAPI 应用实例
     """

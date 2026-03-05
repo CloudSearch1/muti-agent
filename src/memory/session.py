@@ -18,6 +18,7 @@ logger = structlog.get_logger(__name__)
 
 class SessionInfo(BaseModel):
     """会话信息"""
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     agent_id: str = Field(..., description="Agent ID")
     user_id: str | None = Field(default=None, description="用户 ID")
@@ -38,7 +39,7 @@ class SessionInfo(BaseModel):
 class SessionManager:
     """
     会话管理器
-    
+
     管理多个 Agent 会话的生命周期
     """
 
@@ -50,7 +51,7 @@ class SessionManager:
     ):
         """
         初始化会话管理器
-        
+
         Args:
             memory: 短期记忆实例
             session_ttl: 会话 TTL (秒)
@@ -75,12 +76,12 @@ class SessionManager:
     ) -> SessionInfo:
         """
         创建新会话
-        
+
         Args:
             agent_id: Agent ID
             user_id: 用户 ID
             metadata: 元数据
-            
+
         Returns:
             会话信息
         """
@@ -114,10 +115,10 @@ class SessionManager:
     ) -> SessionInfo | None:
         """
         获取会话
-        
+
         Args:
             session_id: 会话 ID
-            
+
         Returns:
             会话信息，不存在则返回 None
         """
@@ -147,11 +148,11 @@ class SessionManager:
     ) -> bool:
         """
         更新会话
-        
+
         Args:
             session_id: 会话 ID
             **updates: 更新字段
-            
+
         Returns:
             是否成功
         """
@@ -187,10 +188,10 @@ class SessionManager:
     async def end_session(self, session_id: str) -> bool:
         """
         结束会话
-        
+
         Args:
             session_id: 会话 ID
-            
+
         Returns:
             是否成功
         """
@@ -212,9 +213,7 @@ class SessionManager:
         self.logger.info(
             "Session ended",
             session_id=session_id,
-            duration_minutes=(
-                datetime.now() - session.created_at
-            ).total_seconds() / 60,
+            duration_minutes=(datetime.now() - session.created_at).total_seconds() / 60,
         )
 
         return True
@@ -226,11 +225,11 @@ class SessionManager:
     ) -> bool:
         """
         添加消息到会话
-        
+
         Args:
             session_id: 会话 ID
             message: 消息内容
-            
+
         Returns:
             是否成功
         """
@@ -242,10 +241,12 @@ class SessionManager:
         # 追加消息到记忆
         messages_key = f"messages:{session_id}"
         messages = await self.memory.get(messages_key, [])
-        messages.append({
-            **message,
-            "timestamp": datetime.now().isoformat(),
-        })
+        messages.append(
+            {
+                **message,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
         await self.memory.set(
             messages_key,
@@ -268,11 +269,11 @@ class SessionManager:
     ) -> list[dict[str, Any]]:
         """
         获取会话消息
-        
+
         Args:
             session_id: 会话 ID
             limit: 最大消息数
-            
+
         Returns:
             消息列表
         """
@@ -295,10 +296,10 @@ class SessionManager:
     ) -> list[SessionInfo]:
         """
         获取活跃会话
-        
+
         Args:
             agent_id: Agent ID 过滤
-            
+
         Returns:
             会话列表
         """
@@ -336,8 +337,6 @@ class SessionManager:
         """获取统计信息"""
         return {
             "total_sessions": len(self._sessions),
-            "active_sessions": sum(
-                1 for s in self._sessions.values() if s.active
-            ),
+            "active_sessions": sum(1 for s in self._sessions.values() if s.active),
             "session_ttl": self.session_ttl,
         }
