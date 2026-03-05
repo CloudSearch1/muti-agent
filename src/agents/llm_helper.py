@@ -152,7 +152,7 @@ class AgentLLMHelper:
         prompt = f"""## 上下文信息
 {json.dumps(context, ensure_ascii=False, indent=2)}
 
-{'## 期望输出格式' +  + json.dumps(output_format, ensure_ascii=False, indent=2)) if output_format else ''}
+        ## 期望输出格式\n{json.dumps(output_format, ensure_ascii=False, indent=2) if output_format else ''}
 
 请进行分析并输出结果："""
 
