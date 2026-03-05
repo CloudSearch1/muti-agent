@@ -10,6 +10,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
+from .llm_helper import get_coder_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -34,6 +35,9 @@ class CoderAgent(BaseAgent):
         self.coding_model = kwargs.get("coding_model", "gpt-4")
         self.preferred_language = kwargs.get("preferred_language", "python")
         self.code_style = kwargs.get("code_style", "pep8")
+        
+        # LLM 辅助
+        self.llm_helper = get_coder_llm()
 
         self.logger.info("CoderAgent initialized")
 
@@ -83,16 +87,61 @@ class CoderAgent(BaseAgent):
         requirements = context.get("requirements", "")
         architecture = context.get("architecture", {})
 
-        # 构建编码提示词
-        prompt = self._build_coding_prompt(requirements, architecture)
+        # 尝试使用 LLM 进行代码设计
+        if self.llm_helper.is_available():
+            try:
+                result = await self._llm_design(requirements, architecture)
+                if result:
+                    return result
+            except Exception as e:
+                self.logger.warning("LLM code design failed, using fallback", error=str(e))
 
-        self.logger.debug("Coding prompt prepared", prompt_length=len(prompt))
+        # Fallback: 使用模拟实现
+        return self._simulate_implementation(requirements)
+    
+    async def _llm_design(
+        self,
+        requirements: str,
+        architecture: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """使用 LLM 设计代码实现方案"""
+        prompt = f"""你是一位资深软件工程师。请根据以下需求设计代码实现方案。
 
-        # TODO: 调用 LLM API
-        # 使用模拟返回
-        implementation = self._simulate_implementation(requirements)
+## 需求
+{requirements}
 
-        return implementation
+## 架构设计
+{architecture if architecture else "无特定架构要求"}
+
+## 要求
+1. 设计清晰的模块结构
+2. 列出关键函数及其职责
+3. 考虑错误处理和边界情况
+4. 遵循 {self.code_style} 代码规范
+
+## 输出格式 (JSON)
+{{
+    "approach": "实现思路说明",
+    "key_functions": [
+        {{
+            "name": "函数名",
+            "description": "功能描述",
+            "parameters": ["参数列表"],
+            "returns": "返回值说明"
+        }}
+    ],
+    "notes": "实现注意事项"
+}}"""
+
+        result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt=f"你是一位资深{self.preferred_language}软件工程师。请以 JSON 格式输出代码设计方案。",
+        )
+        
+        if result:
+            return result
+        
+        return None
 
     def _build_coding_prompt(
         self,

@@ -11,6 +11,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
+from .llm_helper import get_tester_llm
 
 logger = structlog.get_logger(__name__)
 

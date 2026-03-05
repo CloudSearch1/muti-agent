@@ -10,6 +10,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
+from .llm_helper import get_architect_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -33,6 +34,9 @@ class ArchitectAgent(BaseAgent):
         # 架构师特有配置
         self.design_model = kwargs.get("design_model", "gpt-4")
         self.preferred_patterns = kwargs.get("preferred_patterns", [])
+        
+        # LLM 辅助
+        self.llm_helper = get_architect_llm()
 
         self.logger.info("ArchitectAgent initialized")
 
@@ -81,16 +85,66 @@ class ArchitectAgent(BaseAgent):
         requirements = context.get("requirements", [])
         constraints = context.get("constraints", {})
 
-        # 构建架构设计提示词
-        prompt = self._build_architecture_prompt(requirements, constraints)
+        # 尝试使用 LLM 进行架构设计
+        if self.llm_helper.is_available():
+            try:
+                result = await self._llm_design(requirements, constraints)
+                if result:
+                    return result
+            except Exception as e:
+                self.logger.warning("LLM design failed, using fallback", error=str(e))
 
-        self.logger.debug("Architecture prompt prepared", prompt_length=len(prompt))
+        # Fallback: 使用模拟设计
+        return self._simulate_design(requirements, constraints)
+    
+    async def _llm_design(
+        self,
+        requirements: list[str],
+        constraints: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """使用 LLM 进行架构设计"""
+        prompt = f"""你是一位资深系统架构师。请根据以下需求设计系统架构。
 
-        # TODO: 调用 LLM API
-        # 使用模拟返回
-        design = self._simulate_design(requirements, constraints)
+## 需求
+{chr(10).join(f"- {r}" for r in requirements)}
 
-        return design
+## 约束
+{chr(10).join(f"- {k}: {v}" for k, v in constraints.items()) if constraints else "无特殊约束"}
+
+## 输出要求
+1. 选择合适的架构风格
+2. 设计核心组件及其职责
+3. 选择技术栈并说明理由
+4. 说明关键设计决策
+
+## 输出格式 (JSON)
+{{
+    "architecture_style": "monolith|microservices|serverless|...",
+    "components": [
+        {{
+            "name": "组件名称",
+            "technology": "技术选型",
+            "responsibility": "职责说明"
+        }}
+    ],
+    "decisions": [
+        {{
+            "decision": "设计决策",
+            "rationale": "选择理由",
+            "trade_offs": "权衡考虑"
+        }}
+    ]
+}}"""
+
+        result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt="你是一位资深系统架构师。请以 JSON 格式输出架构设计方案。",
+        )
+        
+        if result:
+            return result
+        
+        return None
 
     def _build_architecture_prompt(
         self,

@@ -15,6 +15,7 @@ from ..core.models import (
     Task,
     TaskPriority,
 )
+from ..llm.agent_llm import get_planner_llm
 from .base import BaseAgent
 
 logger = structlog.get_logger(__name__)
@@ -39,6 +40,9 @@ class PlannerAgent(BaseAgent):
         # 规划师特有配置
         self.max_subtasks = kwargs.get("max_subtasks", 20)
         self.planning_model = kwargs.get("planning_model", "gpt-4")
+        
+        # LLM 辅助
+        self.llm_helper = get_planner_llm()
 
         self.logger.info("PlannerAgent initialized")
 
@@ -129,9 +133,26 @@ class PlannerAgent(BaseAgent):
         goal = context.get("goal", "")
         constraints = context.get("constraints", [])
 
-        # 构建提示词
-        prompt = f"""
-你是一个专业的任务规划师。请将以下目标分解为可执行的子任务。
+        # 尝试使用 LLM 进行规划
+        if self.llm_helper.is_available():
+            try:
+                result = await self._llm_plan(goal, constraints)
+                if result:
+                    return result
+            except Exception as e:
+                self.logger.warning("LLM planning failed, using fallback", error=str(e))
+
+        # Fallback: 使用模拟规划
+        subtasks = self._simulate_planning(goal, constraints)
+
+        return {
+            "subtasks": subtasks,
+            "reasoning": "基于目标复杂度和依赖关系进行分解 (fallback)",
+        }
+    
+    async def _llm_plan(self, goal: str, constraints: list[str]) -> dict[str, Any] | None:
+        """使用 LLM 进行任务规划"""
+        prompt = f"""你是一个专业的任务规划师。请将以下目标分解为可执行的子任务。
 
 ## 目标
 {goal}
@@ -141,12 +162,13 @@ class PlannerAgent(BaseAgent):
 
 ## 要求
 1. 每个子任务应该是独立可执行的
-2. 明确任务之间的依赖关系
+2. 明确任务之间的依赖关系（使用数组索引表示依赖，如 [0] 表示依赖第一个任务）
 3. 为每个任务分配合理的优先级 (low/normal/high/critical)
 4. 指定每个任务需要的 Agent 角色 (analyst/architect/coder/tester/doc_writer)
 
 ## 输出格式 (JSON)
 {{
+    "reasoning": "规划思路说明",
     "subtasks": [
         {{
             "title": "任务标题",
@@ -157,19 +179,17 @@ class PlannerAgent(BaseAgent):
             "input_data": {{}}
         }}
     ]
-}}
-"""
+}}"""
 
-        self.logger.debug("Planning prompt prepared", prompt_length=len(prompt))
-
-        # TODO: 调用 LLM API
-        # 这里使用模拟返回
-        subtasks = self._simulate_planning(goal, constraints)
-
-        return {
-            "subtasks": subtasks,
-            "reasoning": "基于目标复杂度和依赖关系进行分解",
-        }
+        result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt="你是一个专业的任务规划师。请以 JSON 格式输出任务分解结果。",
+        )
+        
+        if result and "subtasks" in result:
+            return result
+        
+        return None
 
     def _simulate_planning(
         self,
@@ -177,9 +197,7 @@ class PlannerAgent(BaseAgent):
         constraints: list[str],
     ) -> list[dict[str, Any]]:
         """
-        模拟规划结果 (临时实现)
-        
-        TODO: 替换为真实 LLM 调用
+        模拟规划结果（LLM 不可用时的备用方案）
         """
         # 简单示例：根据目标关键词生成任务
         subtasks = []
