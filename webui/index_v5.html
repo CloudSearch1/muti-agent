@@ -7,25 +7,72 @@
     <meta name="description" content="IntelliTeam - 智能研发协作平台">
     <title>IntelliTeam - 智能研发协作平台</title>
     
-    <!-- 预加载关键资源 -->
-    <link rel="preconnect" href="https://cdn.tailwindcss.com">
-    <link rel="preconnect" href="https://unpkg.com">
+    <!-- DNS 预解析 -->
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://unpkg.com">
     
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.js"></script>
+    <!-- 预连接 -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
     
-    <!-- Vue 3 (使用 jsdelivr CDN，更可靠) -->
-    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.js" defer></script>
+    <!-- Tailwind CSS (官方 CDN 播放脚本 - 最可靠) -->
+    <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Chart.js (使用 jsdelivr CDN) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <!-- Vue 3 (使用生产版 - 国内 CDN) -->
+    <script src="https://cdn.staticfile.org/vue/3.4.21/vue.global.prod.js" defer></script>
     
-    <!-- FontAwesome (使用 jsdelivr CDN) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css">
+    <!-- Chart.js (延迟加载) -->
+    <script>
+        window.loadChartJS = function() {
+            if (window.Chart) return Promise.resolve();
+            return new Promise(function(resolve, reject) {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.staticfile.org/Chart.js/4.4.1/chart.umd.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        };
+    </script>
+    
+    <!-- FontAwesome (国内 CDN) -->
+    <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- 错误处理工具 -->
+    <script src="static/js/error-handler.js"></script>
+    
+    <!-- PWA Support -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="IntelliTeam">
+    <link rel="apple-touch-icon" href="static/images/icon-192x192.png">
+    
+    <!-- 备用 CDN -->
+    <script>
+        window.addEventListener('error', function(e) {
+            if (e.target && e.target.tagName === 'SCRIPT') {
+                if (e.target.src.includes('staticfile')) {
+                    var backup = '';
+                    if (e.target.src.includes('vue')) {
+                        backup = 'https://cdn.bootcdn.net/ajax/libs/vue/3.4.21/vue.global.prod.js';
+                    } else if (e.target.src.includes('Chart.js')) {
+                        backup = 'https://cdn.bootcdn.net/ajax/libs/Chart.js/4.4.1/chart.umd.min.js';
+                    }
+                    if (backup) {
+                        var script = document.createElement('script');
+                        script.src = backup;
+                        document.head.appendChild(script);
+                    }
+                }
+            }
+        }, true);
+    </script>
     
     <!-- Tailwind 配置 -->
     <script>
-        tailwind.config = {
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
@@ -333,9 +380,27 @@
                             <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
                                 <i class="fas fa-tasks mr-2 text-primary-600"></i>任务管理
                             </h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">共 {{ filteredTasks.length }} 个任务</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">共 {{ filteredTasks.length }} 个任务{{ selectedTasks.length > 0 ? `，已选 ${selectedTasks.length} 个` : '' }}</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
+                            <!-- 批量操作按钮 -->
+                            <div v-if="selectedTasks.length > 0" class="flex gap-2 mr-2">
+                                <button @click="batchUpdateStatus('pending')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition flex items-center">
+                                    <i class="fas fa-clock mr-2"></i>设为待处理
+                                </button>
+                                <button @click="batchUpdateStatus('in_progress')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition flex items-center">
+                                    <i class="fas fa-spinner mr-2"></i>设为进行中
+                                </button>
+                                <button @click="batchUpdateStatus('completed')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition flex items-center">
+                                    <i class="fas fa-check-circle mr-2"></i>设为完成
+                                </button>
+                                <button @click="batchDelete" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition flex items-center">
+                                    <i class="fas fa-trash mr-2"></i>删除
+                                </button>
+                                <button @click="selectAll = false; selectedTasks = []" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                             <!-- 搜索框 (移动端) -->
                             <div class="relative md:hidden">
                                 <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="搜索任务..." class="w-40 pl-8 pr-3 py-2 rounded-lg border dark:border-dark-100 bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500">
@@ -357,19 +422,29 @@
 
                     <!-- 任务列表 -->
                     <div class="space-y-3">
-                        <div v-for="task in filteredTasks" :key="task.id" class="border dark:border-dark-100 rounded-xl p-4 hover:shadow-md transition cursor-pointer" @click="viewTask(task.id)">
+                        <div v-for="task in filteredTasks" :key="task.id" :class="selectedTasks.includes(task.id) ? 'border-primary-500 border-2' : 'border dark:border-dark-100'" class="rounded-xl p-4 hover:shadow-md transition cursor-pointer" @click="viewTask(task.id)">
                             <div class="flex items-start justify-between gap-4">
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex flex-wrap items-center gap-2 mb-2">
-                                        <h3 class="font-semibold text-gray-800 dark:text-gray-100">{{ task.title }}</h3>
-                                        <span :class="priorityClass(task.priority)" class="px-2 py-0.5 rounded text-xs text-white font-medium">{{ task.priorityText }}</span>
-                                        <span :class="statusBadge(task.status)" class="px-2 py-0.5 rounded text-xs font-medium">{{ task.statusText }}</span>
-                                    </div>
-                                    <p class="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">{{ task.description }}</p>
-                                    <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                                        <span><i class="fas fa-user mr-1"></i>{{ task.assignee }}</span>
-                                        <span><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
-                                        <span><i class="fas fa-clock mr-1"></i>{{ task.createdAt }}</span>
+                                <div class="flex items-start space-x-3">
+                                    <!-- 多选框 -->
+                                    <input 
+                                        type="checkbox" 
+                                        :value="task.id" 
+                                        v-model="selectedTasks"
+                                        @click.stop
+                                        class="mt-1 w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                                    >
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                                            <h3 class="font-semibold text-gray-800 dark:text-gray-100">{{ task.title }}</h3>
+                                            <span :class="priorityClass(task.priority)" class="px-2 py-0.5 rounded text-xs text-white font-medium">{{ task.priorityText }}</span>
+                                            <span :class="statusBadge(task.status)" class="px-2 py-0.5 rounded text-xs font-medium">{{ task.statusText }}</span>
+                                        </div>
+                                        <p class="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">{{ task.description }}</p>
+                                        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                                            <span><i class="fas fa-user mr-1"></i>{{ task.assignee }}</span>
+                                            <span><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
+                                            <span><i class="fas fa-clock mr-1"></i>{{ task.createdAt }}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="flex space-x-2 flex-shrink-0">
@@ -629,11 +704,11 @@
         </div>
 
         <!-- 快捷键帮助 -->
-        <div v-if="showShortcuts" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showShortcuts = false">
-            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-md">
+        <div v-if="showShortcuts" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showShortcuts = false" @keydown.escape="showShortcuts = false">
+            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-md" tabindex="-1">
                 <div class="flex justify-between items-center p-6 border-b dark:border-dark-100">
                     <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">快捷键</h3>
-                    <button @click="showShortcuts = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <button @click="showShortcuts = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
@@ -726,6 +801,8 @@
                     showCreateTask: false,
                     showNotifications: false,
                     showShortcuts: false,
+                    selectAll: false,
+                    selectedTasks: [],
                     wsConnected: false,
                     systemLatency: 0,
                     lastUpdateTime: '--:--:--',
@@ -879,9 +956,82 @@
                     }
                 },
                 
+                // 批量更新状态
+                async batchUpdateStatus(status) {
+                    if (this.selectedTasks.length === 0) return;
+                    
+                    const statusMap = {
+                        'pending': '待处理',
+                        'in_progress': '进行中',
+                        'completed': '已完成'
+                    };
+                    
+                    if (!confirm(`确定要将选中的 ${this.selectedTasks.length} 个任务设为${statusMap[status]}吗？`)) return;
+                    
+                    let successCount = 0;
+                    for (const taskId of this.selectedTasks) {
+                        try {
+                            const response = await fetch(`/api/v1/tasks/${taskId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ status })
+                            });
+                            if (response.ok) {
+                                const task = this.tasks.find(t => t.id === taskId);
+                                if (task) {
+                                    task.status = status;
+                                    task.statusText = statusMap[status];
+                                }
+                                successCount++;
+                            }
+                        } catch (error) {
+                            console.error('更新任务失败:', error);
+                        }
+                    }
+                    
+                    this.selectedTasks = [];
+                    this.showToast(`已更新 ${successCount} 个任务`, 'success');
+                },
+                
+                // 批量删除
+                async batchDelete() {
+                    if (this.selectedTasks.length === 0) return;
+                    
+                    if (!confirm(`确定要删除选中的 ${this.selectedTasks.length} 个任务吗？此操作不可恢复！`)) return;
+                    
+                    let successCount = 0;
+                    for (const taskId of this.selectedTasks) {
+                        try {
+                            const response = await fetch(`/api/v1/tasks/${taskId}`, {
+                                method: 'DELETE'
+                            });
+                            if (response.ok) {
+                                this.tasks = this.tasks.filter(t => t.id !== taskId);
+                                successCount++;
+                            }
+                        } catch (error) {
+                            console.error('删除任务失败:', error);
+                        }
+                    }
+                    
+                    this.selectedTasks = [];
+                    this.showToast(`已删除 ${successCount} 个任务`, 'success');
+                },
+                
+                // 批量导出
+                batchExport(format = 'csv') {
+                    if (this.selectedTasks.length === 0) {
+                        this.showToast('请先选择任务', 'warning');
+                        return;
+                    }
+                    
+                    window.open(`/api/v1/export/tasks?format=${format}&ids=${this.selectedTasks.join(',')}`, '_blank');
+                    this.showToast(`已导出 ${this.selectedTasks.length} 个任务`, 'success');
+                },
+                
                 // 查看任务
                 viewTask(taskId) {
-                    this.showToast('任务详情开发中', 'info');
+                    window.location.href = `task-detail.html?id=${taskId}`;
                 },
                 
                 // Toast 通知
@@ -919,7 +1069,15 @@
                     }
                 },
                 
-                initDashboardCharts() {
+                async initDashboardCharts() {
+                    // 延迟加载 Chart.js
+                    try {
+                        await this.loadChartJS();
+                    } catch (e) {
+                        console.error('Chart.js 加载失败:', e);
+                        return;
+                    }
+                    
                     this.$nextTick(() => {
                         // 任务趋势图
                         const taskTrendCtx = document.getElementById('taskTrendChart');
@@ -971,7 +1129,15 @@
                     });
                 },
                 
-                initAnalyticsCharts() {
+                async initAnalyticsCharts() {
+                    // 延迟加载 Chart.js
+                    try {
+                        await this.loadChartJS();
+                    } catch (e) {
+                        console.error('Chart.js 加载失败:', e);
+                        return;
+                    }
+                    
                     this.$nextTick(() => {
                         // 分析页面图表
                         const charts = [
@@ -1048,10 +1214,24 @@
                         this.showToast('数据已刷新', 'success');
                     }
                     // ? 快捷键帮助
-                    if (e.key === '?' && !e.ctrlKey) {
+                    if (e.key === '?' && !e.ctrlKey && !e.target.matches('input, textarea')) {
                         e.preventDefault();
-                        this.showShortcuts = true;
+                        this.showShortcuts = !this.showShortcuts; // 切换显示/隐藏
                     }
+                    
+                    // Esc 关闭弹窗
+                    if (e.key === 'Escape') {
+                        this.showShortcuts = false;
+                        this.showNotifications = false;
+                    }
+                },
+                
+                // 加载 Chart.js
+                async loadChartJS() {
+                    if (window.loadChartJS) {
+                        return window.loadChartJS();
+                    }
+                    return Promise.resolve();
                 },
                 
                 // 加载数据
@@ -1071,27 +1251,96 @@
                 this.loadData();
                 this.connectWebSocket();
                 document.addEventListener('keydown', this.handleKeydown);
+                
+                // 注册 Service Worker
+                this.registerServiceWorker();
+                
+                // 监听网络状态
+                this.setupNetworkListeners();
             },
             
-            watch: {
-                currentTab(newTab) {
-                    this.initCharts();
-                }
-            },
-            
-            beforeUnmount() {
-                document.removeEventListener('keydown', this.handleKeydown);
-                Object.values(this.charts).forEach(chart => chart.destroy());
-            }
-        }).mount('#app');
-        
-        console.log('✅ IntelliTeam Web UI v5.0 初始化成功');
-    </script>
-    
-    <!-- Toast 动画 -->
-    <style>
-        .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
-        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateX(100%); }
-    </style>
-</body>
-</html>
+            methods: {
+                // 注册 Service Worker
+                async registerServiceWorker() {
+                    if ('serviceWorker' in navigator) {
+                        try {
+                            const registration = await navigator.serviceWorker.register('/static/js/service-worker.js', {
+                                scope: '/'
+                            });
+                            
+                            console.log('[PWA] Service Worker 注册成功:', registration.scope);
+                            
+                            // 检查更新
+                            registration.addEventListener('updatefound', () => {
+                                const newWorker = registration.installing;
+                                console.log('[PWA] 发现新版本');
+                                
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // 有新版本可用
+                                        this.showUpdateNotification();
+                                    }
+                                });
+                            });
+                            
+                            // 监听 SW 消息
+                            navigator.serviceWorker.addEventListener('message', event => {
+                                if (event.data && event.data.type === 'CACHE_STATUS') {
+                                    console.log('[PWA] 缓存状态:', event.data.data);
+                                }
+                                if (event.data && event.data.type === 'SYNC_COMPLETE') {
+                                    this.showToast('离线数据已同步', 'success');
+                                }
+                            });
+                            
+                        } catch (error) {
+                            console.error('[PWA] Service Worker 注册失败:', error);
+                        }
+                    }
+                },
+                
+                // 显示更新通知
+                showUpdateNotification() {
+                    this.showToast('新版本可用，刷新页面更新', 'info');
+                    
+                    // 添加刷新按钮到通知
+                    setTimeout(() => {
+                        if (confirm('新版本已就绪，是否立即刷新？')) {
+                            window.location.reload();
+                        }
+                    }, 1000);
+                },
+                
+                // 设置网络监听
+                setupNetworkListeners() {
+                    // 监听在线/离线
+                    window.addEventListener('online', () => {
+                        this.showToast('网络已连接', 'success');
+                        this.wsConnected = true;
+                        
+                        // 同步离线队列
+                        if (window.ErrorHandler) {
+                            window.ErrorHandler.processOfflineQueue();
+                        }
+                        
+                        // 请求 Service Worker 同步
+                        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                            navigator.serviceWorker.controller.postMessage({
+                                type: 'SYNC_OFFLINE_QUEUE'
+                            });
+                        }
+                    });
+                    
+                    window.addEventListener('offline', () => {
+                        this.showToast('网络已断开，离线模式已启用', 'warning');
+                        this.wsConnected = false;
+                    });
+                    
+                    // 初始状态
+                    if (!navigator.onLine) {
+                        this.wsConnected = false;
+                    }
+                },
+                
+                // 加载数据
+                async loadData() {

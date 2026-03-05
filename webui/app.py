@@ -31,8 +31,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Gzip 压缩（>1KB 的响应自动压缩）
-app.add_middleware(GZipMiddleware, minimum_size=1024)
+# Gzip 压缩 - 暂时禁用，避免干扰 HTML 响应
+# app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # 挂载静态文件
 try:
@@ -104,12 +104,50 @@ WORKFLOWS_DATA = [
 
 # ============ API 路由 ============
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def root():
     """返回主页面"""
+    from starlette.responses import HTMLResponse
+    
     with open("webui/index_v5.html", "r", encoding="utf-8") as f:
         content = f.read()
-    return HTMLResponse(content=content, media_type="text/html; charset=utf-8")
+    
+    return HTMLResponse(content=content)
+
+
+@app.get("/manifest.json")
+async def get_manifest():
+    """返回 PWA manifest"""
+    from fastapi.responses import FileResponse
+    return FileResponse(path="webui/manifest.json", media_type="application/json")
+
+
+@app.get("/offline.html")
+async def get_offline():
+    """返回离线页面"""
+    from fastapi.responses import FileResponse
+    return FileResponse(path="webui/offline.html", media_type="text/html")
+
+
+@app.get("/static/js/{filename:path}")
+async def get_static_js(filename: str):
+    """返回静态 JS 文件"""
+    from fastapi.responses import FileResponse
+    return FileResponse(path=f"webui/static/js/{filename}", media_type="application/javascript")
+
+
+@app.get("/static/images/{filename:path}")
+async def get_static_images(filename: str):
+    """返回静态图片文件"""
+    from fastapi.responses import FileResponse
+    import os
+    
+    filepath = f"webui/static/images/{filename}"
+    if not os.path.exists(filepath):
+        # 如果具体尺寸图标不存在，返回 SVG 占位图
+        return FileResponse(path="webui/static/images/icon.svg", media_type="image/svg+xml")
+    
+    return FileResponse(path=filepath, media_type="image/png")
 
 
 @app.get("/api/v1/stats")
@@ -161,6 +199,41 @@ async def get_task(task_id: int):
     raise HTTPException(status_code=404, detail="任务不存在")
 
 
+@app.put("/api/v1/tasks/{task_id}")
+async def update_task(task_id: int, task_update: dict):
+    """更新任务"""
+    for task in TASKS_DATA:
+        if task["id"] == task_id:
+            # 更新允许的字段
+            if "status" in task_update:
+                task["status"] = task_update["status"]
+                task["statusText"] = {
+                    "pending": "待处理",
+                    "in_progress": "进行中",
+                    "completed": "已完成"
+                }.get(task_update["status"], task["statusText"])
+            
+            if "title" in task_update:
+                task["title"] = task_update["title"]
+            
+            if "description" in task_update:
+                task["description"] = task_update["description"]
+            
+            if "priority" in task_update:
+                task["priority"] = task_update["priority"]
+                task["priorityText"] = {
+                    "low": "低优先级",
+                    "normal": "中优先级",
+                    "high": "高优先级",
+                    "critical": "紧急"
+                }.get(task_update["priority"], task["priorityText"])
+            
+            task["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            return {"status": "success", "message": "任务已更新", "task": task}
+    
+    raise HTTPException(status_code=404, detail="任务不存在")
+
+
 @app.post("/api/v1/tasks")
 async def create_task(task: dict):
     """创建新任务"""
@@ -207,84 +280,69 @@ async def health_check():
     return {"status": "ok", "timestamp": datetime.now().isoformat(), "version": "5.1"}
 
 
-# ============ 导出功能 ============
+@app.get("/api/v1/error-log")
+async def get_error_log():
+    """获取错误日志（简化版，实际应该从数据库读取）"""
+    return {
+        "errors": [],
+        "total": 0,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.post("/api/v1/error-log")
+async def report_error(error: dict):
+    """上报错误"""
+    # 在实际应用中，这里应该写入数据库或日志系统
+    print(f"[Error Report] {datetime.now().isoformat()}: {error}")
+    return {"status": "success", "message": "错误已记录"}
+
 
 @app.get("/api/v1/export/tasks")
-async def export_tasks(format: str = "csv"):
-    """导出任务列表"""
-    if format == "csv":
+async def export_tasks(format: str = "json"):
+    """导出任务数据"""
+    from fastapi.responses import JSONResponse, PlainTextResponse
+    import csv
+    import io
+    
+    if format == "json":
+        return JSONResponse(content=TASKS_DATA)
+    
+    elif format == "csv":
         output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["ID", "标题", "描述", "优先级", "状态", "负责人", "Agent", "创建时间"])
-        for task in TASKS_DATA:
-            writer.writerow([
-                task["id"],
-                task["title"],
-                task["description"],
-                task["priorityText"],
-                task["statusText"],
-                task["assignee"],
-                task["agent"],
-                task["createdAt"]
-            ])
-        return PlainTextResponse(
-            content=output.getvalue(),
-            media_type="text/csv",
-            headers={"Content-Disposition": "attachment; filename=tasks.csv"}
-        )
-    elif format == "json":
-        return JSONResponse(
-            content=TASKS_DATA,
-            headers={"Content-Disposition": "attachment; filename=tasks.json"}
-        )
+        if TASKS_DATA:
+            writer = csv.DictWriter(output, fieldnames=TASKS_DATA[0].keys())
+            writer.writeheader()
+            writer.writerows(TASKS_DATA)
+        return PlainTextResponse(content=output.getvalue(), media_type="text/csv")
+    
     elif format == "markdown":
-        md = "# 任务列表\n\n"
-        md += f"导出时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
-        md += "| ID | 标题 | 优先级 | 状态 | 负责人 | Agent |\n"
+        md = "# 任务导出\n\n"
+        md += "| ID | 标题 | 状态 | 优先级 | 负责人 | Agent |\n"
         md += "|---|---|---|---|---|---|\n"
         for task in TASKS_DATA:
-            md += f"| {task['id']} | {task['title']} | {task['priorityText']} | {task['statusText']} | {task['assignee']} | {task['agent']} |\n"
-        return PlainTextResponse(
-            content=md,
-            media_type="text/markdown",
-            headers={"Content-Disposition": "attachment; filename=tasks.md"}
-        )
+            md += f"| {task['id']} | {task['title']} | {task['statusText']} | {task['priorityText']} | {task['assignee']} | {task['agent']} |\n"
+        return PlainTextResponse(content=md, media_type="text/markdown")
+    
     else:
-        raise HTTPException(status_code=400, detail="不支持的导出格式，支持：csv, json, markdown")
+        raise HTTPException(status_code=400, detail="不支持的导出格式")
 
 
 @app.get("/api/v1/export/stats")
-async def export_stats(format: str = "json"):
-    """导出系统统计"""
-    stats = {
+async def export_stats():
+    """导出统计数据"""
+    return {
         "totalTasks": len(TASKS_DATA),
         "activeAgents": len([a for a in AGENTS_DATA if a["status"] == "busy"]),
         "completionRate": 93,
         "timestamp": datetime.now().isoformat(),
-        "tasksByStatus": {
-            "completed": len([t for t in TASKS_DATA if t["status"] == "completed"]),
-            "in_progress": len([t for t in TASKS_DATA if t["status"] == "in_progress"]),
-            "pending": len([t for t in TASKS_DATA if t["status"] == "pending"])
-        },
-        "tasksByPriority": {
-            "critical": len([t for t in TASKS_DATA if t["priority"] == "critical"]),
-            "high": len([t for t in TASKS_DATA if t["priority"] == "high"]),
-            "normal": len([t for t in TASKS_DATA if t["priority"] == "normal"]),
-            "low": len([t for t in TASKS_DATA if t["priority"] == "low"])
-        }
+        "agents": AGENTS_DATA,
+        "tasks": TASKS_DATA
     }
-    if format == "json":
-        return JSONResponse(
-            content=stats,
-            headers={"Content-Disposition": "attachment; filename=stats.json"}
-        )
-    else:
-        raise HTTPException(status_code=400, detail="不支持的导出格式，支持：json")
 
 
-# ============ WebSocket 实时推送 ============
+# ============ 导出功能 ============
 
-@app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket 实时数据推送"""
     await websocket.accept()
