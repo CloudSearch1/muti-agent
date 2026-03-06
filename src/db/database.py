@@ -23,10 +23,17 @@ class TaskModel(Base):
     """任务模型"""
 
     __tablename__ = "tasks"
+    
+    # 复合索引 - 优化常用查询
+    __table_args__ = (
+        Index('ix_tasks_status_priority', 'status', 'priority'),
+        Index('ix_tasks_assignee_status', 'assignee', 'status'),
+        Index('ix_tasks_created_status', 'created_at', 'status'),
+    )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(200), nullable=False, index=True)
-    description = Column(Text, default="")
+    description = Column(Text, default="")  # 文本字段不建索引
     status = Column(String(50), default="pending", index=True)
     priority = Column(String(50), default="normal", index=True)
     assignee = Column(String(100), index=True)
@@ -93,26 +100,41 @@ class DatabaseManager:
         self.async_session_maker = None
 
     def connect(self) -> None:
-        """连接数据库"""
-        # 优化连接池配置
+        """连接数据库 - 优化连接池配置"""
+        # 生产环境优化配置
         self.engine = create_async_engine(
             self.database_url,
-            echo=False,
+            echo=False,  # 生产环境关闭 SQL 日志
             future=True,
-            pool_size=20,  # 连接池大小
-            max_overflow=10,  # 最大溢出连接数
+            pool_size=50,  # 增加到 50（原 20）
+            max_overflow=20,  # 增加到 20（原 10）
             pool_pre_ping=True,  # 连接前检查
-            pool_recycle=3600,  # 连接回收时间（秒）
-            pool_timeout=30,  # 连接超时
+            pool_recycle=1800,  # 30 分钟回收（原 3600，更频繁）
+            pool_timeout=10,  # 10 秒超时（原 30，更快失败）
         )
         self.async_session_maker = async_sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
+        logger.info(f"Database connected with pool_size=50, max_overflow=20")
 
     async def disconnect(self) -> None:
         """断开连接"""
         if self.engine:
             await self.engine.dispose()
+            logger.info("Database disconnected")
+    
+    def get_pool_stats(self) -> dict:
+        """获取连接池统计"""
+        if not self.engine or not self.engine.pool:
+            return {"error": "Database not connected"}
+        
+        return {
+            "pool_size": self.engine.pool.size(),
+            "checked_in": self.engine.pool.checkedin(),
+            "checked_out": self.engine.pool.checkedout(),
+            "overflow": self.engine.pool.overflow(),
+            "invalid": self.engine.pool.invalidated,
+        }
 
     async def create_tables(self) -> None:
         """创建所有表"""
