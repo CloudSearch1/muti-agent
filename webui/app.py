@@ -1,15 +1,16 @@
 """
-IntelliTeam Web UI - v5.1
+IntelliTeam Web UI - v5.2
 
 基于 FastAPI + Vue 3 的 Web 管理界面
-优化版本：添加 Gzip 压缩、响应缓存、性能优化
+优化版本：统一日志、API 文档、改进缓存和 WebSocket
 """
 
 import asyncio
 import csv
 import io
+import logging
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket
@@ -17,7 +18,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-app = FastAPI(title="IntelliTeam Web UI v5.1")
+# 配置结构化日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
+app = FastAPI(
+    title="IntelliTeam Web UI v5.2",
+    description="智能研发协作平台 - Web 管理界面",
+    version="5.2.0",
+    docs_url="/docs",      # 启用 Swagger UI
+    redoc_url="/redoc",    # 启用 ReDoc
+    openapi_url="/openapi.json"
+)
 
 # CORS 配置
 app.add_middleware(
@@ -34,34 +50,63 @@ app.add_middleware(
 # 挂载静态文件
 try:
     app.mount("/static", StaticFiles(directory="webui/static"), name="static")
+    logger.info("静态文件挂载成功：webui/static")
 except Exception as e:
-    print(f"静态文件挂载失败：{e}")
+    logger.error(f"静态文件挂载失败：{e}", exc_info=True)
 
 # ============ 响应缓存 ============
 
 class ResponseCache:
-    """简单的内存缓存"""
+    """
+    内存缓存实现（生产环境建议升级为 Redis）
+    
+    TODO: 
+    - 集成 Redis 作为缓存后端
+    - 支持多实例缓存共享
+    - 添加缓存预热和淘汰策略
+    """
     def __init__(self, ttl_seconds: int = 60):
         self._cache: dict[str, dict] = {}
         self._ttl = timedelta(seconds=ttl_seconds)
+        self._hits = 0
+        self._misses = 0
+        logger.info(f"响应缓存初始化完成，TTL={ttl_seconds}秒")
 
     def get(self, key: str) -> dict | None:
         if key in self._cache:
             entry = self._cache[key]
-            if datetime.now() < entry['expires']:
+            if datetime.now(timezone.utc).astimezone() < entry['expires']:
+                self._hits += 1
+                logger.debug(f"缓存命中：{key} (hits={self._hits}, misses={self._misses})")
                 return entry['data']
+            # 过期数据清理
             del self._cache[key]
+            logger.debug(f"缓存过期：{key}")
+        self._misses += 1
         return None
 
     def set(self, key: str, data: dict):
         self._cache[key] = {
             'data': data,
-            'expires': datetime.now() + self._ttl
+            'expires': datetime.now(timezone.utc).astimezone() + self._ttl
         }
+        logger.debug(f"缓存设置：{key}, 过期时间={self._ttl}")
 
     def invalidate(self, key: str):
         if key in self._cache:
             del self._cache[key]
+            logger.debug(f"缓存失效：{key}")
+
+    def get_stats(self) -> dict:
+        """获取缓存统计信息"""
+        total = self._hits + self._misses
+        hit_rate = (self._hits / total * 100) if total > 0 else 0
+        return {
+            "size": len(self._cache),
+            "hits": self._hits,
+            "misses": self._misses,
+            "hit_rate": f"{hit_rate:.2f}%"
+        }
 
 response_cache = ResponseCache(ttl_seconds=30)
 
@@ -270,7 +315,33 @@ async def get_workflows():
 @app.get("/api/v1/health")
 async def health_check():
     """健康检查"""
-    return {"status": "ok", "timestamp": datetime.now().isoformat(), "version": "5.1"}
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "version": "5.2.0",
+        "features": {
+            "logging": "unified",
+            "api_docs": "enabled",
+            "cache_stats": "enabled",
+            "websocket_heartbeat": "enabled"
+        }
+    }
+
+
+@app.get("/api/v1/cache/stats")
+async def get_cache_stats():
+    """获取缓存统计信息"""
+    stats = response_cache.get_stats()
+    logger.info(f"缓存统计：{stats}")
+    return stats
+
+
+@app.get("/api/v1/ws/stats")
+async def get_ws_stats():
+    """获取 WebSocket 连接统计"""
+    stats = websocket_manager.get_stats()
+    logger.info(f"WebSocket 统计：{stats}")
+    return stats
 
 
 @app.get("/api/v1/error-log")
@@ -287,7 +358,7 @@ async def get_error_log():
 async def report_error(error: dict):
     """上报错误"""
     # 在实际应用中，这里应该写入数据库或日志系统
-    print(f"[Error Report] {datetime.now().isoformat()}: {error}")
+    logger.error(f"[Error Report] {datetime.now().isoformat()}: {error}")
     return {"status": "success", "message": "错误已记录"}
 
 
@@ -333,63 +404,134 @@ async def export_stats():
 
 # ============ 导出功能 ============
 
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket 实时数据推送"""
-    await websocket.accept()
-    client_id = id(websocket)
-    print(f"WebSocket 客户端连接：{client_id}")
+# WebSocket 连接管理
+class WebSocketManager:
+    """WebSocket 连接管理器"""
+    def __init__(self):
+        self.active_connections: dict[int, WebSocket] = {}
+        self.heartbeat_interval = 30  # 心跳间隔（秒）
+        logger.info("WebSocket 管理器初始化完成")
+    
+    async def connect(self, websocket: WebSocket, client_id: int):
+        """接受连接并记录"""
+        await websocket.accept()
+        self.active_connections[client_id] = websocket
+        logger.info(f"WebSocket 客户端连接：{client_id}, 当前连接数：{len(self.active_connections)}")
+    
+    def disconnect(self, client_id: int):
+        """断开连接并清理"""
+        if client_id in self.active_connections:
+            del self.active_connections[client_id]
+            logger.info(f"WebSocket 客户端断开：{client_id}, 当前连接数：{len(self.active_connections)}")
+    
+    async def broadcast(self, message: dict):
+        """广播消息给所有连接的客户端"""
+        disconnected = []
+        for client_id, connection in self.active_connections.items():
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                logger.warning(f"广播消息失败 (client={client_id}): {e}")
+                disconnected.append(client_id)
+        # 清理断开的连接
+        for client_id in disconnected:
+            self.disconnect(client_id)
+    
+    def get_stats(self) -> dict:
+        """获取连接统计"""
+        return {
+            "active_connections": len(self.active_connections),
+            "connection_ids": list(self.active_connections.keys())
+        }
 
+websocket_manager = WebSocketManager()
+
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket 实时数据推送端点
+    
+    功能:
+    - 系统状态推送（5 秒间隔）
+    - Agent 状态实时更新
+    - 心跳检测（30 秒间隔）
+    - 断线自动清理
+    """
+    client_id = id(websocket)
+    await websocket_manager.connect(websocket, client_id)
+    
+    last_heartbeat = datetime.now(timezone.utc).astimezone()
+    
     try:
         while True:
+            now = datetime.now(timezone.utc).astimezone()
+            
             # 推送系统状态
             await websocket.send_json({
                 "type": "system_status",
                 "data": {
                     "activeAgents": len([a for a in AGENTS_DATA if a["status"] == "busy"]),
                     "totalTasks": len(TASKS_DATA),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": now.isoformat(),
+                    "connection_id": client_id
                 }
             })
 
-            # 随机更新 Agent 状态
+            # 随机更新 Agent 状态（模拟真实变化）
+            # TODO: 替换为真实的 Agent 状态事件总线
             if random.random() < 0.3:
                 agent = random.choice(AGENTS_DATA)
+                old_status = agent["status"]
                 agent["status"] = "busy" if agent["status"] == "idle" else "idle"
+                logger.debug(f"Agent 状态变化：{agent['name']} {old_status} -> {agent['status']}")
                 await websocket.send_json({
                     "type": "agent_update",
                     "data": agent
                 })
+            
+            # 心跳检测
+            if (now - last_heartbeat).total_seconds() >= websocket_manager.heartbeat_interval:
+                await websocket.send_json({
+                    "type": "heartbeat",
+                    "data": {
+                        "timestamp": now.isoformat(),
+                        "status": "alive"
+                    }
+                })
+                last_heartbeat = now
+                logger.debug(f"WebSocket 心跳：{client_id}")
 
             await asyncio.sleep(5)
     except Exception as e:
-        print(f"WebSocket 连接断开：{client_id}, 错误：{e}")
+        logger.error(f"WebSocket 连接错误 (client={client_id}): {e}", exc_info=True)
     finally:
-        print(f"WebSocket 客户端断开：{client_id}")
+        websocket_manager.disconnect(client_id)
 
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("  IntelliTeam Web UI v5.1")
-    print("=" * 60)
-    print()
-    print("访问地址：http://localhost:8080")
-    print()
-    print("新功能:")
-    print("  ✨ 深色模式支持 (Ctrl+D)")
-    print("  ⚡ 性能优化 - 懒加载 + 预加载")
-    print("  📱 移动端完美适配")
-    print("  ⌨️ 快捷键支持 (Ctrl+K 搜索，Ctrl+N 新建)")
-    print("  📡 实时数据更新 (WebSocket)")
-    print("  🌙 自动检测系统主题")
-    print("  🗜️ Gzip 压缩 - 响应自动压缩")
-    print("  💾 响应缓存 - 减少重复计算")
-    print()
-    print("API 端点:")
-    print("  GET  /api/v1/stats      - 系统统计 (缓存 30s)")
-    print("  GET  /api/v1/agents     - Agent 列表")
-    print("  GET  /api/v1/tasks      - 任务列表 (缓存 30s)")
-    print("  GET  /api/v1/workflows  - 工作流")
-    print("  WS   /ws                - WebSocket 实时推送")
-    print()
+    logger.info("=" * 60)
+    logger.info("  IntelliTeam Web UI v5.2 - 启动中")
+    logger.info("=" * 60)
+    logger.info("访问地址：http://localhost:8080")
+    logger.info("API 文档：http://localhost:8080/docs")
+    logger.info("ReDoc: http://localhost:8080/redoc")
+    logger.info("")
+    logger.info("新功能:")
+    logger.info("  ✨ 统一日志系统 (structlog)")
+    logger.info("  📖 API 文档 (Swagger UI + ReDoc)")
+    logger.info("  💾 改进的缓存系统 (带统计)")
+    logger.info("  🔌 WebSocket 心跳检测 (30s)")
+    logger.info("  ✨ 深色模式支持 (Ctrl+D)")
+    logger.info("  📱 移动端完美适配")
+    logger.info("  ⌨️ 快捷键支持 (Ctrl+K 搜索，Ctrl+N 新建)")
+    logger.info("")
+    logger.info("API 端点:")
+    logger.info("  GET  /api/v1/stats      - 系统统计 (缓存 30s)")
+    logger.info("  GET  /api/v1/agents     - Agent 列表")
+    logger.info("  GET  /api/v1/tasks      - 任务列表 (缓存 30s)")
+    logger.info("  GET  /api/v1/workflows  - 工作流")
+    logger.info("  GET  /api/v1/cache/stats - 缓存统计")
+    logger.info("  GET  /api/v1/ws/stats   - WebSocket 统计")
+    logger.info("  WS   /ws                - WebSocket 实时推送")
+    logger.info("")
 
     uvicorn.run(app, host="0.0.0.0", port=8080)
