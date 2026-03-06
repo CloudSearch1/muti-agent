@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 import structlog
 from pydantic import BaseModel, Field
 
-from ..config.settings import Settings, get_settings
+from ..config.settings import AppSettings as Settings, get_settings
 
 logger = structlog.get_logger(__name__)
 

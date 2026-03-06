@@ -1,183 +1,227 @@
 """
-测试配置
+自动化测试配置
 
-pytest 测试套件配置
+pytest 配置和测试工具
 """
 
-import asyncio
-from collections.abc import Generator
+import os
+import sys
+from pathlib import Path
 
-import pytest
+# 添加项目根目录到 Python 路径
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-# ===========================================
-# pytest 配置
-# ===========================================
 
+# ============ pytest 配置 ============
 
 def pytest_configure(config):
-    """pytest 配置钩子"""
+    """pytest 配置"""
     config.addinivalue_line(
-        "markers",
-        "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
     config.addinivalue_line(
-        "markers",
-        "integration: marks tests as integration tests",
+        "markers", "integration: marks tests as integration tests"
+    )
+    config.addinivalue_line(
+        "markers", "unit: marks tests as unit tests"
     )
 
 
-# ===========================================
-# Fixture: 事件循环
-# ===========================================
+# ============ 测试夹具 ============
 
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """创建会话级事件循环"""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
-# ===========================================
-# Fixture: 测试配置
-# ===========================================
-
-
-@pytest.fixture
-def test_settings():
-    """测试配置"""
-    from src.config.settings import Settings
-
-    return Settings(
-        app_name="IntelliTeam-Test",
-        app_env="testing",
-        debug=True,
-        database_url="postgresql+asyncpg://localhost:5432/intelliteam_test",
-        redis_url="redis://localhost:6379/1",  # 使用不同数据库
-    )
-
-
-# ===========================================
-# Fixture: 内存数据库
-# ===========================================
-
-
-@pytest.fixture
-def in_memory_db():
-    """内存数据存储 (用于单元测试)"""
-    return {
-        "tasks": {},
-        "agents": {},
-        "workflows": {},
-    }
-
-
-# ===========================================
-# Fixture: Mock 对象
-# ===========================================
+import pytest
+from unittest.mock import AsyncMock, MagicMock
 
 
 @pytest.fixture
 def mock_llm():
-    """Mock LLM 调用"""
-
-    class MockLLM:
-        async def generate(self, prompt: str, **kwargs):
-            return {
-                "content": "Mock LLM response",
-                "usage": {"tokens": 100},
-            }
-
-    return MockLLM()
+    """Mock LLM 提供商"""
+    llm = MagicMock()
+    llm.generate = AsyncMock(return_value="mock response")
+    llm.generate_json = AsyncMock(return_value={"status": "success"})
+    return llm
 
 
 @pytest.fixture
-def mock_redis():
-    """Mock Redis 客户端"""
-
-    class MockRedis:
-        def __init__(self):
-            self._data = {}
-
-        async def setex(self, key: str, ttl: int, value: str):
-            self._data[key] = value
-            return True
-
-        async def get(self, key: str):
-            return self._data.get(key)
-
-        async def delete(self, *keys):
-            for key in keys:
-                self._data.pop(key, None)
-
-        async def close(self):
-            pass
-
-    return MockRedis()
-
-
-# ===========================================
-# Fixture: Agent 实例
-# ===========================================
+def mock_db_session():
+    """Mock 数据库会话"""
+    session = AsyncMock()
+    session.execute = AsyncMock()
+    session.commit = AsyncMock()
+    session.rollback = AsyncMock()
+    session.close = AsyncMock()
+    return session
 
 
 @pytest.fixture
-def sample_agent():
-    """示例 Agent"""
-    from src.core.models import Agent, AgentRole, AgentState
-
-    return Agent(
-        id="test-agent-001",
-        name="TestAgent",
-        role=AgentRole.CODER,
-        state=AgentState.IDLE,
-    )
+def mock_cache():
+    """Mock 缓存"""
+    cache = MagicMock()
+    cache.get = AsyncMock(return_value=None)
+    cache.set = AsyncMock()
+    cache.delete = AsyncMock()
+    return cache
 
 
 @pytest.fixture
 def sample_task():
     """示例任务"""
-    from src.core.models import Task, TaskPriority, TaskStatus
-
+    from src.core.models import Task
     return Task(
-        id="test-task-001",
+        id="test-001",
         title="Test Task",
-        description="A test task for unit testing",
-        status=TaskStatus.PENDING,
-        priority=TaskPriority.NORMAL,
+        description="Test Description",
+        input_data={"requirements": ["test"]},
     )
-
-
-# ===========================================
-# 工具 Fixture
-# ===========================================
 
 
 @pytest.fixture
-def sample_workflow():
-    """示例工作流"""
-    from src.core.models import Workflow, WorkflowStatus
-
-    return Workflow(
-        id="test-workflow-001",
-        name="Test Workflow",
-        status=WorkflowStatus.CREATED,
-    )
+def sample_agent_config():
+    """示例 Agent 配置"""
+    return {
+        "preferred_language": "python",
+        "code_style": "pep8",
+        "timeout_seconds": 60,
+    }
 
 
-# ===========================================
-# Async Fixture 辅助函数
-# ===========================================
+# ============ 测试辅助函数 ============
+
+def assert_response_ok(response):
+    """断言响应成功"""
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
 
 
-def async_fixture(func):
-    """装饰器：将 async fixture 转换为普通 fixture"""
-    import functools
+def assert_response_error(response, expected_code: int = 400):
+    """断言响应错误"""
+    assert response.status_code == expected_code
+    assert "error" in response.json()
 
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(func(*args, **kwargs))
 
-    return wrapper
+async def assert_async_raises(exception_type, coro):
+    """断言异步函数抛出异常"""
+    try:
+        await coro
+        assert False, f"Expected {exception_type.__name__} to be raised"
+    except exception_type:
+        pass
+
+
+# ============ 测试数据生成器 ============
+
+class TestDataFactory:
+    """测试数据工厂"""
+    
+    @staticmethod
+    def create_task(
+        title: str = "Test Task",
+        status: str = "pending",
+        priority: str = "normal",
+    ) -> dict:
+        """创建任务数据"""
+        return {
+            "title": title,
+            "status": status,
+            "priority": priority,
+            "description": "Test description",
+        }
+    
+    @staticmethod
+    def create_agent(
+        name: str = "TestAgent",
+        role: str = "tester",
+    ) -> dict:
+        """创建 Agent 数据"""
+        return {
+            "name": name,
+            "role": role,
+            "status": "idle",
+        }
+    
+    @staticmethod
+    def create_user(
+        username: str = "testuser",
+        email: str = "test@example.com",
+    ) -> dict:
+        """创建用户数据"""
+        return {
+            "username": username,
+            "email": email,
+            "password": "testpassword123",
+        }
+
+
+# ============ 性能测试装饰器 ============
+
+import time
+from functools import wraps
+
+
+def performance_test(threshold_ms: float = 100.0):
+    """
+    性能测试装饰器
+    
+    如果测试超过阈值则失败
+    
+    Args:
+        threshold_ms: 性能阈值（毫秒）
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = time.time()
+            result = func(*args, **kwargs)
+            elapsed_ms = (time.time() - start) * 1000
+            
+            assert elapsed_ms < threshold_ms, (
+                f"Performance test failed: {elapsed_ms:.2f}ms > {threshold_ms:.2f}ms"
+            )
+            
+            return result
+        return wrapper
+    return decorator
+
+
+# ============ 覆盖率配置 ============
+
+# pytest-cov 配置
+# 在 pytest.ini 或 pyproject.toml 中配置:
+# [tool.coverage.run]
+# source = ["src"]
+# omit = ["tests/*", "*/__pycache__/*"]
+# 
+# [tool.coverage.report]
+# exclude_lines = [
+#     "pragma: no cover",
+#     "def __repr__",
+#     "raise NotImplementedError",
+# ]
+# 
+# [tool.coverage.html]
+# directory = "htmlcov"
+
+
+# ============ CI/CD 集成 ============
+
+# GitHub Actions 配置示例 (.github/workflows/test.yml):
+# name: Tests
+# 
+# on: [push, pull_request]
+# 
+# jobs:
+#   test:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - name: Set up Python
+#         uses: actions/setup-python@v2
+#         with:
+#           python-version: 3.11
+#       - name: Install dependencies
+#         run: pip install -r requirements.txt
+#       - name: Run tests
+#         run: pytest tests/ -v --cov=src --cov-report=xml
+#       - name: Upload coverage
+#         uses: codecov/codecov-action@v2

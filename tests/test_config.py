@@ -1,6 +1,6 @@
 """配置模块测试"""
 
-from src.config.settings import Settings, get_settings
+from src.config.settings import AppSettings as Settings, get_settings
 
 
 class TestConfig:

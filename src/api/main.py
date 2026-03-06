@@ -11,7 +11,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from ..config.settings import Settings, get_settings
+from ..config.settings import AppSettings as Settings, get_settings
 from ..memory.session import SessionManager
 from ..memory.short_term import ShortTermMemory
 from .routes import router as api_router
