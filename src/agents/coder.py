@@ -216,7 +216,7 @@ class CoderAgent(BaseAgent):
         if result:
             self.logger.info("LLM code design successful", functions=len(result.get("key_functions", [])))
             return result
-        
+
         # Fallback: 返回简化版本
         self.logger.warning("LLM code design returned None, using minimal fallback")
         return {
@@ -303,7 +303,7 @@ class CoderAgent(BaseAgent):
         """格式化函数列表为文本"""
         if not functions:
             return "无特定函数要求"
-        
+
         lines = []
         for func in functions:
             name = func.get("name", "unknown")
@@ -325,7 +325,7 @@ class CoderAgent(BaseAgent):
             desc = func.get("description", "")
             params = func.get("parameters", [])
             param_str = ", ".join(params) if params else ""
-            
+
             functions_code.append(f"""
 def {name}({param_str}):
     \"\"\"
@@ -334,7 +334,7 @@ def {name}({param_str}):
     # TODO: 实现具体逻辑
     pass
 """)
-        
+
         return f'''"""
 自动生成的代码模块
 功能：代码实现
@@ -545,7 +545,7 @@ def safe_execute(func, *args, **kwargs) -> Optional[Any]:
                     system_prompt="只提供代码，不要其他文字",
                 )
                 result["refactored_code"] = refactored or code
-            
+
             self.logger.info(
                 "Code refactoring complete",
                 changes=len(result.get("changes", [])),

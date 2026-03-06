@@ -9,20 +9,19 @@ import asyncio
 import csv
 import io
 import logging
-import random
-from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, WebSocket, Depends
+from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.database import get_database_manager, get_db_session, init_database
 from src.db import crud
-from src.db.models import TaskModel, AgentModel
+from src.db.database import get_database_manager, get_db_session, init_database
+from src.db.models import AgentModel, TaskModel
 
 # 配置结构化日志
 logging.basicConfig(
@@ -42,7 +41,7 @@ async def lifespan(app: FastAPI):
     logger.info("应用启动中，初始化数据库...")
     await init_database()
     logger.info("数据库初始化完成")
-    
+
     # 初始化示例数据（如果数据库为空）
     db_manager = get_database_manager()
     async with db_manager.async_session_maker() as session:
@@ -52,9 +51,9 @@ async def lifespan(app: FastAPI):
             await crud.init_default_agents(session)
             await crud.init_sample_data(session)
             logger.info("默认数据初始化完成")
-    
+
     yield
-    
+
     # 关闭时清理资源
     logger.info("应用关闭中...")
     await db_manager.disconnect()
@@ -112,7 +111,7 @@ class ResponseCache:
     def get(self, key: str) -> dict | None:
         if key in self._cache:
             entry = self._cache[key]
-            if datetime.now(timezone.utc).astimezone() < entry['expires']:
+            if datetime.now(UTC).astimezone() < entry['expires']:
                 self._hits += 1
                 return entry['data']
             del self._cache[key]
@@ -122,7 +121,7 @@ class ResponseCache:
     def set(self, key: str, data: dict):
         self._cache[key] = {
             'data': data,
-            'expires': datetime.now(timezone.utc).astimezone() + self._ttl
+            'expires': datetime.now(UTC).astimezone() + self._ttl
         }
 
     def invalidate(self, key: str):
@@ -150,17 +149,17 @@ class WebSocketManager:
         self.active_connections: dict[int, WebSocket] = {}
         self.heartbeat_interval = 30
         logger.info("WebSocket 管理器初始化完成")
-    
+
     async def connect(self, websocket: WebSocket, client_id: int):
         await websocket.accept()
         self.active_connections[client_id] = websocket
         logger.info(f"WebSocket 客户端连接：{client_id}")
-    
+
     def disconnect(self, client_id: int):
         if client_id in self.active_connections:
             del self.active_connections[client_id]
             logger.info(f"WebSocket 客户端断开：{client_id}")
-    
+
     async def broadcast(self, message: dict):
         disconnected = []
         for client_id, connection in self.active_connections.items():
@@ -171,7 +170,7 @@ class WebSocketManager:
                 disconnected.append(client_id)
         for client_id in disconnected:
             self.disconnect(client_id)
-    
+
     def get_stats(self) -> dict:
         return {
             "active_connections": len(self.active_connections),
@@ -273,7 +272,7 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     stats = await crud.get_task_stats(db)
     agents = await crud.get_all_agents(db)
     active_agents = len([a for a in agents if a.status == "busy"])
-    
+
     data = {
         "totalTasks": stats["total"],
         "completedTasks": stats["completed"],
@@ -337,11 +336,11 @@ async def create_task(
         assignee=task_data.get("assignee", ""),
         agent=task_data.get("agent", ""),
     )
-    
+
     # 清除缓存
     response_cache.invalidate("stats")
-    response_cache.invalidate(f"tasks_100_0")
-    
+    response_cache.invalidate("tasks_100_0")
+
     return {
         "status": "success",
         "message": "任务创建成功",
@@ -367,14 +366,14 @@ async def update_task(
         assignee=task_update.get("assignee"),
         agent=task_update.get("agent"),
     )
-    
+
     if not updated_task:
         raise HTTPException(status_code=404, detail="任务不存在")
-    
+
     # 清除缓存
     response_cache.invalidate("stats")
-    response_cache.invalidate(f"tasks_100_0")
-    
+    response_cache.invalidate("tasks_100_0")
+
     return {
         "status": "success",
         "message": "任务已更新",
@@ -388,11 +387,11 @@ async def delete_task(task_id: int, db: AsyncSession = Depends(get_db)):
     deleted = await crud.delete_task(db, task_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="任务不存在")
-    
+
     # 清除缓存
     response_cache.invalidate("stats")
-    response_cache.invalidate(f"tasks_100_0")
-    
+    response_cache.invalidate("tasks_100_0")
+
     return {"status": "success", "message": "任务已删除"}
 
 
@@ -442,7 +441,7 @@ async def export_tasks(
     """导出任务数据"""
     tasks = await crud.get_all_tasks(db)
     task_data = [task_to_dict(task) for task in tasks]
-    
+
     if format == "json":
         return JSONResponse(content=task_data)
     elif format == "csv":
@@ -469,13 +468,13 @@ async def websocket_endpoint(websocket: WebSocket):
     """WebSocket 实时数据推送"""
     client_id = id(websocket)
     await websocket_manager.connect(websocket, client_id)
-    
-    last_heartbeat = datetime.now(timezone.utc).astimezone()
-    
+
+    last_heartbeat = datetime.now(UTC).astimezone()
+
     try:
         while True:
-            now = datetime.now(timezone.utc).astimezone()
-            
+            now = datetime.now(UTC).astimezone()
+
             # 推送系统状态
             await websocket.send_json({
                 "type": "system_status",
@@ -486,7 +485,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "connection_id": client_id
                 }
             })
-            
+
             # 心跳检测
             if (now - last_heartbeat).total_seconds() >= websocket_manager.heartbeat_interval:
                 await websocket.send_json({
@@ -494,7 +493,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "data": {"timestamp": now.isoformat(), "status": "alive"}
                 })
                 last_heartbeat = now
-            
+
             await asyncio.sleep(5)
     except Exception as e:
         logger.error(f"WebSocket 连接错误 (client={client_id}): {e}", exc_info=True)
@@ -510,7 +509,7 @@ if __name__ == "__main__":
     logger.info("API 文档：http://localhost:8080/docs")
     logger.info("ReDoc: http://localhost:8080/redoc")
     logger.info("")
-    logger.info="新功能:")
+    logger.info("新功能:")
     logger.info("  🗄️ SQLAlchemy 数据库支持")
     logger.info("  ✅ 真实数据持久化")
     logger.info("  📊 CRUD 操作完整实现")
@@ -518,5 +517,5 @@ if __name__ == "__main__":
     logger.info("  ✨ 统一日志系统")
     logger.info("  📖 API 文档 (Swagger + ReDoc)")
     logger.info("")
-    
+
     uvicorn.run(app, host="0.0.0.0", port=8080)

@@ -331,41 +331,41 @@ class PlannerAgent(BaseAgent):
         """
         if not tasks:
             return []
-        
+
         # 构建邻接表和入度表
         # 假设任务有 dependencies 属性（依赖的任务 ID 列表）
         task_map = {task.id: task for task in tasks}
         in_degree = {task.id: 0 for task in tasks}
         graph = {task.id: [] for task in tasks}
-        
+
         # 构建图
         for task in tasks:
             dependencies = getattr(task, 'dependencies', [])
             if not dependencies:
                 dependencies = []
-            
+
             for dep_id in dependencies:
                 if dep_id in task_map:
                     graph[dep_id].append(task.id)
                     in_degree[task.id] += 1
-        
+
         # Kahn 算法
         # 1. 找到所有入度为 0 的节点（没有依赖的任务）
         queue = [task_id for task_id, degree in in_degree.items() if degree == 0]
         result = []
-        
+
         while queue:
             # 2. 取出一个入度为 0 的节点
             current_id = queue.pop(0)
             result.append(task_map[current_id])
-            
+
             # 3. 减少相邻节点的入度
             for neighbor_id in graph[current_id]:
                 in_degree[neighbor_id] -= 1
                 # 4. 如果入度变为 0，加入队列
                 if in_degree[neighbor_id] == 0:
                     queue.append(neighbor_id)
-        
+
         # 检查是否有环（如果结果数量少于任务数量，说明有循环依赖）
         if len(result) < len(tasks):
             self.logger.warning(
@@ -376,11 +376,11 @@ class PlannerAgent(BaseAgent):
             # 返回已排序的部分，剩余任务按原始顺序
             remaining = [t for t in tasks if t not in result]
             result.extend(remaining)
-        
+
         self.logger.info(
             "Topological sort complete",
             total_tasks=len(tasks),
             sorted_tasks=len(result),
         )
-        
+
         return result

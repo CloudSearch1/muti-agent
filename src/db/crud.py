@@ -6,13 +6,11 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from .models import TaskModel, AgentModel, WorkflowModel
+from .models import AgentModel, TaskModel, WorkflowModel
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +28,7 @@ async def get_all_tasks(db: AsyncSession, limit: int = 100, offset: int = 0) -> 
     return result.scalars().all()
 
 
-async def get_task_by_id(db: AsyncSession, task_id: int) -> Optional[TaskModel]:
+async def get_task_by_id(db: AsyncSession, task_id: int) -> TaskModel | None:
     """根据 ID 获取任务"""
     result = await db.execute(select(TaskModel).where(TaskModel.id == task_id))
     return result.scalar_one_or_none()
@@ -66,18 +64,18 @@ async def create_task(
 async def update_task(
     db: AsyncSession,
     task_id: int,
-    title: Optional[str] = None,
-    description: Optional[str] = None,
-    priority: Optional[str] = None,
-    status: Optional[str] = None,
-    assignee: Optional[str] = None,
-    agent: Optional[str] = None,
-) -> Optional[TaskModel]:
+    title: str | None = None,
+    description: str | None = None,
+    priority: str | None = None,
+    status: str | None = None,
+    assignee: str | None = None,
+    agent: str | None = None,
+) -> TaskModel | None:
     """更新任务"""
     task = await get_task_by_id(db, task_id)
     if not task:
         return None
-    
+
     if title is not None:
         task.title = title
     if description is not None:
@@ -92,7 +90,7 @@ async def update_task(
         task.assignee = assignee
     if agent is not None:
         task.agent = agent
-    
+
     task.updated_at = datetime.now()
     await db.commit()
     await db.refresh(task)
@@ -113,7 +111,7 @@ async def delete_task(db: AsyncSession, task_id: int) -> bool:
 async def get_task_stats(db: AsyncSession) -> dict:
     """获取任务统计"""
     from sqlalchemy import func
-    
+
     result = await db.execute(
         select(
             func.count(TaskModel.id).label("total"),
@@ -139,7 +137,7 @@ async def get_all_agents(db: AsyncSession) -> list[AgentModel]:
     return result.scalars().all()
 
 
-async def get_agent_by_name(db: AsyncSession, name: str) -> Optional[AgentModel]:
+async def get_agent_by_name(db: AsyncSession, name: str) -> AgentModel | None:
     """根据名称获取 Agent"""
     result = await db.execute(select(AgentModel).where(AgentModel.name == name))
     return result.scalar_one_or_none()
@@ -171,12 +169,12 @@ async def update_agent_status(
     db: AsyncSession,
     name: str,
     status: str,
-) -> Optional[AgentModel]:
+) -> AgentModel | None:
     """更新 Agent 状态"""
     agent = await get_agent_by_name(db, name)
     if not agent:
         return None
-    
+
     agent.status = status
     await db.commit()
     await db.refresh(agent)
@@ -189,12 +187,12 @@ async def increment_agent_tasks(
     name: str,
     duration_ms: float,
     success: bool = True,
-) -> Optional[AgentModel]:
+) -> AgentModel | None:
     """增加 Agent 完成任务计数"""
     agent = await get_agent_by_name(db, name)
     if not agent:
         return None
-    
+
     agent.tasks_completed += 1
     # 更新平均时间
     total_tasks = agent.tasks_completed
@@ -205,7 +203,7 @@ async def increment_agent_tasks(
     else:
         successful = (agent.success_rate * (total_tasks - 1)) / total_tasks
     agent.success_rate = successful
-    
+
     await db.commit()
     await db.refresh(agent)
     return agent
@@ -222,7 +220,7 @@ async def init_default_agents(db: AsyncSession) -> None:
         {"name": "SeniorArchitect", "role": "资深架构师", "description": "负责复杂系统设计和代码审查"},
         {"name": "ResearchAgent", "role": "研究助手", "description": "负责文献调研和技术分析"},
     ]
-    
+
     for agent_data in default_agents:
         existing = await get_agent_by_name(db, agent_data["name"])
         if not existing:
@@ -232,7 +230,7 @@ async def init_default_agents(db: AsyncSession) -> None:
                 role=agent_data["role"],
                 description=agent_data["description"],
             )
-    
+
     logger.info("默认 Agent 初始化完成")
 
 
@@ -267,11 +265,11 @@ async def complete_workflow(
     db: AsyncSession,
     workflow_id: int,
     output_data: str = "",
-) -> Optional[WorkflowModel]:
+) -> WorkflowModel | None:
     """完成工作流"""
     result = await db.execute(select(WorkflowModel).where(WorkflowModel.id == workflow_id))
     workflow = result.scalar_one_or_none()
-    
+
     if workflow:
         workflow.state = "completed"
         workflow.output_data = output_data
@@ -279,5 +277,5 @@ async def complete_workflow(
         await db.commit()
         await db.refresh(workflow)
         logger.info(f"完成工作流：{workflow_id}")
-    
+
     return workflow

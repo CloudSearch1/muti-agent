@@ -216,13 +216,13 @@ class ArchitectAgent(BaseAgent):
         """生成架构文档，包含图表"""
         components = design.get("components", [])
         decisions = design.get("decisions", [])
-        
+
         # 使用 LLM 生成组件图（Mermaid 格式）
         component_diagram = await self._generate_component_diagram(components)
-        
+
         # 使用 LLM 生成时序图（Mermaid 格式）
         sequence_diagram = await self._generate_sequence_diagram(components, decisions)
-        
+
         return {
             "title": "系统架构设计文档",
             "version": "1.0.0",
@@ -250,10 +250,10 @@ class ArchitectAgent(BaseAgent):
         """
         if not components:
             return "graph TD\n    A[无组件信息]"
-        
+
         # 构建提示词
         component_list = "\n".join(f"- {c['name']}: {c['responsibility']}" for c in components)
-        
+
         prompt = f"""你是一位架构可视化专家。请为以下系统组件生成 Mermaid 组件图。
 
 ## 组件列表
@@ -273,12 +273,12 @@ class ArchitectAgent(BaseAgent):
             prompt=prompt,
             system_prompt="生成 Mermaid 组件图代码。",
         )
-        
+
         if diagram:
             # 清理可能的 markdown 标记
             diagram = diagram.replace("```mermaid", "").replace("```", "").strip()
             return diagram
-        
+
         # Fallback：生成简单的组件图
         return self._generate_fallback_component_diagram(components)
 
@@ -286,21 +286,21 @@ class ArchitectAgent(BaseAgent):
         """生成备用组件图"""
         mermaid = "graph TD\n"
         mermaid += "    subgraph System[系统]\n"
-        
+
         for i, comp in enumerate(components):
             name = comp.get("name", f"Component{i}")
             tech = comp.get("technology", "")
             mermaid += f"        {name}[{name}\\n{tech}]\n"
-        
+
         mermaid += "    end\n"
-        
+
         # 添加简单连接
         if len(components) > 1:
             for i in range(len(components) - 1):
                 name1 = components[i].get("name", f"Component{i}")
                 name2 = components[i+1].get("name", f"Component{i+1}")
                 mermaid += f"    {name1} --> {name2}\n"
-        
+
         return mermaid
 
     async def _generate_sequence_diagram(
@@ -315,10 +315,10 @@ class ArchitectAgent(BaseAgent):
         """
         if not components:
             return "sequenceDiagram\n    participant 无组件信息"
-        
+
         # 构建提示词
         component_names = [c["name"] for c in components]
-        
+
         prompt = f"""你是一位架构可视化专家。请为以下系统组件生成 Mermaid 时序图。
 
 ## 组件
@@ -341,11 +341,11 @@ class ArchitectAgent(BaseAgent):
             prompt=prompt,
             system_prompt="生成 Mermaid 时序图代码。",
         )
-        
+
         if diagram:
             diagram = diagram.replace("```mermaid", "").replace("```", "").strip()
             return diagram
-        
+
         # Fallback
         return self._generate_fallback_sequence_diagram(component_names)
 
@@ -354,17 +354,17 @@ class ArchitectAgent(BaseAgent):
         mermaid = "sequenceDiagram\n"
         mermaid += "    autonumber\n"
         mermaid += "    participant User as 用户\n"
-        
+
         for comp in components:
             safe_name = comp.replace(" ", "")
             mermaid += f"    participant {safe_name} as {comp}\n"
-        
+
         # 添加简单流程
         if components:
             first = components[0].replace(" ", "")
             mermaid += f"\n    User->>{first}: 请求\n"
             mermaid += f"    {first}-->>User: 响应\n"
-        
+
         return mermaid
 
     async def review_architecture(

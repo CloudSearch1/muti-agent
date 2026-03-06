@@ -124,7 +124,7 @@ class DocWriterAgent(BaseAgent):
         # 调用 LLM 生成文档计划
         doc_plan = await self.llm_helper.generate_json(
             prompt=prompt,
-            system_prompt=f"你是一位资深技术文档工程师。请以 JSON 格式输出文档计划。",
+            system_prompt="你是一位资深技术文档工程师。请以 JSON 格式输出文档计划。",
         )
 
         if doc_plan:
@@ -225,7 +225,7 @@ class DocWriterAgent(BaseAgent):
         """格式化源材料为文本"""
         if not source_material:
             return "无源材料"
-        
+
         lines = []
         for key, value in source_material.items():
             if isinstance(value, str):
@@ -234,7 +234,7 @@ class DocWriterAgent(BaseAgent):
                 lines.append(f"### {key}\n" + "\n".join(f"- {item}" for item in value[:10]))
             else:
                 lines.append(f"### {key}\n{str(value)[:500]}")
-        
+
         return "\n".join(lines)
 
     async def _generate_document(
@@ -313,13 +313,13 @@ class DocWriterAgent(BaseAgent):
 
         content = f"# {title}\n\n"
         content += f"_自动生成时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_\n\n"
-        
+
         for section in structure:
             content += f"## {section}\n\n"
             content += f"【{section}内容待补充】\n\n"
             if "示例" in section or "开始" in section:
                 content += "```python\n# 示例代码待添加\npass\n```\n\n"
-        
+
         content += "---\n*文档由 IntelliTeam DocWriterAgent 自动生成*\n"
         return content
 
@@ -340,7 +340,7 @@ class DocWriterAgent(BaseAgent):
         """
         # 构建代码分析提示词
         code_content = self._format_code_files_for_doc(code_files)
-        
+
         prompt = f"""你是一位 API 文档专家。请分析以下代码并生成完整的 API 文档。
 
 ## 代码内容
@@ -395,10 +395,10 @@ class DocWriterAgent(BaseAgent):
                 endpoints=len(api_doc.get("endpoints", [])),
                 models=len(api_doc.get("models", [])),
             )
-            
+
             # 生成 Markdown 格式文档
             markdown_content = self._api_doc_to_markdown(api_doc)
-            
+
             return {
                 "title": api_doc.get("title", "API 文档"),
                 "version": api_doc.get("version", "1.0.0"),
@@ -424,32 +424,32 @@ class DocWriterAgent(BaseAgent):
         """格式化代码文件用于文档生成"""
         if not code_files:
             return "无代码文件"
-        
+
         lines = []
         for file_info in code_files:
             filename = file_info.get("filename", "unknown")
             content = file_info.get("content", "")
             lines.append(f"\n### 文件：{filename}\n```python\n{content}\n```")
-        
+
         return "\n".join(lines)
 
     def _api_doc_to_markdown(self, api_doc: dict[str, Any]) -> str:
         """将 API 文档 JSON 转换为 Markdown"""
         md = f"# {api_doc.get('title', 'API 文档')}\n\n"
         md += f"_版本：{api_doc.get('version', '1.0.0')} | 生成时间：{datetime.now().strftime('%Y-%m-%d')}_\n\n"
-        
+
         # 目录
         md += "## 目录\n\n"
         md += "- [接口列表](#接口列表)\n"
         md += "- [数据模型](#数据模型)\n"
         md += "- [使用示例](#使用示例)\n\n"
-        
+
         # 接口列表
         md += "## 接口列表\n\n"
         for endpoint in api_doc.get("endpoints", []):
             md += f"### {endpoint.get('name', 'Unknown')}\n\n"
             md += f"{endpoint.get('description', '')}\n\n"
-            
+
             # 参数
             params = endpoint.get("parameters", [])
             if params:
@@ -460,37 +460,37 @@ class DocWriterAgent(BaseAgent):
                     required = "是" if param.get("required", False) else "否"
                     md += f"| {param.get('name', '')} | {param.get('type', '')} | {required} | {param.get('description', '')} |\n"
                 md += "\n"
-            
+
             # 返回值
             returns = endpoint.get("returns", {})
             if returns:
                 md += f"**返回值:** {returns.get('description', '')}\n\n"
-            
+
             # 示例
             example = endpoint.get("example", "")
             if example:
                 md += "**示例:**\n\n"
                 md += f"```python\n{example}\n```\n\n"
-        
+
         # 数据模型
         md += "## 数据模型\n\n"
         for model in api_doc.get("models", []):
             md += f"### {model.get('name', 'Unknown')}\n\n"
             md += f"{model.get('description', '')}\n\n"
-            
+
             attrs = model.get("attributes", [])
             if attrs:
                 md += "**属性:**\n\n"
                 for attr in attrs:
                     md += f"- `{attr.get('name', '')}` ({attr.get('type', '')}): {attr.get('description', '')}\n"
                 md += "\n"
-        
+
         # 使用示例
         md += "## 使用示例\n\n"
         for i, example in enumerate(api_doc.get("examples", []), 1):
             md += f"### 示例 {i}\n\n"
             md += f"```python\n{example}\n```\n\n"
-        
+
         return md
 
     async def update_knowledge_base(
@@ -546,7 +546,7 @@ class DocWriterAgent(BaseAgent):
                 topic=topic,
                 keywords=len(knowledge_meta.get("keywords", [])),
             )
-            
+
             return {
                 "status": "updated",
                 "topic": topic,

@@ -10,7 +10,7 @@ import csv
 import io
 import logging
 import random
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket
@@ -75,7 +75,7 @@ class ResponseCache:
     def get(self, key: str) -> dict | None:
         if key in self._cache:
             entry = self._cache[key]
-            if datetime.now(timezone.utc).astimezone() < entry['expires']:
+            if datetime.now(UTC).astimezone() < entry['expires']:
                 self._hits += 1
                 logger.debug(f"缓存命中：{key} (hits={self._hits}, misses={self._misses})")
                 return entry['data']
@@ -88,7 +88,7 @@ class ResponseCache:
     def set(self, key: str, data: dict):
         self._cache[key] = {
             'data': data,
-            'expires': datetime.now(timezone.utc).astimezone() + self._ttl
+            'expires': datetime.now(UTC).astimezone() + self._ttl
         }
         logger.debug(f"缓存设置：{key}, 过期时间={self._ttl}")
 
@@ -411,19 +411,19 @@ class WebSocketManager:
         self.active_connections: dict[int, WebSocket] = {}
         self.heartbeat_interval = 30  # 心跳间隔（秒）
         logger.info("WebSocket 管理器初始化完成")
-    
+
     async def connect(self, websocket: WebSocket, client_id: int):
         """接受连接并记录"""
         await websocket.accept()
         self.active_connections[client_id] = websocket
         logger.info(f"WebSocket 客户端连接：{client_id}, 当前连接数：{len(self.active_connections)}")
-    
+
     def disconnect(self, client_id: int):
         """断开连接并清理"""
         if client_id in self.active_connections:
             del self.active_connections[client_id]
             logger.info(f"WebSocket 客户端断开：{client_id}, 当前连接数：{len(self.active_connections)}")
-    
+
     async def broadcast(self, message: dict):
         """广播消息给所有连接的客户端"""
         disconnected = []
@@ -436,7 +436,7 @@ class WebSocketManager:
         # 清理断开的连接
         for client_id in disconnected:
             self.disconnect(client_id)
-    
+
     def get_stats(self) -> dict:
         """获取连接统计"""
         return {
@@ -458,13 +458,13 @@ async def websocket_endpoint(websocket: WebSocket):
     """
     client_id = id(websocket)
     await websocket_manager.connect(websocket, client_id)
-    
-    last_heartbeat = datetime.now(timezone.utc).astimezone()
-    
+
+    last_heartbeat = datetime.now(UTC).astimezone()
+
     try:
         while True:
-            now = datetime.now(timezone.utc).astimezone()
-            
+            now = datetime.now(UTC).astimezone()
+
             # 推送系统状态
             await websocket.send_json({
                 "type": "system_status",
@@ -487,7 +487,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     "type": "agent_update",
                     "data": agent
                 })
-            
+
             # 心跳检测
             if (now - last_heartbeat).total_seconds() >= websocket_manager.heartbeat_interval:
                 await websocket.send_json({

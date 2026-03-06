@@ -140,7 +140,7 @@ class TesterAgent(BaseAgent):
         # 调用 LLM 生成测试计划
         test_plan = await self.llm_helper.generate_json(
             prompt=prompt,
-            system_prompt=f"你是一位资深测试工程师。请以 JSON 格式输出详细的测试计划。",
+            system_prompt="你是一位资深测试工程师。请以 JSON 格式输出详细的测试计划。",
         )
 
         if test_plan:
@@ -220,24 +220,24 @@ class TesterAgent(BaseAgent):
         """格式化代码文件列表为文本"""
         if not code_files:
             return "无代码文件"
-        
+
         lines = []
         for file_info in code_files:
             filename = file_info.get("filename", "unknown")
             content = file_info.get("content", "")
             lines.append(f"\n### 文件：{filename}")
             lines.append(f"```python\n{content[:500]}{'...' if len(content) > 500 else ''}\n```")
-        
+
         return "\n".join(lines)
 
     async def _generate_test_cases(self, test_plan: dict[str, Any]) -> list[dict[str, Any]]:
         """使用 LLM 生成真实测试用例"""
         test_cases_config = test_plan.get("test_cases", [])
-        
+
         if not test_cases_config:
             self.logger.warning("No test cases in plan, using fallback")
             return self._generate_fallback_test_cases()
-        
+
         test_cases = []
         for tc_config in test_cases_config:
             # 为每个测试用例生成代码
@@ -249,7 +249,7 @@ class TesterAgent(BaseAgent):
                 "code": test_code,
                 "priority": tc_config.get("priority", "medium"),
             })
-        
+
         self.logger.info("Test cases generated", count=len(test_cases))
         return test_cases
 
@@ -260,7 +260,7 @@ class TesterAgent(BaseAgent):
         description = config.get("description", "")
         inputs = config.get("inputs", [])
         expected = config.get("expected_output", "")
-        
+
         prompt = f"""你是一位测试专家。请为以下测试用例编写完整的 pytest 测试代码。
 
 ## 测试信息
@@ -284,7 +284,7 @@ class TesterAgent(BaseAgent):
             prompt=prompt,
             system_prompt="你是一位测试专家。请生成完整、可运行的 pytest 测试代码。",
         )
-        
+
         return test_code or self._generate_fallback_test_code(name, description)
 
     def _generate_fallback_test_cases(self) -> list[dict[str, Any]]:
@@ -352,13 +352,10 @@ if __name__ == "__main__":
         - 收集测试覆盖率
         - 生成详细测试结果
         """
-        import subprocess
         import time
-        import tempfile
-        import os
-        
+
         self.logger.info("Starting test execution", test_count=len(test_cases))
-        
+
         start_time = time.time()
         results = {
             "total": len(test_cases),
@@ -369,25 +366,25 @@ if __name__ == "__main__":
             "duration_ms": 0,
             "details": [],
         }
-        
+
         # 为每个测试用例创建临时文件并执行
         for tc in test_cases:
             test_result = await self._run_single_test(tc)
             results["details"].append(test_result)
-            
+
             if test_result["status"] == "passed":
                 results["passed"] += 1
             elif test_result["status"] == "failed":
                 results["failed"] += 1
             else:
                 results["skipped"] += 1
-        
+
         # 计算执行时间
         results["duration_ms"] = int((time.time() - start_time) * 1000)
-        
+
         # 尝试收集覆盖率（如果可能）
         results["coverage"] = await self._collect_coverage(test_cases)
-        
+
         self.logger.info(
             "Test execution complete",
             total=results["total"],
@@ -395,23 +392,22 @@ if __name__ == "__main__":
             failed=results["failed"],
             coverage=results["coverage"],
         )
-        
+
         return results
 
     async def _run_single_test(self, test_case: dict[str, Any]) -> dict[str, Any]:
         """执行单个测试用例"""
-        import subprocess
-        import tempfile
         import os
-        
+        import tempfile
+
         test_name = test_case.get("name", "unknown")
         test_code = test_case.get("code", "")
-        
+
         # 创建临时测试文件
         with tempfile.NamedTemporaryFile(mode='w', suffix='_test.py', delete=False) as f:
             f.write(test_code)
             temp_file = f.name
-        
+
         try:
             # 执行 pytest
             proc = await asyncio.create_subprocess_exec(
@@ -422,9 +418,9 @@ if __name__ == "__main__":
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            
+
             stdout, stderr = await proc.communicate()
-            
+
             # 解析结果
             if proc.returncode == 0:
                 status = "passed"
@@ -432,14 +428,14 @@ if __name__ == "__main__":
             else:
                 status = "failed"
                 error_msg = stderr.decode()[:500] if stderr else stdout.decode()[:500]
-            
+
             return {
                 "test_name": test_name,
                 "status": status,
                 "duration_ms": 100,  # 估算
                 "error": error_msg,
             }
-            
+
         except FileNotFoundError:
             # pytest 未安装，模拟结果
             self.logger.warning("pytest not found, simulating test result")
@@ -516,7 +512,7 @@ if __name__ == "__main__":
         expected = bug_report.get("expected_behavior", "")
         actual = bug_report.get("actual_behavior", "")
         severity = bug_report.get("severity", "medium")
-        
+
         # 构建回归测试生成提示词
         prompt = f"""你是一位测试专家。请根据以下缺陷报告生成回归测试用例。
 
@@ -558,7 +554,7 @@ if __name__ == "__main__":
             prompt=prompt,
             system_prompt="你是一位测试专家。请生成针对此缺陷的回归测试用例。",
         )
-        
+
         if result and "test_cases" in result:
             test_cases = result["test_cases"]
             self.logger.info(
@@ -567,7 +563,7 @@ if __name__ == "__main__":
                 bug_title=title,
             )
             return test_cases
-        
+
         # Fallback：生成简单的回归测试
         self.logger.warning("LLM regression test generation failed, using fallback")
         return [
