@@ -1,17 +1,19 @@
 """
-数据库模块
+数据库模型导出模块
+
+从 database.py 重新导出模型类
 """
 
-from .__init__ import DatabaseManager, get_database_manager, get_db
-from .models import AgentModel, Base, BlackboardEntryModel, TaskModel, WorkflowModel
+from .database import (
+    AgentModel,
+    Base,
+    TaskModel,
+    WorkflowModel,
+)
 
 __all__ = [
     "TaskModel",
     "AgentModel",
     "WorkflowModel",
-    "BlackboardEntryModel",
     "Base",
-    "DatabaseManager",
-    "get_database_manager",
-    "get_db",
 ]

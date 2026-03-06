@@ -232,6 +232,17 @@ def get_settings() -> AppSettings:
     return AppSettings()
 
 
+def reload_settings() -> AppSettings:
+    """
+    重新加载配置（清除缓存）
+    
+    Returns:
+        AppSettings: 新的应用配置实例
+    """
+    get_settings.cache_clear()
+    return get_settings()
+
+
 # ============ 配置加载器 ============
 
 class ConfigLoader:
