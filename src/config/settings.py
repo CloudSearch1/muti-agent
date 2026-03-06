@@ -217,6 +217,96 @@ class AppSettings(BaseSettings):
             "api_port": self.api.port,
             "debug": self.api.debug,
         }
+    
+    # ============ 向后兼容属性（旧版 flat settings API） ============
+    
+    @property
+    def app_name(self) -> str:
+        """兼容旧版 app_name"""
+        return self.name
+    
+    @property
+    def app_env(self) -> str:
+        """兼容旧版 app_env"""
+        return self.environment
+    
+    @property
+    def debug(self) -> bool:
+        """兼容旧版 debug"""
+        return self.api.debug
+    
+    @property
+    def api_host(self) -> str:
+        """兼容旧版 api_host"""
+        return self.api.host
+    
+    @property
+    def api_port(self) -> int:
+        """兼容旧版 api_port"""
+        return self.api.port
+    
+    @property
+    def database_url(self) -> str:
+        """兼容旧版 database_url"""
+        return self.database.url
+    
+    @property
+    def redis_url(self) -> str:
+        """兼容旧版 redis_url"""
+        if self.redis.password:
+            return f"redis://:{self.redis.password}@{self.redis.host}:{self.redis.port}/{self.redis.db}"
+        return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.db}"
+    
+    @property
+    def agent_timeout_seconds(self) -> int:
+        """兼容旧版 agent_timeout_seconds"""
+        return self.agent.timeout_seconds
+    
+    @property
+    def agent_temperature(self) -> float:
+        """兼容旧版 agent_temperature"""
+        return self.llm.temperature
+    
+    # LLM 兼容属性
+    @property
+    def openai_api_key(self) -> str | None:
+        """兼容旧版 openai_api_key"""
+        return self.llm.openai_api_key
+    
+    @property
+    def openai_model(self) -> str:
+        """兼容旧版 openai_model"""
+        return self.llm.model
+    
+    @property
+    def openai_api_base(self) -> str | None:
+        """兼容旧版 openai_api_base"""
+        return None
+    
+    @property
+    def anthropic_api_key(self) -> str | None:
+        """兼容旧版 anthropic_api_key"""
+        return self.llm.anthropic_api_key
+    
+    @property
+    def dashscope_api_key(self) -> str | None:
+        """兼容旧版 dashscope_api_key"""
+        return self.llm.dashscope_api_key
+    
+    @property
+    def azure_openai_api_key(self) -> str | None:
+        """兼容旧版 azure_openai_api_key"""
+        return None
+    
+    @property
+    def azure_openai_endpoint(self) -> str | None:
+        """兼容旧版 azure_openai_endpoint"""
+        return None
+    
+    @property
+    def azure_openai_deployment(self) -> str | None:
+        """兼容旧版 azure_openai_deployment"""
+        return None
 
 
 # ============ 全局配置实例 ============
