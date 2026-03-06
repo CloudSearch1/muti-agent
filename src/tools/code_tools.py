@@ -4,6 +4,8 @@
 提供代码生成、分析、格式化等功能
 """
 
+import asyncio
+
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
