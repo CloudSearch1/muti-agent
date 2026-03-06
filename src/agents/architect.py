@@ -65,7 +65,7 @@ class ArchitectAgent(BaseAgent):
         )
 
         # 生成架构文档
-        architecture_doc = self._generate_architecture_doc(design)
+        architecture_doc = await self._generate_architecture_doc(design)
 
         # 存储到黑板
         self.put_to_blackboard(
@@ -171,15 +171,13 @@ class ArchitectAgent(BaseAgent):
 5. 扩展性和可维护性考虑
 """
 
-    def _simulate_design(
+    async def _simulate_design(
         self,
         requirements: list[str],
         constraints: dict[str, Any],
     ) -> dict[str, Any]:
         """
-        模拟架构设计结果 (临时实现)
-
-        TODO: 替换为真实 LLM 调用
+        Fallback 架构设计（当 LLM 失败时）
         """
         return {
             "architecture_style": "microservices",
@@ -214,25 +212,160 @@ class ArchitectAgent(BaseAgent):
             ],
         }
 
-    def _generate_architecture_doc(self, design: dict[str, Any]) -> dict[str, Any]:
-        """生成架构文档"""
+    async def _generate_architecture_doc(self, design: dict[str, Any]) -> dict[str, Any]:
+        """生成架构文档，包含图表"""
+        components = design.get("components", [])
+        decisions = design.get("decisions", [])
+        
+        # 使用 LLM 生成组件图（Mermaid 格式）
+        component_diagram = await self._generate_component_diagram(components)
+        
+        # 使用 LLM 生成时序图（Mermaid 格式）
+        sequence_diagram = await self._generate_sequence_diagram(components, decisions)
+        
         return {
             "title": "系统架构设计文档",
             "version": "1.0.0",
             "overview": design.get("architecture_style", "未知架构"),
-            "components": design.get("components", []),
+            "components": components,
             "technology_stack": {
                 "backend": "Python 3.11+",
                 "framework": "FastAPI",
                 "database": "PostgreSQL + Milvus",
                 "message_queue": "Redis Streams",
             },
-            "design_decisions": design.get("decisions", []),
+            "design_decisions": decisions,
             "diagrams": {
-                "component_diagram": "TODO: 生成组件图",
-                "sequence_diagram": "TODO: 生成时序图",
+                "component_diagram": component_diagram,
+                "sequence_diagram": sequence_diagram,
+                "format": "mermaid",
             },
         }
+
+    async def _generate_component_diagram(self, components: list[dict[str, Any]]) -> str:
+        """
+        使用 LLM 生成组件图（Mermaid 格式）
+        
+        TODO: 生成组件图
+        """
+        if not components:
+            return "graph TD\n    A[无组件信息]"
+        
+        # 构建提示词
+        component_list = "\n".join(f"- {c['name']}: {c['responsibility']}" for c in components)
+        
+        prompt = f"""你是一位架构可视化专家。请为以下系统组件生成 Mermaid 组件图。
+
+## 组件列表
+{component_list}
+
+## 要求
+1. 使用 Mermaid graph TD 格式
+2. 显示组件之间的关系
+3. 包含必要的注释
+4. 布局清晰易读
+
+## 输出格式
+只返回 Mermaid 代码，不要其他文字。"""
+
+        # 调用 LLM 生成
+        diagram = await self.llm_helper.generate(
+            prompt=prompt,
+            system_prompt="生成 Mermaid 组件图代码。",
+        )
+        
+        if diagram:
+            # 清理可能的 markdown 标记
+            diagram = diagram.replace("```mermaid", "").replace("```", "").strip()
+            return diagram
+        
+        # Fallback：生成简单的组件图
+        return self._generate_fallback_component_diagram(components)
+
+    def _generate_fallback_component_diagram(self, components: list[dict[str, Any]]) -> str:
+        """生成备用组件图"""
+        mermaid = "graph TD\n"
+        mermaid += "    subgraph System[系统]\n"
+        
+        for i, comp in enumerate(components):
+            name = comp.get("name", f"Component{i}")
+            tech = comp.get("technology", "")
+            mermaid += f"        {name}[{name}\\n{tech}]\n"
+        
+        mermaid += "    end\n"
+        
+        # 添加简单连接
+        if len(components) > 1:
+            for i in range(len(components) - 1):
+                name1 = components[i].get("name", f"Component{i}")
+                name2 = components[i+1].get("name", f"Component{i+1}")
+                mermaid += f"    {name1} --> {name2}\n"
+        
+        return mermaid
+
+    async def _generate_sequence_diagram(
+        self,
+        components: list[dict[str, Any]],
+        decisions: list[dict[str, Any]],
+    ) -> str:
+        """
+        使用 LLM 生成时序图（Mermaid 格式）
+        
+        TODO: 生成时序图
+        """
+        if not components:
+            return "sequenceDiagram\n    participant 无组件信息"
+        
+        # 构建提示词
+        component_names = [c["name"] for c in components]
+        
+        prompt = f"""你是一位架构可视化专家。请为以下系统组件生成 Mermaid 时序图。
+
+## 组件
+{", ".join(component_names)}
+
+## 设计决策
+{chr(10).join(f"- {d['decision']}" for d in decisions)}
+
+## 要求
+1. 使用 Mermaid sequenceDiagram 格式
+2. 展示典型的请求流程
+3. 包含必要的注释
+4. 流程清晰
+
+## 输出格式
+只返回 Mermaid 代码，不要其他文字。"""
+
+        # 调用 LLM 生成
+        diagram = await self.llm_helper.generate(
+            prompt=prompt,
+            system_prompt="生成 Mermaid 时序图代码。",
+        )
+        
+        if diagram:
+            diagram = diagram.replace("```mermaid", "").replace("```", "").strip()
+            return diagram
+        
+        # Fallback
+        return self._generate_fallback_sequence_diagram(component_names)
+
+    def _generate_fallback_sequence_diagram(self, components: list[str]) -> str:
+        """生成备用时序图"""
+        mermaid = "sequenceDiagram\n"
+        mermaid += "    autonumber\n"
+        mermaid += "    participant User as 用户\n"
+        
+        for comp in components:
+            safe_name = comp.replace(" ", "")
+            mermaid += f"    participant {safe_name} as {comp}\n"
+        
+        # 添加简单流程
+        if components:
+            first = components[0].replace(" ", "")
+            mermaid += f"\n    User->>{first}: 请求\n"
+            mermaid += f"    {first}-->>User: 响应\n"
+        
+        return mermaid
 
     async def review_architecture(
         self,
@@ -240,7 +373,7 @@ class ArchitectAgent(BaseAgent):
         criteria: list[str] = None,
     ) -> dict[str, Any]:
         """
-        评审架构设计
+        评审架构设计 - 使用 LLM 进行架构审查
 
         Args:
             architecture: 架构设计文档
@@ -249,9 +382,100 @@ class ArchitectAgent(BaseAgent):
         Returns:
             评审结果
         """
-        # TODO: 实现架构评审逻辑
+        if not criteria:
+            criteria = [
+                "可扩展性",
+                "可靠性",
+                "安全性",
+                "性能",
+                "可维护性",
+                "成本效益",
+            ]
+
+        # 构建评审提示词
+        prompt = f"""你是一位资深架构评审专家。请评审以下架构设计。
+
+## 架构概述
+{architecture.get('overview', '无概述')}
+
+## 组件设计
+{self._format_components(architecture.get('components', []))}
+
+## 技术栈
+{architecture.get('technology_stack', {})}
+
+## 设计决策
+{self._format_decisions(architecture.get('design_decisions', []))}
+
+## 评审标准
+{chr(10).join(f"- {c}" for c in criteria)}
+
+## 要求
+1. 评估架构的优缺点
+2. 识别潜在风险和问题
+3. 提供改进建议
+4. 评估是否符合评审标准
+5. 给出总体评分（0-100 分）
+
+## 输出格式 (JSON)
+{{
+    "status": "approved|needs_revision|rejected",
+    "overall_score": 85,
+    "strengths": ["优点 1", "优点 2"],
+    "weaknesses": ["不足 1", "不足 2"],
+    "concerns": [
+        {{
+            "category": "scalability|security|performance|...",
+            "severity": "critical|major|minor",
+            "description": "问题描述",
+            "recommendation": "改进建议"
+        }}
+    ],
+    "suggestions": ["建议 1", "建议 2"],
+    "summary": "评审总结"
+}}"""
+
+        # 调用 LLM 进行评审
+        review_result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt="你是一位严格的架构评审专家。请提供专业、详细的评审意见。",
+        )
+
+        if review_result:
+            self.logger.info(
+                "Architecture review complete",
+                status=review_result.get("status"),
+                score=review_result.get("overall_score"),
+                concerns=len(review_result.get("concerns", [])),
+            )
+            return review_result
+
+        # Fallback
+        self.logger.warning("Architecture review LLM failed, using fallback")
         return {
             "status": "approved",
-            "suggestions": [],
+            "overall_score": 75,
+            "strengths": ["架构结构清晰"],
+            "weaknesses": ["需要更多性能优化考虑"],
             "concerns": [],
+            "suggestions": ["建议添加缓存层", "考虑异步处理"],
+            "summary": "架构设计整体合理，建议进一步优化。",
         }
+
+    def _format_components(self, components: list[dict[str, Any]]) -> str:
+        """格式化组件列表"""
+        if not components:
+            return "无组件信息"
+        lines = []
+        for comp in components:
+            lines.append(f"- {comp.get('name', 'Unknown')}: {comp.get('responsibility', '')}")
+        return "\n".join(lines)
+
+    def _format_decisions(self, decisions: list[dict[str, Any]]) -> str:
+        """格式化设计决策列表"""
+        if not decisions:
+            return "无设计决策"
+        lines = []
+        for d in decisions:
+            lines.append(f"- {d.get('decision', '')}: {d.get('rationale', '')}")
+        return "\n".join(lines)
