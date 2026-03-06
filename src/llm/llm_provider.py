@@ -144,14 +144,14 @@ class ClaudeProvider(LLMProvider):
         }
 
         logger.info(f"[Claude] 调用 API: {self.model}")
-        
+
         try:
             async with self.httpx.AsyncClient() as client:
                 response = await client.post(url, headers=headers, json=payload, timeout=60.0)
                 response.raise_for_status()
                 data = response.json()
                 content = data["content"][0]["text"]
-                logger.info(f"[Claude] API 调用成功")
+                logger.info("[Claude] API 调用成功")
                 return content
         except Exception as e:
             logger.error(f"[Claude] API 调用失败：{e}")
@@ -161,7 +161,7 @@ class ClaudeProvider(LLMProvider):
         """实现真实的 Claude API JSON 调用"""
         json_prompt = f"{prompt}\n\n请以严格的 JSON 格式回复，不要包含其他文字。"
         content = await self.generate(json_prompt, **kwargs)
-        
+
         try:
             cleaned = content.strip()
             if cleaned.startswith("```json"):
@@ -171,7 +171,7 @@ class ClaudeProvider(LLMProvider):
             if cleaned.endswith("```"):
                 cleaned = cleaned[:-3]
             cleaned = cleaned.strip()
-            
+
             return json.loads(cleaned)
         except json.JSONDecodeError as e:
             logger.error(f"[Claude] JSON 解析失败：{e}")
@@ -219,14 +219,14 @@ class BailianProvider(LLMProvider):
         }
 
         logger.info(f"[百炼] 调用 API: {self.model}")
-        
+
         try:
             async with self.httpx.AsyncClient() as client:
                 response = await client.post(url, headers=headers, json=payload, timeout=60.0)
                 response.raise_for_status()
                 data = response.json()
                 content = data["output"]["text"]
-                logger.info(f"[百炼] API 调用成功")
+                logger.info("[百炼] API 调用成功")
                 return content
         except Exception as e:
             logger.error(f"[百炼] API 调用失败：{e}")
@@ -236,7 +236,7 @@ class BailianProvider(LLMProvider):
         """实现真实的百炼 API JSON 调用"""
         json_prompt = f"{prompt}\n\n请以严格的 JSON 格式回复，不要包含其他文字。"
         content = await self.generate(json_prompt, **kwargs)
-        
+
         try:
             cleaned = content.strip()
             if cleaned.startswith("```json"):
@@ -246,7 +246,7 @@ class BailianProvider(LLMProvider):
             if cleaned.endswith("```"):
                 cleaned = cleaned[:-3]
             cleaned = cleaned.strip()
-            
+
             return json.loads(cleaned)
         except json.JSONDecodeError as e:
             logger.error(f"[百炼] JSON 解析失败：{e}")

@@ -99,7 +99,7 @@ class CoderAgent(BaseAgent):
                 self.logger.warning("LLM code design failed, using fallback", error=str(e))
 
         # Fallback: 使用模拟实现
-        return self._simulate_implementation(requirements)
+        return await self._simulate_implementation(requirements)
 
     async def _llm_design(
         self,
