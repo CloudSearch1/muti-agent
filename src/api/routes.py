@@ -8,6 +8,9 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
+# 导入批量端点路由
+from .batch_endpoints import router as batch_router
+
 from ..api.rate_limiter import get_rate_limiter
 from ..api.response_cache import cache_response, get_response_cacher
 from ..models.schemas import AgentResponse, PaginationResponse, TaskCreate, TaskResponse, TaskUpdate
@@ -244,3 +247,7 @@ async def get_stats():
 async def health_check():
     """健康检查"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+# 注册批量端点路由
+# 在主应用中通过 include_router 注册

@@ -2,13 +2,16 @@
 数据库 CRUD 操作模块
 
 提供 Task、Agent、Workflow 的增删改查操作
+优化：使用 selectinload 避免 N+1 查询
 """
 
 import logging
 from datetime import datetime
+from typing import List
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from .models import AgentModel, TaskModel, WorkflowModel
 
@@ -18,20 +21,70 @@ logger = logging.getLogger(__name__)
 # ============ Task CRUD ============
 
 async def get_all_tasks(db: AsyncSession, limit: int = 100, offset: int = 0) -> list[TaskModel]:
-    """获取所有任务"""
+    """
+    获取所有任务（优化：避免 N+1 查询）
+    
+    使用 selectinload 预加载关联数据
+    """
     result = await db.execute(
         select(TaskModel)
+        .options(selectinload(TaskModel.assignee_rel))  # 预加载关联数据
         .order_by(TaskModel.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
-    return result.scalars().all()
+    return result.scalars().unique().all()
+
+
+async def get_tasks_with_stats(db: AsyncSession) -> dict:
+    """
+    获取任务统计（单次查询）
+    
+    避免多次查询数据库
+    """
+    result = await db.execute(
+        select(
+            func.count(TaskModel.id).label("total"),
+            func.sum(func.case((TaskModel.status == "completed", 1), else_=0)).label("completed"),
+            func.sum(func.case((TaskModel.status == "in_progress", 1), else_=0)).label("in_progress"),
+            func.sum(func.case((TaskModel.status == "pending", 1), else_=0)).label("pending"),
+        )
+    )
+    stats = result.first()
+    
+    return {
+        "total": stats.total or 0,
+        "completed": stats.completed or 0,
+        "in_progress": stats.in_progress or 0,
+        "pending": stats.pending or 0,
+    }
 
 
 async def get_task_by_id(db: AsyncSession, task_id: int) -> TaskModel | None:
-    """根据 ID 获取任务"""
-    result = await db.execute(select(TaskModel).where(TaskModel.id == task_id))
-    return result.scalar_one_or_none()
+    """根据 ID 获取任务（优化：预加载关联数据）"""
+    result = await db.execute(
+        select(TaskModel)
+        .options(selectinload(TaskModel.assignee_rel))
+        .where(TaskModel.id == task_id)
+    )
+    return result.unique().scalar_one_or_none()
+
+
+async def get_tasks_by_ids(db: AsyncSession, task_ids: List[int]) -> list[TaskModel]:
+    """
+    批量获取任务（优化：单次查询多个任务）
+    
+    避免 N 次查询
+    """
+    if not task_ids:
+        return []
+    
+    result = await db.execute(
+        select(TaskModel)
+        .options(selectinload(TaskModel.assignee_rel))
+        .where(TaskModel.id.in_(task_ids))
+    )
+    return result.unique().scalars().all()
 
 
 async def create_task(

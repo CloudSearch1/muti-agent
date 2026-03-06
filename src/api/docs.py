@@ -4,7 +4,11 @@ IntelliTeam OpenAPI 文档配置
 优化 API 文档和 Swagger UI
 """
 
+import logging
+
 from fastapi import FastAPI
+
+logger = logging.getLogger(__name__)
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 
@@ -103,9 +107,9 @@ def setup_openapi_docs(app: FastAPI):
             redoc_js_url="https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js",
         )
 
-    print("✅ OpenAPI 文档已配置")
-    print("📚 Swagger UI: http://localhost:8080/docs")
-    print("📖 ReDoc: http://localhost:8080/redoc")
+    logger.info("✅ OpenAPI 文档已配置")
+    logger.info("📚 Swagger UI: http://localhost:8080/docs")
+    logger.info("📖 ReDoc: http://localhost:8080/redoc")
 
 
 def add_api_examples(app: FastAPI):
@@ -122,4 +126,4 @@ def add_api_examples(app: FastAPI):
 
     # 错误响应示例
 
-    print("✅ API 示例已添加")
+    logger.info("✅ API 示例已添加")
