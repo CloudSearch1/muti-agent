@@ -6,13 +6,11 @@
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Optional
+from typing import Any
 from uuid import uuid4
 
-# 导入 Optional 到模块命名空间
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-_Optional = Optional
 
 # ============ 枚举类型 ============
 
@@ -73,7 +71,7 @@ class WorkflowStatus(StrEnum):
 class Agent(BaseModel):
     """Agent 数据模型"""
 
-    id: str | None = Field(default_factory=lambda: str(uuid4()), description="Agent ID")
+    id: str = Field(default_factory=lambda: str(uuid4()), description="Agent ID")
     name: str = Field(..., description="Agent 名称")
     role: AgentRole = Field(..., description="Agent 角色")
     state: AgentState = Field(default=AgentState.IDLE, description="Agent 状态")
@@ -84,27 +82,21 @@ class Agent(BaseModel):
     current_task_id: str | None = Field(default=None, description="当前任务 ID")
 
     # 超时设置
-    timeout_seconds: int | None = Field(default=300, description="任务超时时间(秒)")
+    timeout_seconds: int = Field(default=300, ge=1, le=3600, description="任务超时时间(秒)")
 
     # 最后活跃时间
     last_active_at: datetime | None = Field(default=None, description="最后活跃时间")
 
     # 统计信息
-    tasks_completed: int = Field(default=0, description="完成任务数")
-    tasks_failed: int = Field(default=0, description="失败任务数")
-    total_execution_time: float = Field(default=0.0, description="总执行时间")
-    avg_execution_time: float = Field(default=0.0, description="平均执行时间")
+    tasks_completed: int = Field(default=0, ge=0, description="完成任务数")
+    tasks_failed: int = Field(default=0, ge=0, description="失败任务数")
+    total_execution_time: float = Field(default=0.0, ge=0.0, description="总执行时间")
+    avg_execution_time: float = Field(default=0.0, ge=0.0, description="平均执行时间")
 
     # 元数据
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
     updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
-
-    def __init__(self, **data):
-        # 处理 id 为 None 的情况
-        if "id" in data and data["id"] is None:
-            data["id"] = str(uuid4())
-        super().__init__(**data)
 
     def is_available(self) -> bool:
         """检查 Agent 是否可用"""

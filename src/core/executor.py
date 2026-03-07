@@ -8,31 +8,13 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
 
-from ..core.models import Task
+from .models import Task, TaskStatus, WorkflowStatus
 from ..db.crud import create_task as crud_create_task
 from ..db.database import get_db_session
 
 logger = logging.getLogger(__name__)
-
-
-class WorkflowStatus(str, Enum):
-    """工作流状态"""
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-class TaskStatus(str, Enum):
-    """任务状态"""
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
 
 @dataclass
@@ -40,14 +22,14 @@ class WorkflowTask:
     """工作流中的任务"""
     agent_name: str
     task_description: str
-    dependencies: List[str] = field(default_factory=list)
+    dependencies: list[str] = field(default_factory=list)
     timeout_seconds: int = 300
     retry_count: int = 3
     status: TaskStatus = TaskStatus.PENDING
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 @dataclass
@@ -55,18 +37,18 @@ class Workflow:
     """工作流定义"""
     name: str
     description: str
-    tasks: List[WorkflowTask] = field(default_factory=list)
-    status: WorkflowStatus = WorkflowStatus.PENDING
+    tasks: list[WorkflowTask] = field(default_factory=list)
+    status: WorkflowStatus = WorkflowStatus.CREATED
     created_at: datetime = field(default_factory=datetime.now)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class AgentExecutor:
     """
     Agent 执行引擎
-    
+
     功能:
     - 工作流编排和执行
     - 任务调度（支持依赖）
@@ -74,25 +56,25 @@ class AgentExecutor:
     - 错误处理和重试
     - 状态管理
     """
-    
+
     def __init__(self):
-        self._agents: Dict[str, Any] = {}
-        self._workflows: Dict[str, Workflow] = {}
-        self._event_handlers: Dict[str, List[Callable]] = {}
+        self._agents: dict[str, Any] = {}
+        self._workflows: dict[str, Workflow] = {}
+        self._event_handlers: dict[str, list[Callable]] = {}
         logger.info("AgentExecutor initialized")
-    
+
     def register_agent(self, name: str, agent_instance: Any):
         """注册 Agent"""
         self._agents[name] = agent_instance
         logger.info(f"Agent registered: {name}")
-    
+
     def register_event_handler(self, event_type: str, handler: Callable):
         """注册事件处理器"""
         if event_type not in self._event_handlers:
             self._event_handlers[event_type] = []
         self._event_handlers[event_type].append(handler)
-    
-    async def _emit_event(self, event_type: str, data: Dict[str, Any]):
+
+    async def _emit_event(self, event_type: str, data: dict[str, Any]):
         """触发事件"""
         handlers = self._event_handlers.get(event_type, [])
         for handler in handlers:
@@ -103,12 +85,12 @@ class AgentExecutor:
                     handler(data)
             except Exception as e:
                 logger.error(f"Event handler error: {e}")
-    
+
     async def execute_workflow(
         self,
         workflow: Workflow,
-        context: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """
         执行工作流
         
@@ -219,11 +201,11 @@ class AgentExecutor:
     async def _execute_task(
         self,
         task: WorkflowTask,
-        context: Dict[str, Any],
-        previous_results: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None,
+        previous_results: dict[str, Any],
+    ) -> dict[str, Any]:
         """执行单个任务"""
-        task.status = TaskStatus.RUNNING
+        task.status = TaskStatus.IN_PROGRESS
         task.started_at = datetime.now()
         
         logger.info(f"Executing task: {task.agent_name}")
@@ -304,7 +286,7 @@ class AgentExecutor:
         
         return workflow
     
-    def get_workflow_status(self, workflow_name: str) -> Optional[Dict[str, Any]]:
+    def get_workflow_status(self, workflow_name: str) -> dict[str, Any] | None:
         """获取工作流状态"""
         workflow = self._workflows.get(workflow_name)
         if not workflow:
@@ -328,7 +310,7 @@ class AgentExecutor:
 
 
 # 全局执行引擎实例
-_executor: Optional[AgentExecutor] = None
+_executor: AgentExecutor | None = None
 
 
 def get_executor() -> AgentExecutor:
@@ -339,7 +321,7 @@ def get_executor() -> AgentExecutor:
     return _executor
 
 
-async def init_executor(agents: Dict[str, Any]) -> AgentExecutor:
+async def init_executor(agents: dict[str, Any]) -> AgentExecutor:
     """初始化执行引擎"""
     executor = get_executor()
     for name, agent in agents.items():

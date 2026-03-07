@@ -8,32 +8,25 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable
+
+from .models import AgentState as AgentStatusEnum
 
 logger = logging.getLogger(__name__)
 
 
-class AgentStatus(str, Enum):
-    """Agent 状态"""
-    IDLE = "idle"
-    BUSY = "busy"
-    ERROR = "error"
-    OFFLINE = "offline"
-
-
 @dataclass
-class AgentState:
-    """Agent 状态"""
+class AgentStatusData:
+    """Agent 状态数据"""
     name: str
-    status: AgentStatus = AgentStatus.IDLE
-    current_task: Optional[str] = None
+    status: AgentStatusEnum = AgentStatusEnum.IDLE
+    current_task: str | None = None
     progress: float = 0.0
     message: str = ""
     last_updated: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> dict:
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "status": self.status.value,
@@ -55,8 +48,8 @@ class SystemState:
     active_agents: int = 0
     total_agents: int = 0
     last_updated: datetime = field(default_factory=datetime.now)
-    
-    def to_dict(self) -> dict:
+
+    def to_dict(self) -> dict[str, Any]:
         return {
             "active_workflows": self.active_workflows,
             "total_tasks": self.total_tasks,
@@ -71,36 +64,36 @@ class SystemState:
 class StateStore:
     """
     状态存储
-    
+
     功能:
     - 集中管理所有状态
     - 支持状态订阅和通知
     - 线程安全
     - 状态历史
     """
-    
+
     def __init__(self):
-        self._agent_states: Dict[str, AgentState] = {}
+        self._agent_states: dict[str, AgentStatusData] = {}
         self._system_state = SystemState()
-        self._subscribers: List[Callable] = []
+        self._subscribers: list[Callable] = []
         self._lock = asyncio.Lock()
-        self._history: List[Dict[str, Any]] = []
+        self._history: list[dict[str, Any]] = []
         logger.info("StateStore initialized")
-    
-    async def subscribe(self, callback: Callable[[Dict[str, Any]], None]):
+
+    async def subscribe(self, callback: Callable[[dict[str, Any]], None]):
         """订阅状态变化"""
         async with self._lock:
             self._subscribers.append(callback)
             logger.debug(f"Subscriber added, total: {len(self._subscribers)}")
-    
+
     async def unsubscribe(self, callback: Callable):
         """取消订阅"""
         async with self._lock:
             if callback in self._subscribers:
                 self._subscribers.remove(callback)
                 logger.debug(f"Subscriber removed, total: {len(self._subscribers)}")
-    
-    async def _notify_subscribers(self, change: Dict[str, Any]):
+
+    async def _notify_subscribers(self, change: dict[str, Any]):
         """通知订阅者"""
         for callback in self._subscribers:
             try:
@@ -110,25 +103,25 @@ class StateStore:
                     callback(change)
             except Exception as e:
                 logger.error(f"State subscriber error: {e}")
-    
+
     async def set_agent_state(
         self,
         agent_name: str,
-        status: AgentStatus,
-        current_task: Optional[str] = None,
+        status: AgentStatusEnum,
+        current_task: str | None = None,
         progress: float = 0.0,
         message: str = "",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """设置 Agent 状态"""
         async with self._lock:
             # 获取或创建 Agent 状态
             if agent_name not in self._agent_states:
-                self._agent_states[agent_name] = AgentState(name=agent_name)
-            
+                self._agent_states[agent_name] = AgentStatusData(name=agent_name)
+
             agent_state = self._agent_states[agent_name]
             old_status = agent_state.status
-            
+
             # 更新状态
             agent_state.status = status
             agent_state.current_task = current_task
@@ -137,10 +130,10 @@ class StateStore:
             agent_state.last_updated = datetime.now()
             if metadata:
                 agent_state.metadata.update(metadata)
-            
+
             # 更新系统状态
             self._update_system_state()
-            
+
             # 记录历史
             change = {
                 "type": "agent_state_change",
@@ -150,54 +143,54 @@ class StateStore:
                 "timestamp": datetime.now().isoformat(),
             }
             self._history.append(change)
-            
+
             # 限制历史记录大小
             if len(self._history) > 1000:
                 self._history = self._history[-1000:]
-            
+
             logger.debug(
                 f"Agent state changed: {agent_name} {old_status.value} -> {status.value}",
             )
-        
+
         # 通知订阅者（在锁外）
         await self._notify_subscribers(change)
-    
-    async def get_agent_state(self, agent_name: str) -> Optional[AgentState]:
+
+    async def get_agent_state(self, agent_name: str) -> AgentStatusData | None:
         """获取 Agent 状态"""
         return self._agent_states.get(agent_name)
-    
-    async def get_all_agent_states(self) -> Dict[str, dict]:
+
+    async def get_all_agent_states(self) -> dict[str, dict[str, Any]]:
         """获取所有 Agent 状态"""
         return {
             name: state.to_dict()
             for name, state in self._agent_states.items()
         }
-    
+
     async def get_system_state(self) -> SystemState:
         """获取系统状态"""
         return self._system_state
-    
+
     def _update_system_state(self):
         """更新系统状态"""
         self._system_state.active_agents = sum(
             1 for state in self._agent_states.values()
-            if state.status == AgentStatus.BUSY
+            if state.status == AgentStatusEnum.BUSY
         )
         self._system_state.total_agents = len(self._agent_states)
         self._system_state.last_updated = datetime.now()
-    
+
     async def increment_workflow_count(self):
         """增加活跃工作流计数"""
         async with self._lock:
             self._system_state.active_workflows += 1
             self._system_state.last_updated = datetime.now()
-    
+
     async def decrement_workflow_count(self):
         """减少活跃工作流计数"""
         async with self._lock:
             self._system_state.active_workflows = max(0, self._system_state.active_workflows - 1)
             self._system_state.last_updated = datetime.now()
-    
+
     async def record_task_completion(self, success: bool = True):
         """记录任务完成"""
         async with self._lock:
@@ -207,22 +200,22 @@ class StateStore:
             else:
                 self._system_state.failed_tasks += 1
             self._system_state.last_updated = datetime.now()
-    
-    async def get_state_snapshot(self) -> Dict[str, Any]:
+
+    async def get_state_snapshot(self) -> dict[str, Any]:
         """获取状态快照"""
         return {
             "system": self._system_state.to_dict(),
             "agents": await self.get_all_agent_states(),
             "timestamp": datetime.now().isoformat(),
         }
-    
-    async def get_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+
+    async def get_history(self, limit: int = 100) -> list[dict[str, Any]]:
         """获取状态变更历史"""
         return self._history[-limit:]
 
 
 # 全局状态存储实例
-_state_store: Optional[StateStore] = None
+_state_store: StateStore | None = None
 
 
 def get_state_store() -> StateStore:
@@ -243,7 +236,7 @@ async def init_state_store() -> StateStore:
 # 便捷函数
 async def set_agent_status(
     agent_name: str,
-    status: AgentStatus,
+    status: AgentStatusEnum,
     **kwargs,
 ):
     """便捷函数：设置 Agent 状态"""
@@ -251,7 +244,7 @@ async def set_agent_status(
     await store.set_agent_state(agent_name, status, **kwargs)
 
 
-async def get_agent_status(agent_name: str) -> Optional[AgentState]:
+async def get_agent_status(agent_name: str) -> AgentStatusData | None:
     """便捷函数：获取 Agent 状态"""
     store = get_state_store()
     return await store.get_agent_state(agent_name)
