@@ -4,11 +4,10 @@
 记录系统状态变更历史，支持时间旅行调试
 """
 
-import json
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -54,8 +53,8 @@ class Event(BaseModel):
     aggregate_id: str  # 聚合根 ID
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     version: int = 1  # 版本号
-    data: Dict[str, Any] = Field(default_factory=dict)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    data: dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     
     class Config:
         json_encoders = {
@@ -101,8 +100,8 @@ class EventStore:
     """
     
     def __init__(self):
-        self._events: List[Event] = []
-        self._event_handlers: Dict[EventType, List] = {}
+        self._events: list[Event] = []
+        self._event_handlers: dict[EventType, list] = {}
         logger.info("EventStore initialized")
     
     def append(self, event: Event):
@@ -118,19 +117,19 @@ class EventStore:
         # 触发事件处理器
         self._trigger_handlers(event)
     
-    def append_many(self, events: List[Event]):
+    def append_many(self, events: list[Event]):
         """批量追加事件"""
         self._events.extend(events)
         logger.info(f"Appended {len(events)} events")
-    
+
     def get_events(
         self,
-        aggregate_type: Optional[str] = None,
-        aggregate_id: Optional[str] = None,
-        event_type: Optional[EventType] = None,
-        since: Optional[datetime] = None,
+        aggregate_type: str | None = None,
+        aggregate_id: str | None = None,
+        event_type: EventType | None = None,
+        since: datetime | None = None,
         limit: int = 100,
-    ) -> List[Event]:
+    ) -> list[Event]:
         """
         查询事件
         
@@ -167,7 +166,7 @@ class EventStore:
         self,
         aggregate_type: str,
         aggregate_id: str,
-    ) -> List[Event]:
+    ) -> list[Event]:
         """获取聚合根的所有事件"""
         return self.get_events(
             aggregate_type=aggregate_type,
@@ -179,7 +178,7 @@ class EventStore:
         self,
         aggregate_type: str,
         aggregate_id: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         重建聚合根状态
         
@@ -247,7 +246,7 @@ class EventStore:
             except Exception as e:
                 logger.error(f"Event handler error: {e}", exc_info=True)
     
-    def get_all_events(self, limit: int = 1000) -> List[Event]:
+    def get_all_events(self, limit: int = 1000) -> list[Event]:
         """获取所有事件"""
         return sorted(self._events, key=lambda e: e.timestamp, reverse=True)[:limit]
     
@@ -315,7 +314,7 @@ def record_event(event_type: EventType, aggregate_type: str):
 
 # ============ 全局事件存储实例 ============
 
-_event_store: Optional[EventStore] = None
+_event_store: EventStore | None = None
 
 
 def get_event_store() -> EventStore:
