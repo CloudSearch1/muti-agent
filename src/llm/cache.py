@@ -170,15 +170,17 @@ class LLMCache:
         """清空缓存"""
         try:
             if self._use_redis and self._redis:
-                # 删除所有 LLM 缓存键
-                keys = await self._redis.keys("llm:*")
+                # 使用 scan_iter 替代 keys()，避免阻塞
+                keys = []
+                async for key in self._redis.scan_iter(match="llm:*"):
+                    keys.append(key)
                 if keys:
                     await self._redis.delete(*keys)
             else:
                 self._memory_cache.clear()
-            
+
             logger.info("LLM cache cleared")
-            
+
         except Exception as e:
             logger.error(f"LLM cache clear error: {e}")
     

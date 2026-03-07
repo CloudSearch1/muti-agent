@@ -4,15 +4,22 @@ LLM 语义缓存
 使用语义相似度进行智能缓存，命中相似 prompt
 """
 
+from __future__ import annotations
+
+import asyncio
 import hashlib
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# 线程池用于异步执行同步的嵌入计算
+_executor = ThreadPoolExecutor(max_workers=2)
 
 try:
     from sentence_transformers import SentenceTransformer
@@ -68,16 +75,34 @@ class SemanticCache:
             except Exception as e:
                 logger.error(f"Failed to load semantic model: {e}")
     
-    def _get_embedding(self, text: str) -> Optional[np.ndarray]:
-        """获取文本的语义嵌入"""
+    def _get_embedding_sync(self, text: str) -> Optional[np.ndarray]:
+        """获取文本的语义嵌入（同步版本）"""
         if not self._model:
             return None
-        
+
         try:
             embedding = self._model.encode(text, convert_to_numpy=True)
             return embedding
         except Exception as e:
             logger.error(f"Failed to get embedding: {e}")
+            return None
+
+    async def _get_embedding(self, text: str) -> Optional[np.ndarray]:
+        """获取文本的语义嵌入（异步版本）"""
+        if not self._model:
+            return None
+
+        try:
+            # 在线程池中执行同步的嵌入计算
+            loop = asyncio.get_event_loop()
+            embedding = await loop.run_in_executor(
+                _executor,
+                self._get_embedding_sync,
+                text,
+            )
+            return embedding
+        except Exception as e:
+            logger.error(f"Failed to get embedding asynchronously: {e}")
             return None
     
     def _compute_similarity(self, emb1: np.ndarray, emb2: np.ndarray) -> float:
@@ -130,8 +155,8 @@ class SemanticCache:
         
         # 2. 语义匹配
         if self._model:
-            prompt_embedding = self._get_embedding(prompt)
-            
+            prompt_embedding = await self._get_embedding(prompt)
+
             if prompt_embedding is not None:
                 best_match = None
                 best_similarity = 0.0
@@ -190,7 +215,7 @@ class SemanticCache:
         # 获取语义嵌入
         embedding = None
         if self._model:
-            embedding = self._get_embedding(prompt)
+            embedding = await self._get_embedding(prompt)
         
         # 存储缓存
         self._cache[exact_key] = {
