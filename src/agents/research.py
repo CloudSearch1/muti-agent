@@ -10,6 +10,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
+from .llm_helper import get_researcher_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -34,6 +35,9 @@ class ResearchAgent(BaseAgent):
         # 研究助手特有配置
         self.search_enabled = kwargs.get("search_enabled", False)
         self.max_sources = kwargs.get("max_sources", 10)
+
+        # LLM 辅助
+        self.llm_helper = get_researcher_llm()
 
         logger.info("ResearchAgent initialized")
 
@@ -188,9 +192,19 @@ class ResearchAgent(BaseAgent):
         }
 
     async def think(self, context: dict[str, Any]) -> dict[str, Any]:
-        """思考/研究过程"""
+        """思考/研究过程 - 使用 LLM 进行研究分析"""
         research_type = context.get("type", "")
 
+        # 尝试使用 LLM 进行研究
+        if self.llm_helper.is_available():
+            try:
+                result = await self._llm_research(research_type, context)
+                if result:
+                    return result
+            except Exception as e:
+                logger.warning("LLM research failed, using fallback", error=str(e))
+
+        # Fallback: 使用模拟研究
         if research_type == "literature_review":
             return self._simulate_literature_review(context)
         elif research_type == "competitive_analysis":
@@ -201,6 +215,221 @@ class ResearchAgent(BaseAgent):
             return self._simulate_technology_comparison(context)
         else:
             return self._simulate_general_research(context)
+
+    async def _llm_research(self, research_type: str, context: dict[str, Any]) -> dict[str, Any] | None:
+        """使用 LLM 进行研究分析"""
+        if research_type == "literature_review":
+            return await self._llm_literature_review(context)
+        elif research_type == "competitive_analysis":
+            return await self._llm_competitive_analysis(context)
+        elif research_type == "trend_analysis":
+            return await self._llm_trend_analysis(context)
+        elif research_type == "technology_comparison":
+            return await self._llm_technology_comparison(context)
+        else:
+            return await self._llm_general_research(context)
+
+    async def _llm_literature_review(self, context: dict[str, Any]) -> dict[str, Any] | None:
+        """使用 LLM 进行文献调研"""
+        topic = context.get("topic", "")
+        keywords = context.get("keywords", [])
+
+        prompt = f"""你是一位资深技术研究员。请针对以下主题进行文献调研分析。
+
+## 研究主题
+{topic}
+
+## 关键词
+{", ".join(keywords) if keywords else "无特定关键词"}
+
+## 要求
+1. 总结该领域的主要研究方向
+2. 列出关键发现和重要结论
+3. 识别研究空白和未来方向
+4. 提供参考来源建议
+
+## 输出格式 (JSON)
+{{
+    "sources": [
+        {{"title": "文献标题", "year": 2024, "citations": 150, "relevance": "high|medium|low"}}
+    ],
+    "key_findings": ["关键发现 1", "关键发现 2"],
+    "research_gaps": ["研究空白 1", "研究空白 2"],
+    "summary": "研究总结",
+    "references": ["参考来源建议"]
+}}"""
+
+        result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt="你是一位资深技术研究员。请以 JSON 格式输出文献调研结果。",
+        )
+
+        if result:
+            self.logger.info("LLM literature review complete", topic=topic)
+            return result
+
+        return None
+
+    async def _llm_competitive_analysis(self, context: dict[str, Any]) -> dict[str, Any] | None:
+        """使用 LLM 进行竞品分析"""
+        product = context.get("product", "")
+        competitors = context.get("competitors", [])
+
+        prompt = f"""你是一位资深产品分析师。请进行竞品分析。
+
+## 产品
+{product}
+
+## 竞品列表
+{", ".join(competitors) if competitors else "请识别主要竞品"}
+
+## 要求
+1. 分析各产品的优劣势
+2. 进行 SWOT 分析
+3. 识别市场机会
+4. 提供差异化建议
+
+## 输出格式 (JSON)
+{{
+    "competitors": [
+        {{"name": "竞品名", "market_share": "市场份额估计", "strengths": ["优势"], "weaknesses": ["劣势"]}}
+    ],
+    "strengths": ["我们产品的优势"],
+    "weaknesses": ["我们产品的劣势"],
+    "opportunities": ["市场机会"],
+    "threats": ["潜在威胁"],
+    "differentiation": ["差异化建议"]
+}}"""
+
+        result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt="你是一位资深产品分析师。请以 JSON 格式输出竞品分析结果。",
+        )
+
+        if result:
+            self.logger.info("LLM competitive analysis complete", product=product)
+            return result
+
+        return None
+
+    async def _llm_trend_analysis(self, context: dict[str, Any]) -> dict[str, Any] | None:
+        """使用 LLM 进行趋势分析"""
+        technology = context.get("technology", "")
+        time_range = context.get("time_range", "1 year")
+
+        prompt = f"""你是一位资深技术趋势分析师。请分析以下技术的发展趋势。
+
+## 技术领域
+{technology}
+
+## 分析时间范围
+{time_range}
+
+## 要求
+1. 分析当前技术状态
+2. 识别新兴趋势
+3. 预测未来发展
+4. 提供采用建议
+
+## 输出格式 (JSON)
+{{
+    "current_state": "当前技术状态描述",
+    "emerging_trends": ["趋势 1", "趋势 2"],
+    "predictions": ["预测 1", "预测 2"],
+    "adoption_stage": "早期采用者|早期大众|晚期大众|落后者",
+    "recommendations": ["建议 1", "建议 2"],
+    "risks": ["风险 1", "风险 2"]
+}}"""
+
+        result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt="你是一位资深技术趋势分析师。请以 JSON 格式输出趋势分析结果。",
+        )
+
+        if result:
+            self.logger.info("LLM trend analysis complete", technology=technology)
+            return result
+
+        return None
+
+    async def _llm_technology_comparison(self, context: dict[str, Any]) -> dict[str, Any] | None:
+        """使用 LLM 进行技术方案对比"""
+        technologies = context.get("technologies", [])
+        criteria = context.get("criteria", [])
+
+        prompt = f"""你是一位资深技术架构师。请对比分析以下技术方案。
+
+## 技术方案
+{", ".join(technologies) if technologies else "无指定技术"}
+
+## 评估标准
+{", ".join(criteria) if criteria else "性能、易用性、社区支持、成熟度、成本"}
+
+## 要求
+1. 进行客观对比分析
+2. 评估各方案的优劣势
+3. 提供选择建议
+4. 说明权衡考虑
+
+## 输出格式 (JSON)
+{{
+    "technologies": {technologies},
+    "matrix": {{
+        "技术1": {{"性能": 85, "易用性": 80, "社区": 90, "成熟度": 85, "成本": 70}},
+        "技术2": {{...}}
+    }},
+    "recommendation": "推荐方案",
+    "rationale": "推荐理由",
+    "trade_offs": ["权衡考虑 1", "权衡考虑 2"],
+    "use_cases": {{
+        "场景1": "推荐技术A",
+        "场景2": "推荐技术B"
+    }}
+}}"""
+
+        result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt="你是一位资深技术架构师。请以 JSON 格式输出技术对比结果。",
+        )
+
+        if result:
+            self.logger.info("LLM technology comparison complete", technologies=technologies)
+            return result
+
+        return None
+
+    async def _llm_general_research(self, context: dict[str, Any]) -> dict[str, Any] | None:
+        """使用 LLM 进行通用研究"""
+        topic = context.get("topic", "")
+
+        prompt = f"""你是一位资深研究员。请针对以下主题进行研究分析。
+
+## 研究主题
+{topic}
+
+## 要求
+1. 全面分析主题
+2. 提取关键发现
+3. 总结核心观点
+
+## 输出格式 (JSON)
+{{
+    "findings": ["发现 1", "发现 2", "发现 3"],
+    "insights": ["洞察 1", "洞察 2"],
+    "summary": "研究总结",
+    "further_research": ["后续研究方向"]
+}}"""
+
+        result = await self.llm_helper.generate_json(
+            prompt=prompt,
+            system_prompt="你是一位资深研究员。请以 JSON 格式输出研究结果。",
+        )
+
+        if result:
+            self.logger.info("LLM general research complete", topic=topic)
+            return result
+
+        return None
 
     def _simulate_literature_review(self, context: dict[str, Any]) -> dict[str, Any]:
         """模拟文献调研"""

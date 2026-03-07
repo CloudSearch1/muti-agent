@@ -10,6 +10,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
+from .llm_helper import get_senior_architect_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -34,6 +35,9 @@ class SeniorArchitectAgent(BaseAgent):
         # 资深架构师特有配置
         self.review_model = kwargs.get("review_model", "qwen3.5-plus")
         self.min_approval_score = kwargs.get("min_approval_score", 75)
+
+        # LLM 辅助
+        self.llm_helper = get_senior_architect_llm()
 
         logger.info("SeniorArchitectAgent initialized")
 

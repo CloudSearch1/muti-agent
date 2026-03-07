@@ -368,14 +368,21 @@ class PlannerAgent(BaseAgent):
 
         # 检查是否有环（如果结果数量少于任务数量，说明有循环依赖）
         if len(result) < len(tasks):
-            self.logger.warning(
-                "Circular dependency detected in tasks",
+            remaining = [t for t in tasks if t not in result]
+            remaining_ids = [t.id for t in remaining]
+
+            self.logger.error(
+                "Circular dependency detected in tasks - cannot proceed",
                 total_tasks=len(tasks),
                 sorted_tasks=len(result),
+                affected_tasks=remaining_ids,
             )
-            # 返回已排序的部分，剩余任务按原始顺序
-            remaining = [t for t in tasks if t not in result]
-            result.extend(remaining)
+
+            # 抛出明确的错误，而不是静默处理
+            raise ValueError(
+                f"Circular dependency detected among tasks: {remaining_ids}. "
+                "Please resolve circular dependencies before task execution."
+            )
 
         self.logger.info(
             "Topological sort complete",

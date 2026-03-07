@@ -457,7 +457,7 @@ if __name__ == "__main__":
             # 清理临时文件
             try:
                 os.unlink(temp_file)
-            except:
+            except OSError:
                 pass
 
     async def _collect_coverage(self, test_cases: list[dict[str, Any]]) -> float:

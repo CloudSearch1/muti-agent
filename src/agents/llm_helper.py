@@ -8,6 +8,13 @@ import json
 from typing import Any
 
 import structlog
+from tenacity import (
+    AsyncRetrying,
+    RetryError,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+)
 
 from ..llm.service import get_llm_service
 
@@ -22,11 +29,20 @@ class AgentLLMHelper:
     - 结构化输出
     - JSON 解析
     - 错误处理
+    - 自动重试
     """
 
-    def __init__(self, agent_name: str, temperature: float = 0.3):
+    def __init__(
+        self,
+        agent_name: str,
+        temperature: float = 0.3,
+        max_retries: int = 3,
+        retry_delay: float = 1.0,
+    ):
         self.agent_name = agent_name
         self.temperature = temperature
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
         self.llm = get_llm_service()
 
     async def generate(
@@ -37,7 +53,7 @@ class AgentLLMHelper:
         max_tokens: int = 4096,
     ) -> str:
         """
-        生成文本响应
+        生成文本响应（带自动重试）
 
         Args:
             prompt: 用户提示
@@ -46,7 +62,7 @@ class AgentLLMHelper:
             max_tokens: 最大 token 数
 
         Returns:
-            生成的文本
+            生成的文本，失败返回 None
         """
         if not self.llm.is_configured():
             logger.warning(
@@ -55,7 +71,7 @@ class AgentLLMHelper:
             )
             return None
 
-        try:
+        async def _generate_with_retry():
             response = await self.llm.generate(
                 prompt=prompt,
                 system_prompt=system_prompt,
@@ -63,6 +79,33 @@ class AgentLLMHelper:
                 max_tokens=max_tokens,
             )
             return response.content
+
+        try:
+            async for attempt in AsyncRetrying(
+                stop=stop_after_attempt(self.max_retries),
+                wait=wait_exponential(multiplier=self.retry_delay, min=1, max=10),
+                retry=retry_if_exception_type(Exception),
+                reraise=True,
+            ):
+                with attempt:
+                    try:
+                        return await _generate_with_retry()
+                    except Exception as e:
+                        logger.warning(
+                            "LLM generation attempt failed",
+                            agent=self.agent_name,
+                            attempt=attempt.retry_state.attempt_number,
+                            error=str(e),
+                        )
+                        raise
+        except RetryError as e:
+            logger.error(
+                "LLM generation failed after all retries",
+                agent=self.agent_name,
+                attempts=self.max_retries,
+                error=str(e.last_attempt.exception()),
+            )
+            return None
         except Exception as e:
             logger.error(
                 "LLM generation failed",
@@ -208,4 +251,20 @@ def get_doc_writer_llm() -> AgentLLMHelper:
     return AgentLLMHelper(
         agent_name="DocWriterAgent",
         temperature=0.5,  # 文档可以更有创造性
+    )
+
+
+def get_senior_architect_llm() -> AgentLLMHelper:
+    """获取 SeniorArchitect Agent 的 LLM Helper"""
+    return AgentLLMHelper(
+        agent_name="SeniorArchitectAgent",
+        temperature=0.2,  # 架构评审需要更严谨
+    )
+
+
+def get_researcher_llm() -> AgentLLMHelper:
+    """获取 Researcher Agent 的 LLM Helper"""
+    return AgentLLMHelper(
+        agent_name="ResearchAgent",
+        temperature=0.4,  # 研究需要一定的创造性
     )

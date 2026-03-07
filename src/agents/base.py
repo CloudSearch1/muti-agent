@@ -217,7 +217,7 @@ class BaseAgent(ABC):
         recipient_role: str | None = None,
         priority: str = "normal",
         task_id: str | None = None,
-    ) -> Message:
+    ) -> Message | None:
         """
         发送消息到黑板
 
