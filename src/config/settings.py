@@ -4,11 +4,13 @@
 使用 Pydantic Settings 统一管理所有配置
 """
 
+from __future__ import annotations
+
 import os
 from functools import lru_cache
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,22 +23,31 @@ class LLMSettings(BaseSettings):
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=2048, ge=1, le=8192)
     timeout: int = Field(default=60, ge=10, le=300)
-    
+
     # API Keys
-    openai_api_key: Optional[str] = Field(default=None)
-    anthropic_api_key: Optional[str] = Field(default=None)
-    dashscope_api_key: Optional[str] = Field(default=None)
-    
-    # 缓存配置
-    use_cache: bool = Field(default=True)
-    cache_ttl: int = Field(default=3600)
-    semantic_cache_threshold: float = Field(default=0.9, ge=0.0, le=1.0)
+    openai_api_key: str | None = Field(default=None)
+    anthropic_api_key: str | None = Field(default=None)
+    dashscope_api_key: str | None = Field(default=None)
     
     model_config = SettingsConfigDict(
         env_prefix="LLM_",
         env_file=".env",
         extra="ignore",
+        frozen=True,
     )
+
+    # 敏感字段列表
+    _SENSITIVE_FIELDS: set[str] = {
+        "openai_api_key", "anthropic_api_key", "dashscope_api_key"
+    }
+
+    def get_safe_summary(self) -> dict[str, Any]:
+        """获取安全的配置摘要（排除敏感字段）"""
+        data = self.model_dump()
+        for field in self._SENSITIVE_FIELDS:
+            if field in data and data[field]:
+                data[field] = "***REDACTED***"
+        return data
 
 
 # ============ 数据库配置 ============
@@ -49,11 +60,12 @@ class DatabaseSettings(BaseSettings):
     pool_recycle: int = Field(default=1800, ge=300, le=7200)
     pool_timeout: int = Field(default=10, ge=5, le=60)
     echo: bool = Field(default=False)
-    
+
     model_config = SettingsConfigDict(
         env_prefix="DB_",
         env_file=".env",
         extra="ignore",
+        frozen=True,
     )
 
 
@@ -65,14 +77,59 @@ class RedisSettings(BaseSettings):
     host: str = Field(default="localhost")
     port: int = Field(default=6379, ge=1, le=65535)
     db: int = Field(default=0, ge=0, le=15)
-    password: Optional[str] = Field(default=None)
+    password: str | None = Field(default=None)
     max_connections: int = Field(default=50, ge=10, le=200)
-    
+
     model_config = SettingsConfigDict(
         env_prefix="REDIS_",
         env_file=".env",
         extra="ignore",
+        frozen=True,
     )
+
+    _SENSITIVE_FIELDS: set[str] = {"password"}
+
+    def get_safe_summary(self) -> dict[str, Any]:
+        """获取安全的配置摘要"""
+        data = self.model_dump()
+        for field in self._SENSITIVE_FIELDS:
+            if field in data and data[field]:
+                data[field] = "***REDACTED***"
+        return data
+
+
+# ============ Celery 配置 ============
+
+class CelerySettings(BaseSettings):
+    """Celery 配置"""
+    broker_url: str = Field(default="redis://localhost:6379/1", description="消息代理 URL")
+    result_backend: str = Field(default="redis://localhost:6379/1", description="结果后端 URL")
+    timezone: str = Field(default="Asia/Shanghai", description="时区")
+    task_serializer: str = Field(default="json")
+    result_serializer: str = Field(default="json")
+    accept_content: list[str] = Field(default=["json"])
+    task_acks_late: bool = Field(default=True)
+    task_reject_on_worker_lost: bool = Field(default=True)
+    result_expires: int = Field(default=3600, description="结果过期时间（秒）")
+    worker_concurrency: int = Field(default=4, ge=1, le=32)
+    worker_prefetch_multiplier: int = Field(default=1)
+
+    model_config = SettingsConfigDict(
+        env_prefix="CELERY_",
+        env_file=".env",
+        extra="ignore",
+        frozen=True,
+    )
+
+    _SENSITIVE_FIELDS: set[str] = {"broker_url", "result_backend"}
+
+    def get_safe_summary(self) -> dict[str, Any]:
+        """获取安全的配置摘要"""
+        data = self.model_dump()
+        for field in self._SENSITIVE_FIELDS:
+            if field in data and data[field]:
+                data[field] = "***REDACTED***"
+        return data
 
 
 # ============ Agent 配置 ============
@@ -83,25 +140,26 @@ class AgentSettings(BaseSettings):
     coder_model: str = Field(default="gpt-4")
     coder_language: str = Field(default="python")
     coder_style: str = Field(default="pep8")
-    
+
     # Tester Agent
     tester_framework: str = Field(default="pytest")
     tester_coverage_target: int = Field(default=80, ge=50, le=100)
-    
+
     # DocWriter Agent
     doc_format: str = Field(default="markdown")
-    
+
     # Architect Agent
-    architect_patterns: List[str] = Field(default=["MVC", "微服务"])
-    
+    architect_patterns: list[str] = Field(default=["MVC", "微服务"])
+
     # 执行配置
     timeout_seconds: int = Field(default=300, ge=60, le=600)
     max_retries: int = Field(default=3, ge=0, le=10)
-    
+
     model_config = SettingsConfigDict(
         env_prefix="AGENT_",
         env_file=".env",
         extra="ignore",
+        frozen=True,
     )
 
 
@@ -113,20 +171,21 @@ class APISettings(BaseSettings):
     port: int = Field(default=8080, ge=1, le=65535)
     workers: int = Field(default=4, ge=1, le=16)
     debug: bool = Field(default=False)
-    
+
     # CORS
-    cors_origins: List[str] = Field(default=["*"])
-    
+    cors_origins: list[str] = Field(default=["*"])
+
     # 限流
     rate_limit: int = Field(default=60, ge=10, le=1000)
-    
+
     # GZip
     gzip_min_size: int = Field(default=1000, ge=100, le=10000)
-    
+
     model_config = SettingsConfigDict(
         env_prefix="API_",
         env_file=".env",
         extra="ignore",
+        frozen=True,
     )
 
 
@@ -138,14 +197,15 @@ class LoggingSettings(BaseSettings):
     format: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    file: Optional[str] = Field(default=None)
+    file: str | None = Field(default=None)
     max_bytes: int = Field(default=10485760, ge=1048576, le=104857600)  # 10MB
     backup_count: int = Field(default=5, ge=1, le=20)
-    
+
     model_config = SettingsConfigDict(
         env_prefix="LOG_",
         env_file=".env",
         extra="ignore",
+        frozen=True,
     )
 
 
@@ -156,16 +216,27 @@ class SecuritySettings(BaseSettings):
     secret_key: str = Field(default="change-me-in-production")
     algorithm: str = Field(default="HS256")
     access_token_expire_minutes: int = Field(default=30, ge=5, le=1440)
-    
+
     # 审计
     enable_audit: bool = Field(default=True)
-    audit_log_file: Optional[str] = Field(default=None)
-    
+    audit_log_file: str | None = Field(default=None)
+
     model_config = SettingsConfigDict(
         env_prefix="SECURITY_",
         env_file=".env",
         extra="ignore",
+        frozen=True,
     )
+
+    _SENSITIVE_FIELDS: set[str] = {"secret_key"}
+
+    def get_safe_summary(self) -> dict[str, Any]:
+        """获取安全的配置摘要"""
+        data = self.model_dump()
+        for field in self._SENSITIVE_FIELDS:
+            if field in data and data[field]:
+                data[field] = "***REDACTED***"
+        return data
 
 
 # ============ 应用总配置 ============
@@ -177,17 +248,28 @@ class AppSettings(BaseSettings):
     version: str = Field(default="2.0.0")
     description: str = Field(default="智能研发协作平台")
     environment: str = Field(default="development")
-    
+
     # 子配置
     llm: LLMSettings = Field(default_factory=LLMSettings)
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
+    celery: CelerySettings = Field(default_factory=CelerySettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
     api: APISettings = Field(default_factory=APISettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
-    
-    # 验证
+
+    @model_validator(mode="after")
+    def validate_production_security(self) -> "AppSettings":
+        """生产环境安全检查"""
+        if self.environment == "production":
+            if self.security.secret_key == "change-me-in-production":
+                raise ValueError(
+                    "生产环境必须修改 SECURITY_SECRET_KEY 默认值！"
+                    "请在环境变量中设置安全的密钥。"
+                )
+        return self
+
     @field_validator("environment")
     @classmethod
     def validate_environment(cls, v: str) -> str:
