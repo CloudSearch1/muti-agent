@@ -279,3 +279,62 @@ class ConfigurationError(IntelliTeamError):
             code="CONFIGURATION_ERROR",
             details={"setting_name": setting_name, "reason": reason},
         )
+
+
+# ===========================================
+# 认证授权相关异常
+# ===========================================
+
+
+class AuthenticationError(IntelliTeamError):
+    """认证错误"""
+
+    def __init__(self, reason: str = "Authentication failed"):
+        super().__init__(
+            message=reason,
+            code="AUTHENTICATION_ERROR",
+            details={"reason": reason},
+        )
+
+
+class AuthorizationError(IntelliTeamError):
+    """授权错误"""
+
+    def __init__(self, resource: str, action: str, reason: str = "Permission denied"):
+        super().__init__(
+            message=f"Authorization denied for '{action}' on '{resource}': {reason}",
+            code="AUTHORIZATION_ERROR",
+            details={"resource": resource, "action": action, "reason": reason},
+        )
+
+
+# ===========================================
+# 限流相关异常
+# ===========================================
+
+
+class RateLimitError(IntelliTeamError):
+    """限流错误"""
+
+    def __init__(
+        self,
+        resource: str,
+        retry_after: float | None = None,
+        limit: int | None = None,
+    ):
+        details = {"resource": resource}
+        if retry_after is not None:
+            details["retry_after"] = retry_after
+        if limit is not None:
+            details["limit"] = limit
+
+        message = f"Rate limit exceeded for '{resource}'"
+        if retry_after is not None:
+            message += f", retry after {retry_after} seconds"
+
+        super().__init__(
+            message=message,
+            code="RATE_LIMIT_ERROR",
+            details=details,
+        )
+        self.retry_after = retry_after

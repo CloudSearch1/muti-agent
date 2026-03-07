@@ -9,7 +9,7 @@ from enum import StrEnum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 # ============ 枚举类型 ============
@@ -217,6 +217,20 @@ class Task(BaseModel):
         """检查是否为终端状态"""
         return self.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
 
+    def get_priority_level(self) -> int:
+        """获取优先级数值（用于排序，数值越大优先级越高）"""
+        priority_map = {
+            TaskPriority.LOW: 1,
+            TaskPriority.NORMAL: 2,
+            TaskPriority.HIGH: 3,
+            TaskPriority.CRITICAL: 4,
+        }
+        return priority_map.get(self.priority, 2)
+
+    def is_high_priority(self) -> bool:
+        """检查是否为高优先级任务"""
+        return self.priority in [TaskPriority.HIGH, TaskPriority.CRITICAL]
+
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
         return self.model_dump()
@@ -355,13 +369,18 @@ class Blackboard(BaseModel):
     """黑板系统 - 用于 Agent 间通信和共享状态"""
 
     id: str = Field(default_factory=lambda: str(uuid4()), description="黑板 ID")
+    name: str = Field(default="default", description="黑板名称")
+    description: str | None = Field(default=None, description="黑板描述")
     entries: dict[str, BlackboardEntry] = Field(default_factory=dict, description="条目字典")
     messages: list[Message] = Field(default_factory=list, description="消息列表")
+    created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
+    updated_at: datetime = Field(default_factory=datetime.now, description="更新时间")
 
     def put(self, key: str, value: Any, owner_id: str | None = None, **kwargs) -> BlackboardEntry:
         """写入数据"""
         entry = BlackboardEntry(key=key, value=value, source_agent=owner_id, **kwargs)
         self.entries[key] = entry
+        self.updated_at = datetime.now()
         return entry
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -372,6 +391,7 @@ class Blackboard(BaseModel):
     def post_message(self, message: Message) -> None:
         """发布消息"""
         self.messages.append(message)
+        self.updated_at = datetime.now()
 
     def get_messages(
         self,

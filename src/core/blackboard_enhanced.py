@@ -10,8 +10,7 @@ from typing import Any
 
 import structlog
 
-from .models import Blackboard, Message, MessageType
-from .models.blackboard import BlackboardEntry
+from .models import Blackboard, BlackboardEntry, Message, MessageType
 
 logger = structlog.get_logger(__name__)
 

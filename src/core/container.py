@@ -5,14 +5,14 @@ Agent 依赖注入容器
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any
 
-from ..llm.llm_provider import get_llm, LLMProvider
-from ..llm.cache import get_llm_cache, LLMCache
-from ..llm.semantic_cache import get_semantic_cache, SemanticCache
-from ..db.database import get_database_manager, DatabaseManager
-from ..core.state_store import get_state_store, StateStore
+from ..db.database import DatabaseManager, get_database_manager
+from ..llm.cache import LLMCache, get_llm_cache
+from ..llm.llm_provider import LLMProvider, get_llm
+from ..llm.semantic_cache import SemanticCache, get_semantic_cache
+from .state_store import StateStore, get_state_store
 
 logger = logging.getLogger(__name__)
 
@@ -50,17 +50,17 @@ class AgentConfig:
 class AgentContainer:
     """
     Agent 依赖注入容器
-    
+
     功能:
     - 集中管理所有依赖
     - 支持动态配置
     - 便于测试 Mock
     - 生命周期管理
     """
-    
-    _instance: Optional['AgentContainer'] = None
-    _instances: Dict[str, 'AgentContainer'] = {}
-    
+
+    _instance: "AgentContainer | None" = None
+    _instances: dict[str, "AgentContainer"] = {}
+
     def __new__(cls, name: str = "default"):
         """单例模式，支持多实例"""
         if name not in cls._instances:
@@ -68,29 +68,29 @@ class AgentContainer:
             instance._initialized = False
             cls._instances[name] = instance
         return cls._instances[name]
-    
+
     def __init__(self, name: str = "default"):
         if self._initialized:
             return
-        
+
         self.name = name
         self.config = AgentConfig()
-        
+
         # 依赖项
-        self._llm_provider: Optional[LLMProvider] = None
-        self._llm_cache: Optional[LLMCache] = None
-        self._semantic_cache: Optional[SemanticCache] = None
-        self._db_manager: Optional[DatabaseManager] = None
-        self._state_store: Optional[StateStore] = None
-        
+        self._llm_provider: LLMProvider | None = None
+        self._llm_cache: LLMCache | None = None
+        self._semantic_cache: SemanticCache | None = None
+        self._db_manager: DatabaseManager | None = None
+        self._state_store: StateStore | None = None
+
         # 自定义依赖
-        self._custom_deps: Dict[str, Any] = {}
-        
+        self._custom_deps: dict[str, Any] = {}
+
         self._initialized = True
         logger.info(f"AgentContainer '{name}' initialized")
-    
+
     @classmethod
-    def get_container(cls, name: str = "default") -> 'AgentContainer':
+    def get_container(cls, name: str = "default") -> "AgentContainer":
         """获取容器实例"""
         return cls(name)
     
@@ -195,7 +195,7 @@ class AgentContainer:
         
         raise KeyError(f"Dependency not found: {name}")
     
-    def get_all_dependencies(self) -> Dict[str, Any]:
+    def get_all_dependencies(self) -> dict[str, Any]:
         """获取所有依赖"""
         return {
             "llm_provider": self._llm_provider,
@@ -239,7 +239,7 @@ class AgentContainer:
 
 
 # 全局容器实例
-_default_container: Optional[AgentContainer] = None
+_default_container: AgentContainer | None = None
 
 
 def get_agent_container(name: str = "default") -> AgentContainer:

@@ -10,9 +10,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable
 
-from .models import Task, TaskStatus, WorkflowStatus
 from ..db.crud import create_task as crud_create_task
 from ..db.database import get_db_session
+from .models import Task, TaskStatus, WorkflowStatus
 
 logger = logging.getLogger(__name__)
 
