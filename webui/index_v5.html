@@ -203,7 +203,7 @@
                         <!-- 通知 -->
                         <button @click="showNotifications = !showNotifications" class="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition relative">
                             <i class="fas fa-bell"></i>
-                            <span v-if="notifications.length > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center">{{ notifications.length }}</span>
+                            <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center">{{ unreadCount }}</span>
                         </button>
 
                         <!-- 快捷键帮助 -->
@@ -305,7 +305,7 @@
                     </div>
                     <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
                         <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                            <i class="fas fa-chart-pie mr-2 text-primary-600"></i>Agent 效率分布
+                            <i class="fas fa-chart-bar mr-2 text-primary-600"></i>Agent 任务处理统计
                         </h3>
                         <div style="height: 200px; position: relative;">
                             <canvas id="agentEfficiencyChart"></canvas>
@@ -762,75 +762,15 @@
                     <i class="fas fa-bell-slash text-4xl mb-3 opacity-50"></i>
                     <p>暂无通知</p>
                 </div>
-                <div v-for="notif in notifications" :key="notif.id" :class="notif.read ? 'opacity-60' : ''" class="p-4 border-b dark:border-dark-100 hover:bg-gray-50 dark:hover:bg-dark-100 transition cursor-pointer">
+                <div v-for="notif in notifications" :key="notif.id" :class="notif.read ? 'bg-gray-50 dark:bg-dark-100/50' : 'bg-white dark:bg-dark-200'" class="p-4 border-b dark:border-dark-100 hover:bg-gray-50 dark:hover:bg-dark-100 transition cursor-pointer">
                     <div class="flex items-start space-x-3">
-                        <i :class="notif.icon" class="text-xl mt-0.5" :class="notif.type === 'success' ? 'text-green-500' : notif.type === 'warning' ? 'text-yellow-500' : 'text-blue-500'"></i>
+                        <i :class="notif.icon" class="text-xl mt-0.5" :class="notif.read ? 'text-gray-400' : (notif.type === 'success' ? 'text-green-500' : notif.type === 'warning' ? 'text-yellow-500' : 'text-blue-500')"></i>
                         <div class="flex-1">
-                            <p class="text-sm text-gray-800 dark:text-gray-100">{{ notif.message }}</p>
+                            <p class="text-sm" :class="notif.read ? 'text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100'">{{ notif.message }}</p>
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ notif.time }}</p>
                         </div>
+                        <span v-if="!notif.read" class="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 mt-2"></span>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Agent 详情模态框 -->
-        <div v-if="showAgentDetailModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="closeAgentDetail" @keydown.escape="closeAgentDetail">
-            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-lg" v-if="selectedAgent">
-                <div class="flex justify-between items-center p-6 border-b dark:border-dark-100">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                            <i :class="selectedAgent.icon" class="text-white text-xl"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ selectedAgent.name }}</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ selectedAgent.role }}</p>
-                        </div>
-                    </div>
-                    <button @click="closeAgentDetail" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
-                        <i class="fas fa-times text-xl"></i>
-                    </button>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="flex items-center space-x-2">
-                        <span class="w-3 h-3 rounded-full" :class="selectedAgent.status === 'idle' ? 'bg-green-500' : 'bg-blue-500'"></span>
-                        <span class="text-sm font-medium" :class="selectedAgent.status === 'idle' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'">
-                            {{ selectedAgent.status === 'idle' ? '空闲' : '工作中' }}
-                        </span>
-                    </div>
-                    <div class="bg-gray-50 dark:bg-dark-100 rounded-xl p-4">
-                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            <i class="fas fa-info-circle mr-2 text-primary-600"></i>能力描述
-                        </h4>
-                        <p class="text-gray-600 dark:text-gray-400">{{ selectedAgent.description }}</p>
-                    </div>
-                    <div class="grid grid-cols-3 gap-4">
-                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white text-center">
-                            <p class="text-2xl font-bold">{{ selectedAgent.tasksCompleted }}</p>
-                            <p class="text-xs text-blue-100">完成任务</p>
-                        </div>
-                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white text-center">
-                            <p class="text-2xl font-bold">{{ selectedAgent.avgTime }}s</p>
-                            <p class="text-xs text-purple-100">平均耗时</p>
-                        </div>
-                        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white text-center">
-                            <p class="text-2xl font-bold">{{ selectedAgent.successRate }}%</p>
-                            <p class="text-xs text-green-100">成功率</p>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            <i class="fas fa-tags mr-2 text-primary-600"></i>专业技能
-                        </h4>
-                        <div class="flex flex-wrap gap-2">
-                            <span v-for="skill in getAgentSkills(selectedAgent.name)" :key="skill" class="px-3 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 rounded-full text-xs font-medium">
-                                {{ skill }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex justify-end p-6 border-t dark:border-dark-100 bg-gray-50 dark:bg-dark-100/50 rounded-b-2xl">
-                    <button @click="closeAgentDetail" class="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition font-medium">关闭</button>
                 </div>
             </div>
         </div>
@@ -871,55 +811,59 @@
 
         <!-- Agent 详情模态框 -->
         <div v-if="showAgentDetailModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showAgentDetailModal = false" @keydown.escape="showAgentDetailModal = false">
-            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-md" tabindex="-1">
-                <div class="flex justify-between items-center p-6 border-b dark:border-dark-100">
+            <div class="bg-white dark:bg-dark-200 rounded-xl shadow-2xl w-full max-w-md" tabindex="-1">
+                <!-- 头部 -->
+                <div class="flex justify-between items-center p-5 border-b dark:border-dark-100">
                     <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
-                            <i :class="selectedAgent?.icon" class="text-white text-xl"></i>
+                        <div class="w-11 h-11 bg-gray-100 dark:bg-dark-100 rounded-lg flex items-center justify-center">
+                            <i :class="selectedAgent?.icon" class="text-gray-600 dark:text-gray-300 text-lg"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ selectedAgent?.name }}</h3>
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ selectedAgent?.name }}</h3>
                             <p class="text-sm text-gray-500 dark:text-gray-400">{{ selectedAgent?.role }}</p>
                         </div>
                     </div>
-                    <button @click="showAgentDetailModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
-                        <i class="fas fa-times text-xl"></i>
+                    <button @click="showAgentDetailModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition p-1">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div class="p-6 space-y-5">
+
+                <!-- 内容 -->
+                <div class="p-5 space-y-4">
                     <!-- 描述 -->
                     <div>
-                        <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">能力描述</h4>
-                        <p class="text-gray-700 dark:text-gray-300">{{ selectedAgent?.description }}</p>
+                        <h4 class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">能力描述</h4>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ selectedAgent?.description }}</p>
                     </div>
 
                     <!-- 统计数据 -->
-                    <div class="grid grid-cols-3 gap-4">
-                        <div class="bg-gray-50 dark:bg-dark-100 rounded-xl p-4 text-center">
-                            <p class="text-2xl font-bold text-primary-600">{{ selectedAgent?.tasksCompleted }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">完成任务</p>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-gray-50 dark:bg-dark-100 rounded-lg p-3 text-center">
+                            <p class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ selectedAgent?.tasksCompleted }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">完成任务</p>
                         </div>
-                        <div class="bg-gray-50 dark:bg-dark-100 rounded-xl p-4 text-center">
-                            <p class="text-2xl font-bold text-blue-600">{{ selectedAgent?.avgTime }}s</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">平均耗时</p>
+                        <div class="bg-gray-50 dark:bg-dark-100 rounded-lg p-3 text-center">
+                            <p class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ selectedAgent?.avgTime }}s</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">平均耗时</p>
                         </div>
-                        <div class="bg-gray-50 dark:bg-dark-100 rounded-xl p-4 text-center">
-                            <p class="text-2xl font-bold text-green-600">{{ selectedAgent?.successRate }}%</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">成功率</p>
+                        <div class="bg-gray-50 dark:bg-dark-100 rounded-lg p-3 text-center">
+                            <p class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ selectedAgent?.successRate }}%</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">成功率</p>
                         </div>
                     </div>
 
                     <!-- 状态 -->
-                    <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-dark-100 rounded-xl">
-                        <span class="text-gray-700 dark:text-gray-300 font-medium">当前状态</span>
-                        <span :class="selectedAgent?.status === 'idle' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'" class="px-3 py-1 rounded-full text-sm font-medium flex items-center">
-                            <i class="fas fa-circle text-xs mr-2" :class="selectedAgent?.status === 'idle' ? 'text-green-500' : 'text-blue-500'"></i>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-100 rounded-lg">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">当前状态</span>
+                        <span :class="selectedAgent?.status === 'idle' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'" class="px-2.5 py-1 rounded text-sm font-medium">
                             {{ selectedAgent?.status === 'idle' ? '空闲' : '工作中' }}
                         </span>
                     </div>
                 </div>
-                <div class="flex space-x-3 p-6 border-t dark:border-dark-100 bg-gray-50 dark:bg-dark-100/50 rounded-b-2xl">
-                    <button @click="showAgentDetailModal = false" class="flex-1 bg-gray-200 dark:bg-dark-100 hover:bg-gray-300 dark:hover:bg-dark-100 text-gray-700 dark:text-gray-300 py-2.5 rounded-lg transition font-medium">关闭</button>
+
+                <!-- 底部 -->
+                <div class="p-4 border-t dark:border-dark-100">
+                    <button @click="showAgentDetailModal = false" class="w-full bg-gray-100 dark:bg-dark-100 hover:bg-gray-200 dark:hover:bg-dark-50 text-gray-700 dark:text-gray-300 py-2 rounded-lg transition text-sm font-medium">关闭</button>
                 </div>
             </div>
         </div>
@@ -1055,6 +999,10 @@
                         result = result.filter(t => t.title.toLowerCase().includes(query) || t.description.toLowerCase().includes(query));
                     }
                     return result;
+                },
+
+                unreadCount() {
+                    return this.notifications.filter(n => !n.read).length;
                 },
 
                 recentTasks() {
@@ -1369,22 +1317,47 @@
                             });
                         }
 
-                        // Agent 效率图
+                        // Agent 任务处理统计图（柱状图）
                         const agentEfficiencyCtx = document.getElementById('agentEfficiencyChart');
                         if (agentEfficiencyCtx) {
                             this.charts.agentEfficiency = new Chart(agentEfficiencyCtx, {
-                                type: 'doughnut',
+                                type: 'bar',
                                 data: {
                                     labels: ['Planner', 'Architect', 'Coder', 'Tester', 'DocWriter'],
                                     datasets: [{
-                                        data: [45, 38, 89, 67, 52],
-                                        backgroundColor: ['#8b5cf6', '#667eea', '#10b981', '#f59e0b', '#ef4444']
+                                        label: '已完成任务',
+                                        data: [12, 8, 28, 15, 10],
+                                        backgroundColor: [
+                                            'rgba(139, 92, 246, 0.8)',
+                                            'rgba(102, 126, 234, 0.8)',
+                                            'rgba(16, 185, 129, 0.8)',
+                                            'rgba(245, 158, 11, 0.8)',
+                                            'rgba(239, 68, 68, 0.8)'
+                                        ],
+                                        borderRadius: 6
                                     }]
                                 },
                                 options: {
                                     responsive: true,
                                     maintainAspectRatio: false,
-                                    plugins: { legend: { position: 'right' } }
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: {
+                                            callbacks: {
+                                                label: function(context) {
+                                                    return `已完成 ${context.raw} 个任务`;
+                                                }
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        y: {
+                                            beginAtZero: true,
+                                            grid: { color: 'rgba(0,0,0,0.05)' },
+                                            ticks: { stepSize: 5 }
+                                        },
+                                        x: { grid: { display: false } }
+                                    }
                                 }
                             });
                         }

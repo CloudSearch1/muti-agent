@@ -320,17 +320,32 @@
                         'in_progress': { text: '进行中', color: 'blue' },
                         'completed': { text: '已完成', color: 'green' }
                     };
-                    
+
+                    // 如果状态相同，不执行变更
+                    if (this.task.status === status) {
+                        return;
+                    }
+
+                    // 弹出确认框
+                    const statusText = statusMap[status].text;
+                    if (!confirm(`是否将状态更改为 "${statusText}"？`)) {
+                        return;
+                    }
+
                     this.task.status = status;
-                    this.task.statusText = statusMap[status].text;
-                    
+                    this.task.statusText = statusText;
+                    this.task.updatedAt = new Date().toLocaleString('zh-CN');
+
                     // 添加到历史
                     this.taskHistory.unshift({
-                        action: `状态更新为 ${statusMap[status].text}`,
+                        action: `状态更新为 ${statusText}`,
                         time: new Date().toLocaleString('zh-CN')
                     });
-                    
-                    // 保存更改
+
+                    // 持久化保存
+                    this.saveTaskData();
+
+                    // 保存更改到 API
                     try {
                         await fetch(`/api/v1/tasks/${this.taskId}`, {
                             method: 'PUT',
@@ -345,28 +360,65 @@
                 // 添加评论
                 addComment() {
                     if (!this.newComment.trim()) return;
-                    
+
                     const comment = {
                         id: Date.now(),
                         author: '当前用户',
                         content: this.newComment,
                         time: new Date().toLocaleString('zh-CN')
                     };
-                    
+
                     this.comments.unshift(comment);
                     this.newComment = '';
-                    
+
                     // 保存到历史
                     this.taskHistory.unshift({
                         action: `添加了评论`,
                         time: comment.time
                     });
+
+                    // 持久化保存
+                    this.saveTaskData();
                 },
-                
+
                 // 删除评论
                 deleteComment(commentId) {
                     if (confirm('确定要删除这条评论吗？')) {
                         this.comments = this.comments.filter(c => c.id !== commentId);
+                        this.saveTaskData(); // 持久化保存
+                    }
+                },
+
+                // 保存任务数据到 localStorage
+                saveTaskData() {
+                    const data = {
+                        task: this.task,
+                        taskHistory: this.taskHistory,
+                        comments: this.comments,
+                        attachments: this.attachments.map(a => ({
+                            id: a.id,
+                            name: a.name,
+                            size: a.size,
+                            type: a.type,
+                            content: a.content
+                        }))
+                    };
+                    localStorage.setItem(`task_${this.taskId}`, JSON.stringify(data));
+                },
+
+                // 从 localStorage 加载任务数据
+                loadTaskData() {
+                    const saved = localStorage.getItem(`task_${this.taskId}`);
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            if (data.task) this.task = { ...this.task, ...data.task };
+                            if (data.taskHistory && data.taskHistory.length > 0) this.taskHistory = data.taskHistory;
+                            if (data.comments && data.comments.length > 0) this.comments = data.comments;
+                            if (data.attachments && data.attachments.length > 0) this.attachments = data.attachments;
+                        } catch (e) {
+                            console.error('加载任务数据失败:', e);
+                        }
                     }
                 },
                 
@@ -374,18 +426,37 @@
                 uploadAttachment(event) {
                     const files = event.target.files;
                     for (let file of files) {
-                        this.attachments.push({
-                            id: Date.now() + Math.random(),
-                            name: file.name,
-                            size: file.size,
-                            type: file.type
-                        });
+                        // 读取文件内容并存储
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const attachment = {
+                                id: Date.now() + Math.random(),
+                                name: file.name,
+                                size: file.size,
+                                type: file.type,
+                                content: e.target.result // 存储 base64 内容
+                            };
+                            this.attachments.push(attachment);
+                            this.saveTaskData(); // 持久化保存
+                        };
+                        reader.readAsDataURL(file);
                     }
                 },
-                
+
                 // 下载附件
                 downloadAttachment(file) {
-                    alert(`下载：${file.name}`);
+                    if (!file.content) {
+                        alert('文件内容不可用，请重新上传');
+                        return;
+                    }
+
+                    // 创建下载链接
+                    const link = document.createElement('a');
+                    link.href = file.content;
+                    link.download = file.name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                 },
                 
                 // 加载深色模式
@@ -427,27 +498,30 @@
                 // 从 URL 获取任务 ID
                 const urlParams = new URLSearchParams(window.location.search);
                 this.taskId = urlParams.get('id') || 1;
-                
+
                 this.loadDarkMode();
                 this.loadTask();
-                
-                // 加载模拟数据
+
+                // 初始化模拟数据（用于首次加载）
                 this.taskHistory = [
                     { action: '任务创建', time: '2026-03-03 10:30' },
                     { action: '分配给 张三', time: '2026-03-03 10:31' },
                     { action: '状态更新为 进行中', time: '2026-03-03 11:00' },
                     { action: '添加了评论', time: '2026-03-04 09:15' }
                 ];
-                
+
                 this.comments = [
                     { id: 1, author: '李四', content: '这个任务优先级很高，需要尽快完成', time: '2026-03-04 09:15' },
                     { id: 2, author: '张三', content: '好的，已经在处理了', time: '2026-03-04 10:30' }
                 ];
-                
+
                 this.attachments = [
                     { id: 1, name: '需求文档.pdf', size: 1024 * 512 },
                     { id: 2, name: 'API 设计图.png', size: 1024 * 256 }
                 ];
+
+                // 从 localStorage 加载持久化数据（覆盖模拟数据）
+                this.loadTaskData();
             }
         }).mount('#app');
     </script>
