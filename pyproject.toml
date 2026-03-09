@@ -49,8 +49,9 @@ pythonpath = ["."]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --timeout=60"
 asyncio_mode = "auto"
+timeout = 60
 
 [tool.black]
 line-length = 100
