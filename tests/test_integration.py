@@ -19,22 +19,23 @@ from src.core.executor import AgentExecutor, Workflow, WorkflowTask
 
 class TestMultiAgentWorkflow:
     """测试多 Agent 协作流程"""
-    
+
     @pytest.fixture
     def executor(self):
         """创建执行引擎"""
         executor = AgentExecutor()
-        
+
         # 注册 Agent（使用模拟模式）
         executor.register_agent("Planner", PlannerAgent())
         executor.register_agent("Architect", ArchitectAgent())
         executor.register_agent("Coder", CoderAgent())
         executor.register_agent("Tester", TesterAgent())
         executor.register_agent("DocWriter", DocWriterAgent())
-        
+
         return executor
-    
+
     @pytest.mark.asyncio
+    @pytest.mark.skip(reason="集成测试需要 LLM 连接，在 CI 环境中跳过")
     async def test_standard_workflow(self, executor):
         """测试标准研发工作流"""
         # 创建工作流
