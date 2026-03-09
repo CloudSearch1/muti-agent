@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#1a1a2e">
     <meta name="description" content="IntelliTeam - 智能研发协作平台">
     <title>IntelliTeam - 智能研发协作平台</title>
 
@@ -69,7 +69,7 @@
         }, true);
     </script>
 
-    <!-- Tailwind 配置 -->
+    <!-- Tailwind 配置 - 星空黑主题 -->
     <script>
         window.tailwind = window.tailwind || {};
         window.tailwind.config = {
@@ -77,8 +77,35 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { 50: '#f5f3ff', 100: '#ede9fe', 200: '#ddd6fe', 300: '#c4b5fd', 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', 800: '#5b21b6', 900: '#4c1d95' },
-                        dark: { 100: '#1e1e2e', 200: '#181825', 300: '#11111b', 400: '#0d0d14' }
+                        // 星空黑主题配色
+                        star: {
+                            bg: '#0a0a0f',        // 最深背景
+                            card: '#16161f',      // 卡片背景
+                            elevated: '#1a1a25',  // 提升元素
+                            border: '#2a2a35',    // 边框
+                            text: '#a0a0b0',      // 次要文字
+                            light: '#ffffff',     // 主要文字
+                            blue: '#4a9eff',      // 星光蓝强调色
+                            gold: '#ffd700',      // 金色强调色
+                        },
+                        primary: {
+                            50: '#e6f0ff',
+                            100: '#cce0ff',
+                            200: '#99c2ff',
+                            300: '#66a3ff',
+                            400: '#4a9eff',       // 星光蓝
+                            500: '#3385ff',
+                            600: '#1a6bff',
+                            700: '#0052e6',
+                            800: '#0040b3',
+                            900: '#002d80'
+                        },
+                        dark: {
+                            100: '#1a1a25',
+                            200: '#16161f',
+                            300: '#0f0f1a',
+                            400: '#0a0a0f'
+                        }
                     }
                 }
             }
@@ -86,12 +113,15 @@
     </script>
 
     <style>
-        /* 自定义样式 */
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .gradient-dark { background: linear-gradient(135deg, #1e1e2e 0%, #2d1b69 100%); }
+        /* 星空黑主题样式 */
+        .gradient-bg { background: linear-gradient(180deg, #0a0a0f 0%, #0f0f1a 100%); }
+        .gradient-dark { background: #0a0a0f; }
         .card-hover { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.15); }
-        .dark .card-hover:hover { box-shadow: 0 12px 24px rgba(0,0,0,0.4); }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(74, 158, 255, 0.15); border-color: #4a9eff; }
+
+        /* 星光闪烁效果 */
+        .star-glow { box-shadow: 0 0 20px rgba(74, 158, 255, 0.3); }
+        .star-text { text-shadow: 0 0 10px rgba(74, 158, 255, 0.5); }
 
         /* 加载动画 */
         .loading-spin { animation: spin 1s linear infinite; }
@@ -100,6 +130,19 @@
         /* 脉冲动画 */
         .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* 星空背景粒子效果 */
+        .stars-bg {
+            background-image:
+                radial-gradient(2px 2px at 20px 30px, rgba(74, 158, 255, 0.3), transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255, 215, 0, 0.2), transparent),
+                radial-gradient(1px 1px at 90px 40px, rgba(74, 158, 255, 0.4), transparent),
+                radial-gradient(2px 2px at 130px 80px, rgba(255, 255, 255, 0.2), transparent),
+                radial-gradient(1px 1px at 160px 120px, rgba(74, 158, 255, 0.3), transparent);
+            background-size: 200px 200px;
+            animation: twinkle 4s ease-in-out infinite;
+        }
+        @keyframes twinkle { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 
         /* 移动端优化 */
         @media (max-width: 768px) {
@@ -117,66 +160,70 @@
             padding: 2px 6px;
             font-size: 11px;
             font-family: monospace;
-            background: rgba(0,0,0,0.1);
+            background: rgba(74, 158, 255, 0.1);
             border-radius: 4px;
-            border: 1px solid rgba(0,0,0,0.2);
+            border: 1px solid rgba(74, 158, 255, 0.3);
+            color: #4a9eff;
         }
-        .dark .kbd { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
 
-        /* 滚动条美化 */
+        /* 滚动条美化 - 星空风格 */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a78bfa; }
-        .dark ::-webkit-scrollbar-thumb { background: #4c1d95; }
-        .dark ::-webkit-scrollbar-thumb:hover { background: #6d28d9; }
+        ::-webkit-scrollbar-track { background: #0a0a0f; }
+        ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a9eff; }
 
         /* 触摸优化 */
         @media (hover: none) {
             .card-hover:hover { transform: none; }
         }
+
+        /* 输入框聚焦效果 */
+        input:focus, textarea:focus, select:focus {
+            border-color: #4a9eff !important;
+            box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2) !important;
+        }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-dark-300 text-gray-900 dark:text-gray-100 transition-colors">
+<body class="bg-star-bg text-star-light transition-colors">
     <div id="app" class="min-h-screen flex flex-col">
         <!-- 加载状态 -->
-        <div v-if="loading" class="fixed inset-0 bg-white/80 dark:bg-dark-300/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div v-if="loading" class="fixed inset-0 bg-star-bg/95 backdrop-blur-sm z-50 flex items-center justify-center">
             <div class="text-center">
-                <i class="fas fa-circle-notch text-4xl text-primary-600 loading-spin mb-4"></i>
-                <p class="text-gray-600 dark:text-gray-400">加载中...</p>
+                <i class="fas fa-circle-notch text-4xl text-star-blue loading-spin mb-4"></i>
+                <p class="text-star-text">加载中...</p>
             </div>
         </div>
 
         <!-- 顶部导航栏 -->
-        <nav class="gradient-bg dark:gradient-dark text-white shadow-lg sticky top-0 z-40">
+        <nav class="bg-star-card text-white shadow-lg sticky top-0 z-40 border-b border-star-border">
             <div class="container mx-auto px-4 py-3">
                 <div class="flex justify-between items-center">
                     <!-- Logo -->
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-robot text-xl"></i>
+                        <div class="w-10 h-10 bg-star-blue/20 rounded-xl flex items-center justify-center star-glow">
+                            <i class="fas fa-robot text-xl text-star-blue"></i>
                         </div>
                         <div>
-                            <h1 class="text-xl font-bold">IntelliTeam</h1>
-                            <p class="text-xs opacity-70 hide-mobile">智能研发协作平台</p>
+                            <h1 class="text-xl font-bold text-white">IntelliTeam</h1>
+                            <p class="text-xs text-star-text hide-mobile">智能研发协作平台</p>
                         </div>
                     </div>
 
                     <!-- 主导航 (桌面端) -->
                     <div class="hidden md:flex items-center space-x-2 nav-scroll">
-                        <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                        <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-star-blue text-white star-glow' : 'hover:bg-white/10 text-star-text'" class="px-4 py-2 rounded-lg transition flex items-center">
                             <i class="fas fa-home mr-2"></i><span class="hide-mobile">仪表盘</span>
                         </button>
-                        <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                        <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-star-blue text-white star-glow' : 'hover:bg-white/10 text-star-text'" class="px-4 py-2 rounded-lg transition flex items-center">
                             <i class="fas fa-tasks mr-2"></i><span class="hide-mobile">任务</span>
                         </button>
-                        <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                        <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-star-blue text-white star-glow' : 'hover:bg-white/10 text-star-text'" class="px-4 py-2 rounded-lg transition flex items-center">
                             <i class="fas fa-users mr-2"></i><span class="hide-mobile">Agent</span>
                         </button>
-                        <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                        <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-star-blue text-white star-glow' : 'hover:bg-white/10 text-star-text'" class="px-4 py-2 rounded-lg transition flex items-center">
                             <i class="fas fa-project-diagram mr-2"></i><span class="hide-mobile">工作流</span>
                         </button>
-                        <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-white text-primary-600' : 'hover:bg-white/10'" class="px-4 py-2 rounded-lg transition flex items-center">
+                        <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-star-blue text-white star-glow' : 'hover:bg-white/10 text-star-text'" class="px-4 py-2 rounded-lg transition flex items-center">
                             <i class="fas fa-chart-line mr-2"></i><span class="hide-mobile">分析</span>
                         </button>
                     </div>
@@ -190,24 +237,24 @@
                                 @input="debouncedSearch"
                                 type="text"
                                 placeholder="搜索... (Ctrl+K)"
-                                class="w-48 pl-10 pr-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/60 focus:outline-none focus:bg-white/20 focus:border-white/40 transition"
+                                class="w-48 pl-10 pr-4 py-2 rounded-lg bg-star-elevated border border-star-border text-white placeholder-star-text focus:outline-none focus:border-star-blue transition"
                             >
-                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-white/60"></i>
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-star-text"></i>
                         </div>
 
                         <!-- 深色模式切换 -->
-                        <button @click="toggleDarkMode" :title="isDark ? '浅色模式' : '深色模式'" class="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition">
-                            <i :class="isDark ? 'fas fa-sun' : 'fas fa-moon'"></i>
+                        <button @click="toggleDarkMode" :title="isDark ? '浅色模式' : '深色模式'" class="w-10 h-10 rounded-lg bg-star-elevated hover:bg-star-blue/20 flex items-center justify-center transition text-star-text hover:text-star-blue">
+                            <i :class="isDark ? 'fas fa-sun text-star-gold' : 'fas fa-moon'"></i>
                         </button>
 
                         <!-- 通知 -->
-                        <button @click="showNotifications = !showNotifications" class="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition relative">
+                        <button @click="showNotifications = !showNotifications" class="w-10 h-10 rounded-lg bg-star-elevated hover:bg-star-blue/20 flex items-center justify-center transition relative text-star-text hover:text-star-blue">
                             <i class="fas fa-bell"></i>
-                            <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center">{{ unreadCount }}</span>
+                            <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-star-blue rounded-full text-xs flex items-center justify-center text-white">{{ unreadCount }}</span>
                         </button>
 
                         <!-- 快捷键帮助 -->
-                        <button @click="showShortcuts = true" class="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition hide-mobile" title="快捷键 (?">
+                        <button @click="showShortcuts = true" class="w-10 h-10 rounded-lg bg-star-elevated hover:bg-star-blue/20 flex items-center justify-center transition hide-mobile text-star-text hover:text-star-blue" title="快捷键 (?">
                             <i class="fas fa-keyboard"></i>
                         </button>
                     </div>
@@ -215,19 +262,19 @@
 
                 <!-- 移动端导航 -->
                 <div class="md:hidden flex justify-center space-x-1 mt-3 nav-scroll pb-1">
-                    <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                    <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-star-blue text-white' : 'text-star-text'" class="px-3 py-2 rounded-lg transition text-sm">
                         <i class="fas fa-home"></i>
                     </button>
-                    <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                    <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-star-blue text-white' : 'text-star-text'" class="px-3 py-2 rounded-lg transition text-sm">
                         <i class="fas fa-tasks"></i>
                     </button>
-                    <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                    <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-star-blue text-white' : 'text-star-text'" class="px-3 py-2 rounded-lg transition text-sm">
                         <i class="fas fa-users"></i>
                     </button>
-                    <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                    <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-star-blue text-white' : 'text-star-text'" class="px-3 py-2 rounded-lg transition text-sm">
                         <i class="fas fa-project-diagram"></i>
                     </button>
-                    <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-white text-primary-600' : 'text-white/70'" class="px-3 py-2 rounded-lg transition text-sm">
+                    <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-star-blue text-white' : 'text-star-text'" class="px-3 py-2 rounded-lg transition text-sm">
                         <i class="fas fa-chart-line"></i>
                     </button>
                 </div>
@@ -240,54 +287,54 @@
             <div v-if="currentTab === 'dashboard'" class="space-y-6">
                 <!-- 统计卡片 -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-5 card-hover">
+                    <div class="bg-star-card rounded-xl shadow-lg p-5 card-hover border border-star-border">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-gray-500 dark:text-gray-400 text-sm">总任务数</p>
-                                <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ stats.totalTasks }}</p>
-                                <p class="text-xs text-green-600 mt-1"><i class="fas fa-arrow-up"></i> +12% 本周</p>
+                                <p class="text-star-text text-sm">总任务数</p>
+                                <p class="text-3xl font-bold text-white">{{ stats.totalTasks }}</p>
+                                <p class="text-xs text-star-blue mt-1"><i class="fas fa-arrow-up"></i> +12% 本周</p>
                             </div>
-                            <div class="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-xl">
-                                <i class="fas fa-tasks text-blue-600 dark:text-blue-400 text-2xl"></i>
+                            <div class="bg-star-blue/20 p-4 rounded-xl">
+                                <i class="fas fa-tasks text-star-blue text-2xl"></i>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-5 card-hover">
+                    <div class="bg-star-card rounded-xl shadow-lg p-5 card-hover border border-star-border">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-gray-500 dark:text-gray-400 text-sm">活跃 Agent</p>
-                                <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ stats.activeAgents }}</p>
-                                <p class="text-xs text-green-600 mt-1"><i class="fas fa-check"></i> 全部在线</p>
+                                <p class="text-star-text text-sm">活跃 Agent</p>
+                                <p class="text-3xl font-bold text-white">{{ stats.activeAgents }}</p>
+                                <p class="text-xs text-green-400 mt-1"><i class="fas fa-check"></i> 全部在线</p>
                             </div>
-                            <div class="bg-green-100 dark:bg-green-900/30 p-4 rounded-xl">
-                                <i class="fas fa-robot text-green-600 dark:text-green-400 text-2xl"></i>
+                            <div class="bg-green-500/20 p-4 rounded-xl">
+                                <i class="fas fa-robot text-green-400 text-2xl"></i>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-5 card-hover">
+                    <div class="bg-star-card rounded-xl shadow-lg p-5 card-hover border border-star-border">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-gray-500 dark:text-gray-400 text-sm">完成率</p>
-                                <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">{{ stats.completionRate }}%</p>
-                                <p class="text-xs text-green-600 mt-1"><i class="fas fa-arrow-up"></i> +3% 上周</p>
+                                <p class="text-star-text text-sm">完成率</p>
+                                <p class="text-3xl font-bold text-white">{{ stats.completionRate }}%</p>
+                                <p class="text-xs text-star-blue mt-1"><i class="fas fa-arrow-up"></i> +3% 上周</p>
                             </div>
-                            <div class="bg-purple-100 dark:bg-purple-900/30 p-4 rounded-xl">
-                                <i class="fas fa-chart-line text-purple-600 dark:text-purple-400 text-2xl"></i>
+                            <div class="bg-star-blue/20 p-4 rounded-xl">
+                                <i class="fas fa-chart-line text-star-blue text-2xl"></i>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-5 card-hover">
+                    <div class="bg-star-card rounded-xl shadow-lg p-5 card-hover border border-star-border">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-gray-500 dark:text-gray-400 text-sm">系统状态</p>
-                                <p class="text-lg font-bold text-green-600 dark:text-green-400">运行中</p>
-                                <p class="text-xs text-gray-500 mt-1">延迟：{{ systemLatency }}ms</p>
+                                <p class="text-star-text text-sm">系统状态</p>
+                                <p class="text-lg font-bold text-green-400">运行中</p>
+                                <p class="text-xs text-star-text mt-1">延迟：{{ systemLatency }}ms</p>
                             </div>
-                            <div class="bg-green-100 dark:bg-green-900/30 p-4 rounded-xl">
-                                <i class="fas fa-check-circle text-green-600 dark:text-green-400 text-2xl"></i>
+                            <div class="bg-green-500/20 p-4 rounded-xl">
+                                <i class="fas fa-check-circle text-green-400 text-2xl"></i>
                             </div>
                         </div>
                     </div>
@@ -295,17 +342,17 @@
 
                 <!-- 实时图表 -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                            <i class="fas fa-chart-area mr-2 text-primary-600"></i>任务趋势
+                    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                        <h3 class="text-lg font-bold text-white mb-4">
+                            <i class="fas fa-chart-area mr-2 text-star-blue"></i>任务趋势
                         </h3>
                         <div style="height: 200px; position: relative;">
                             <canvas id="taskTrendChart"></canvas>
                         </div>
                     </div>
-                    <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                            <i class="fas fa-chart-bar mr-2 text-primary-600"></i>Agent 任务处理统计
+                    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                        <h3 class="text-lg font-bold text-white mb-4">
+                            <i class="fas fa-chart-bar mr-2 text-star-blue"></i>Agent 任务处理统计
                         </h3>
                         <div style="height: 200px; position: relative;">
                             <canvas id="agentEfficiencyChart"></canvas>
@@ -314,60 +361,60 @@
                 </div>
 
                 <!-- Agent 状态 -->
-                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">
-                            <i class="fas fa-robot mr-2 text-primary-600"></i>Agent 实时状态
+                        <h3 class="text-lg font-bold text-white">
+                            <i class="fas fa-robot mr-2 text-star-blue"></i>Agent 实时状态
                         </h3>
-                        <span class="text-sm text-gray-500 dark:text-gray-400">
-                            <i class="fas fa-circle text-green-500 mr-1 pulse-dot"></i>实时更新
+                        <span class="text-sm text-star-text">
+                            <i class="fas fa-circle text-green-400 mr-1 pulse-dot"></i>实时更新
                         </span>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div v-for="agent in agents" :key="agent.name" class="border dark:border-dark-100 rounded-xl p-4 hover:shadow-md transition">
+                        <div v-for="agent in agents" :key="agent.name" class="border border-star-border rounded-xl p-4 hover:border-star-blue transition">
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex items-center justify-center">
-                                        <i :class="agent.icon" class="text-primary-600 dark:text-primary-400"></i>
+                                    <div class="w-10 h-10 bg-star-blue/20 rounded-lg flex items-center justify-center">
+                                        <i :class="agent.icon" class="text-star-blue"></i>
                                     </div>
                                     <div>
-                                        <h4 class="font-semibold text-gray-800 dark:text-gray-100">{{ agent.name }}</h4>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ agent.role }}</p>
+                                        <h4 class="font-semibold text-white">{{ agent.name }}</h4>
+                                        <p class="text-xs text-star-text">{{ agent.role }}</p>
                                     </div>
                                 </div>
-                                <span :class="agent.status === 'idle' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'" class="px-2 py-1 rounded text-xs font-medium">
+                                <span :class="agent.status === 'idle' ? 'bg-green-500/20 text-green-400' : 'bg-star-blue/20 text-star-blue'" class="px-2 py-1 rounded text-xs font-medium">
                                     {{ agent.status === 'idle' ? '空闲' : '工作中' }}
                                 </span>
                             </div>
-                            <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                <span><i class="fas fa-check-circle text-green-500 mr-1"></i>{{ agent.tasksCompleted }} 完成</span>
-                                <span><i class="fas fa-clock text-blue-500 mr-1"></i>{{ agent.avgTime }}s</span>
+                            <div class="flex items-center justify-between text-xs text-star-text">
+                                <span><i class="fas fa-check-circle text-green-400 mr-1"></i>{{ agent.tasksCompleted }} 完成</span>
+                                <span><i class="fas fa-clock text-star-blue mr-1"></i>{{ agent.avgTime }}s</span>
                             </div>
-                            <div class="mt-3 bg-gray-200 dark:bg-dark-100 rounded-full h-2 overflow-hidden">
-                                <div :class="agent.status === 'busy' ? 'bg-gradient-to-r from-primary-500 to-purple-500' : 'bg-green-500'" class="h-full rounded-full transition-all duration-500" :style="{ width: agent.status === 'busy' ? '75%' : '0%' }"></div>
+                            <div class="mt-3 bg-star-elevated rounded-full h-2 overflow-hidden">
+                                <div :class="agent.status === 'busy' ? 'bg-star-blue' : 'bg-green-400'" class="h-full rounded-full transition-all duration-500" :style="{ width: agent.status === 'busy' ? '75%' : '0%' }"></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 最近任务 -->
-                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">
-                            <i class="fas fa-list mr-2 text-primary-600"></i>最近任务
+                        <h3 class="text-lg font-bold text-white">
+                            <i class="fas fa-list mr-2 text-star-blue"></i>最近任务
                         </h3>
-                        <button @click="currentTab = 'tasks'" class="text-primary-600 hover:text-primary-700 text-sm font-medium">查看全部 →</button>
+                        <button @click="currentTab = 'tasks'" class="text-star-blue hover:text-star-gold text-sm font-medium">查看全部 →</button>
                     </div>
                     <div class="space-y-3">
-                        <div v-for="task in recentTasks" :key="task.id" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-100 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-100/50 transition cursor-pointer" @click="viewTask(task.id)">
+                        <div v-for="task in recentTasks" :key="task.id" class="flex items-center justify-between p-3 bg-star-elevated rounded-lg hover:border-star-blue border border-transparent transition cursor-pointer" @click="viewTask(task.id)">
                             <div class="flex items-center space-x-3 flex-1 min-w-0">
                                 <span :class="statusColor(task.status)" class="w-3 h-3 rounded-full flex-shrink-0"></span>
                                 <div class="flex-1 min-w-0">
-                                    <p class="font-medium text-gray-800 dark:text-gray-100 truncate">{{ task.title }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ task.description }}</p>
+                                    <p class="font-medium text-white truncate">{{ task.title }}</p>
+                                    <p class="text-xs text-star-text truncate">{{ task.description }}</p>
                                 </div>
                             </div>
-                            <div class="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 flex-shrink-0">
+                            <div class="flex items-center space-x-4 text-sm text-star-text flex-shrink-0">
                                 <span class="hide-mobile"><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
                                 <span><i class="fas fa-clock mr-1"></i>{{ task.time }}</span>
                             </div>
@@ -378,13 +425,13 @@
 
             <!-- 任务管理 -->
             <div v-if="currentTab === 'tasks'" class="space-y-6">
-                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <div>
-                            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
-                                <i class="fas fa-tasks mr-2 text-primary-600"></i>任务管理
+                            <h2 class="text-xl font-bold text-white">
+                                <i class="fas fa-tasks mr-2 text-star-blue"></i>任务管理
                             </h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">共 {{ filteredTasks.length }} 个任务{{ selectedTasks.length > 0 ? `，已选 ${selectedTasks.length} 个` : '' }}</p>
+                            <p class="text-sm text-star-text mt-1">共 {{ filteredTasks.length }} 个任务{{ selectedTasks.length > 0 ? `，已选 ${selectedTasks.length} 个` : '' }}</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <!-- 批量操作按钮 -->
@@ -392,7 +439,7 @@
                                 <button @click="batchUpdateStatus('pending')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg transition flex items-center">
                                     <i class="fas fa-clock mr-2"></i>设为待处理
                                 </button>
-                                <button @click="batchUpdateStatus('in_progress')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition flex items-center">
+                                <button @click="batchUpdateStatus('in_progress')" class="bg-star-blue hover:bg-star-blue/80 text-white px-4 py-2 rounded-lg transition flex items-center">
                                     <i class="fas fa-spinner mr-2"></i>设为进行中
                                 </button>
                                 <button @click="batchUpdateStatus('completed')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition flex items-center">
@@ -401,16 +448,16 @@
                                 <button @click="batchDelete" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition flex items-center">
                                     <i class="fas fa-trash mr-2"></i>删除
                                 </button>
-                                <button @click="selectAll = false; selectedTasks = []" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition">
+                                <button @click="selectAll = false; selectedTasks = []" class="bg-star-elevated hover:bg-star-border text-star-text px-4 py-2 rounded-lg transition">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
                             <!-- 搜索框 (移动端) -->
                             <div class="relative md:hidden">
-                                <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="搜索任务..." class="w-40 pl-8 pr-3 py-2 rounded-lg border dark:border-dark-100 bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="搜索任务..." class="w-40 pl-8 pr-3 py-2 rounded-lg border border-star-border bg-star-elevated focus:outline-none focus:border-star-blue text-white">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-star-text"></i>
                             </div>
-                            <button @click="showCreateTask = true" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition flex items-center">
+                            <button @click="showCreateTask = true" class="bg-star-blue hover:bg-star-blue/80 text-white px-4 py-2 rounded-lg transition flex items-center">
                                 <i class="fas fa-plus mr-2"></i>新建任务
                             </button>
                         </div>
@@ -418,15 +465,15 @@
 
                     <!-- 过滤器 -->
                     <div class="flex flex-wrap gap-2 mb-6">
-                        <button @click="taskFilter = 'all'" :class="taskFilter === 'all' ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300'" class="px-3 py-1.5 rounded-lg text-sm transition">全部</button>
-                        <button @click="taskFilter = 'pending'" :class="taskFilter === 'pending' ? 'bg-yellow-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300'" class="px-3 py-1.5 rounded-lg text-sm transition">待处理</button>
-                        <button @click="taskFilter = 'in_progress'" :class="taskFilter === 'in_progress' ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300'" class="px-3 py-1.5 rounded-lg text-sm transition">进行中</button>
-                        <button @click="taskFilter = 'completed'" :class="taskFilter === 'completed' ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-dark-100 text-gray-700 dark:text-gray-300'" class="px-3 py-1.5 rounded-lg text-sm transition">已完成</button>
+                        <button @click="taskFilter = 'all'" :class="taskFilter === 'all' ? 'bg-star-blue text-white' : 'bg-star-elevated text-star-text hover:bg-star-border'" class="px-3 py-1.5 rounded-lg text-sm transition">全部</button>
+                        <button @click="taskFilter = 'pending'" :class="taskFilter === 'pending' ? 'bg-yellow-500 text-white' : 'bg-star-elevated text-star-text hover:bg-star-border'" class="px-3 py-1.5 rounded-lg text-sm transition">待处理</button>
+                        <button @click="taskFilter = 'in_progress'" :class="taskFilter === 'in_progress' ? 'bg-star-blue text-white' : 'bg-star-elevated text-star-text hover:bg-star-border'" class="px-3 py-1.5 rounded-lg text-sm transition">进行中</button>
+                        <button @click="taskFilter = 'completed'" :class="taskFilter === 'completed' ? 'bg-green-500 text-white' : 'bg-star-elevated text-star-text hover:bg-star-border'" class="px-3 py-1.5 rounded-lg text-sm transition">已完成</button>
                     </div>
 
                     <!-- 任务列表 -->
                     <div class="space-y-3">
-                        <div v-for="task in filteredTasks" :key="task.id" :class="selectedTasks.includes(task.id) ? 'border-primary-500 border-2' : 'border dark:border-dark-100'" class="rounded-xl p-4 hover:shadow-md transition cursor-pointer" @click="viewTask(task.id)">
+                        <div v-for="task in filteredTasks" :key="task.id" :class="selectedTasks.includes(task.id) ? 'border-star-blue border-2' : 'border border-star-border'" class="rounded-xl p-4 hover:border-star-blue transition cursor-pointer bg-star-elevated" @click="viewTask(task.id)">
                             <div class="flex items-start justify-between gap-4">
                                 <div class="flex items-start space-x-3">
                                     <!-- 多选框 -->
@@ -435,16 +482,16 @@
                                         :value="task.id"
                                         v-model="selectedTasks"
                                         @click.stop
-                                        class="mt-1 w-4 h-4 text-primary-600 rounded focus:ring-primary-500"
+                                        class="mt-1 w-4 h-4 text-star-blue rounded focus:ring-star-blue bg-star-card border-star-border"
                                     >
                                     <div class="flex-1 min-w-0">
                                         <div class="flex flex-wrap items-center gap-2 mb-2">
-                                            <h3 class="font-semibold text-gray-800 dark:text-gray-100">{{ task.title }}</h3>
+                                            <h3 class="font-semibold text-white">{{ task.title }}</h3>
                                             <span :class="priorityClass(task.priority)" class="px-2 py-0.5 rounded text-xs text-white font-medium">{{ task.priorityText }}</span>
                                             <span :class="statusBadge(task.status)" class="px-2 py-0.5 rounded text-xs font-medium">{{ task.statusText }}</span>
                                         </div>
-                                        <p class="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">{{ task.description }}</p>
-                                        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                                        <p class="text-star-text text-sm mb-3 line-clamp-2">{{ task.description }}</p>
+                                        <div class="flex flex-wrap items-center gap-4 text-sm text-star-text">
                                             <span><i class="fas fa-user mr-1"></i>{{ task.assignee }}</span>
                                             <span><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
                                             <span><i class="fas fa-clock mr-1"></i>{{ task.createdAt }}</span>
@@ -452,10 +499,10 @@
                                     </div>
                                 </div>
                                 <div class="flex space-x-2 flex-shrink-0">
-                                    <button @click.stop="editTask(task)" class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition" title="编辑">
+                                    <button @click.stop="editTask(task)" class="p-2 text-star-blue hover:bg-star-blue/20 rounded-lg transition" title="编辑">
                                         <i class="fas fa-edit"></i>
                                     </button>
-                                    <button @click.stop="deleteTask(task.id)" class="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition" title="删除">
+                                    <button @click.stop="deleteTask(task.id)" class="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition" title="删除">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -465,62 +512,62 @@
 
                     <!-- 空状态 -->
                     <div v-if="filteredTasks.length === 0" class="text-center py-12">
-                        <i class="fas fa-inbox text-6xl text-gray-300 dark:text-gray-600 mb-4"></i>
-                        <p class="text-gray-500 dark:text-gray-400">暂无任务</p>
-                        <button @click="showCreateTask = true" class="mt-4 text-primary-600 hover:text-primary-700 font-medium">创建第一个任务 →</button>
+                        <i class="fas fa-inbox text-6xl text-star-border mb-4"></i>
+                        <p class="text-star-text">暂无任务</p>
+                        <button @click="showCreateTask = true" class="mt-4 text-star-blue hover:text-star-gold font-medium">创建第一个任务 →</button>
                     </div>
                 </div>
             </div>
 
             <!-- Agent 管理 -->
             <div v-if="currentTab === 'agents'" class="space-y-6">
-                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
+                <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
                     <div class="flex justify-between items-center mb-6">
                         <div>
-                            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">
-                                <i class="fas fa-users mr-2 text-primary-600"></i>Agent 团队
+                            <h2 class="text-xl font-bold text-white">
+                                <i class="fas fa-users mr-2 text-star-blue"></i>Agent 团队
                             </h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ agents.length }} 个智能体</p>
+                            <p class="text-sm text-star-text mt-1">{{ agents.length }} 个智能体</p>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="text-sm text-gray-500 dark:text-gray-400">
-                                <i class="fas fa-circle text-green-500 mr-1"></i>{{ activeAgentsCount }} 在线
+                            <span class="text-sm text-star-text">
+                                <i class="fas fa-circle text-green-400 mr-1"></i>{{ activeAgentsCount }} 在线
                             </span>
                         </div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div v-for="agent in agents" :key="agent.name" class="border dark:border-dark-100 rounded-xl p-6 hover:shadow-lg transition card-hover">
+                        <div v-for="agent in agents" :key="agent.name" class="border border-star-border rounded-xl p-6 hover:border-star-blue transition card-hover bg-star-elevated">
                             <div class="flex items-center space-x-4 mb-4">
-                                <div class="w-14 h-14 bg-gradient-to-br from-primary-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                <div class="w-14 h-14 bg-star-blue rounded-xl flex items-center justify-center star-glow">
                                     <i :class="agent.icon" class="text-white text-2xl"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-bold text-lg text-gray-800 dark:text-gray-100">{{ agent.name }}</h3>
-                                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ agent.role }}</p>
+                                    <h3 class="font-bold text-lg text-white">{{ agent.name }}</h3>
+                                    <p class="text-sm text-star-text">{{ agent.role }}</p>
                                 </div>
                             </div>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">{{ agent.description }}</p>
+                            <p class="text-sm text-star-text mb-4">{{ agent.description }}</p>
                             <div class="space-y-2 mb-4">
                                 <div class="flex justify-between text-sm">
-                                    <span class="text-gray-500 dark:text-gray-400">任务完成</span>
-                                    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ agent.tasksCompleted }}</span>
+                                    <span class="text-star-text">任务完成</span>
+                                    <span class="font-semibold text-white">{{ agent.tasksCompleted }}</span>
                                 </div>
                                 <div class="flex justify-between text-sm">
-                                    <span class="text-gray-500 dark:text-gray-400">平均耗时</span>
-                                    <span class="font-semibold text-gray-800 dark:text-gray-100">{{ agent.avgTime }}s</span>
+                                    <span class="text-star-text">平均耗时</span>
+                                    <span class="font-semibold text-white">{{ agent.avgTime }}s</span>
                                 </div>
                                 <div class="flex justify-between text-sm">
-                                    <span class="text-gray-500 dark:text-gray-400">成功率</span>
-                                    <span class="font-semibold text-green-600 dark:text-green-400">{{ agent.successRate }}%</span>
+                                    <span class="text-star-text">成功率</span>
+                                    <span class="font-semibold text-green-400">{{ agent.successRate }}%</span>
                                 </div>
                             </div>
-                            <div class="pt-4 border-t dark:border-dark-100">
+                            <div class="pt-4 border-t border-star-border">
                                 <div class="flex justify-between items-center">
-                                    <span :class="agent.status === 'idle' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'" class="text-sm font-medium flex items-center">
-                                        <i class="fas fa-circle text-xs mr-2" :class="agent.status === 'idle' ? 'text-green-500' : 'text-blue-500'"></i>
+                                    <span :class="agent.status === 'idle' ? 'text-green-400' : 'text-star-blue'" class="text-sm font-medium flex items-center">
+                                        <i class="fas fa-circle text-xs mr-2" :class="agent.status === 'idle' ? 'text-green-400' : 'text-star-blue'"></i>
                                         {{ agent.status === 'idle' ? '空闲' : '工作中' }}
                                     </span>
-                                    <button @click="viewAgentDetail(agent)" class="text-primary-600 hover:text-primary-700 text-sm font-medium">详情 →</button>
+                                    <button @click="viewAgentDetail(agent)" class="text-star-blue hover:text-star-gold text-sm font-medium">详情 →</button>
                                 </div>
                             </div>
                         </div>
@@ -530,24 +577,24 @@
 
             <!-- 工作流 -->
             <div v-if="currentTab === 'workflows'" class="space-y-6">
-                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
-                    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">
-                        <i class="fas fa-project-diagram mr-2 text-primary-600"></i>工作流
+                <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                    <h2 class="text-xl font-bold text-white mb-6">
+                        <i class="fas fa-project-diagram mr-2 text-star-blue"></i>工作流
                     </h2>
 
                     <!-- 标准研发流程 -->
-                    <div class="border dark:border-dark-100 rounded-xl p-6 mb-6">
-                        <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-6">标准研发流程</h3>
+                    <div class="border border-star-border rounded-xl p-6 mb-6 bg-star-elevated">
+                        <h3 class="font-bold text-white mb-6">标准研发流程</h3>
                         <div class="flex flex-wrap items-center justify-center gap-4">
                             <div v-for="(step, index) in workflowSteps" :key="step.name" class="flex items-center">
                                 <div class="text-center">
-                                    <div class="w-16 h-16 mx-auto bg-gradient-to-br from-primary-500 to-purple-600 rounded-2xl flex items-center justify-center mb-2 shadow-lg">
+                                    <div class="w-16 h-16 mx-auto bg-star-blue rounded-2xl flex items-center justify-center mb-2 shadow-lg star-glow">
                                         <i :class="step.icon" class="text-white text-2xl"></i>
                                     </div>
-                                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ step.name }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ step.agent }}</p>
+                                    <p class="text-sm font-semibold text-white">{{ step.name }}</p>
+                                    <p class="text-xs text-star-text">{{ step.agent }}</p>
                                 </div>
-                                <div v-if="index < workflowSteps.length - 1" class="mx-2 md:mx-4 text-gray-300 dark:text-gray-600">
+                                <div v-if="index < workflowSteps.length - 1" class="mx-2 md:mx-4 text-star-border">
                                     <i class="fas fa-chevron-right text-lg"></i>
                                 </div>
                             </div>
@@ -556,7 +603,7 @@
 
                     <!-- 工作流统计 -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white">
+                        <div class="bg-star-blue rounded-xl p-5 text-white star-glow">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-blue-100 text-sm">活跃工作流</p>
@@ -565,7 +612,7 @@
                                 <i class="fas fa-sync text-4xl opacity-50"></i>
                             </div>
                         </div>
-                        <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-5 text-white">
+                        <div class="bg-green-500 rounded-xl p-5 text-white">
                             <div class="flex items-center justify-between">
                                 <div>
                                     <p class="text-green-100 text-sm">已完成</p>
@@ -574,10 +621,10 @@
                                 <i class="fas fa-check-circle text-4xl opacity-50"></i>
                             </div>
                         </div>
-                        <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-5 text-white">
+                        <div class="bg-star-gold rounded-xl p-5 text-star-bg">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-purple-100 text-sm">平均耗时</p>
+                                    <p class="text-yellow-900/70 text-sm">平均耗时</p>
                                     <p class="text-3xl font-bold mt-1">4.2h</p>
                                 </div>
                                 <i class="fas fa-clock text-4xl opacity-50"></i>
@@ -589,32 +636,32 @@
 
             <!-- 数据分析 -->
             <div v-if="currentTab === 'analytics'" class="space-y-6">
-                <div class="bg-white dark:bg-dark-200 rounded-xl shadow-md p-6">
-                    <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-6">
-                        <i class="fas fa-chart-line mr-2 text-primary-600"></i>数据分析
+                <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                    <h2 class="text-xl font-bold text-white mb-6">
+                        <i class="fas fa-chart-line mr-2 text-star-blue"></i>数据分析
                     </h2>
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="border dark:border-dark-100 rounded-xl p-6">
-                            <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">任务完成趋势</h3>
+                        <div class="border border-star-border rounded-xl p-6 bg-star-elevated">
+                            <h3 class="font-bold text-white mb-4">任务完成趋势</h3>
                             <div style="height: 250px; position: relative;">
                                 <canvas id="analyticsTaskTrend"></canvas>
                             </div>
                         </div>
-                        <div class="border dark:border-dark-100 rounded-xl p-6">
-                            <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">Agent 效率对比</h3>
+                        <div class="border border-star-border rounded-xl p-6 bg-star-elevated">
+                            <h3 class="font-bold text-white mb-4">Agent 效率对比</h3>
                             <div style="height: 250px; position: relative;">
                                 <canvas id="analyticsAgentEfficiency"></canvas>
                             </div>
                         </div>
-                        <div class="border dark:border-dark-100 rounded-xl p-6">
-                            <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">任务类型分布</h3>
+                        <div class="border border-star-border rounded-xl p-6 bg-star-elevated">
+                            <h3 class="font-bold text-white mb-4">任务类型分布</h3>
                             <div style="height: 250px; position: relative;">
                                 <canvas id="analyticsTaskType"></canvas>
                             </div>
                         </div>
-                        <div class="border dark:border-dark-100 rounded-xl p-6">
-                            <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">每周活跃度</h3>
+                        <div class="border border-star-border rounded-xl p-6 bg-star-elevated">
+                            <h3 class="font-bold text-white mb-4">每周活跃度</h3>
                             <div style="height: 250px; position: relative;">
                                 <canvas id="analyticsWeeklyActivity"></canvas>
                             </div>
@@ -625,41 +672,41 @@
         </main>
 
         <!-- 底部状态栏 -->
-        <footer class="bg-white dark:bg-dark-200 border-t dark:border-dark-100 py-3 px-4">
-            <div class="container mx-auto flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
+        <footer class="bg-star-card border-t border-star-border py-3 px-4">
+            <div class="container mx-auto flex justify-between items-center text-sm text-star-text">
                 <div class="flex items-center space-x-4">
-                    <span><i class="fas fa-circle text-green-500 mr-1"></i>系统正常</span>
-                    <span class="hide-mobile">WebSocket: <span :class="wsConnected ? 'text-green-600' : 'text-yellow-600'">{{ wsConnected ? '已连接' : '重连中...' }}</span></span>
+                    <span><i class="fas fa-circle text-green-400 mr-1"></i>系统正常</span>
+                    <span class="hide-mobile">WebSocket: <span :class="wsConnected ? 'text-green-400' : 'text-yellow-400'">{{ wsConnected ? '已连接' : '重连中...' }}</span></span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="hide-mobile">最后更新：{{ lastUpdateTime }}</span>
-                    <span>IntelliTeam v2.0</span>
+                    <span class="text-star-blue">IntelliTeam v2.0</span>
                 </div>
             </div>
         </footer>
 
         <!-- 创建任务弹窗 -->
-        <div v-if="showCreateTask" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showCreateTask = false">
-            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <div class="flex justify-between items-center p-6 border-b dark:border-dark-100">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">创建新任务</h3>
-                    <button @click="showCreateTask = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+        <div v-if="showCreateTask" class="fixed inset-0 bg-star-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showCreateTask = false">
+            <div class="bg-star-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-star-border">
+                <div class="flex justify-between items-center p-6 border-b border-star-border">
+                    <h3 class="text-xl font-bold text-white">创建新任务</h3>
+                    <button @click="showCreateTask = false" class="text-star-text hover:text-white">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
                 <div class="p-6 space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">任务标题 <span class="text-red-500">*</span></label>
-                        <input v-model="newTask.title" type="text" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100" placeholder="输入任务标题">
+                        <label class="block text-sm font-medium text-star-text mb-2">任务标题 <span class="text-red-400">*</span></label>
+                        <input v-model="newTask.title" type="text" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="输入任务标题">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">任务描述</label>
-                        <textarea v-model="newTask.description" rows="3" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100" placeholder="输入任务描述"></textarea>
+                        <label class="block text-sm font-medium text-star-text mb-2">任务描述</label>
+                        <textarea v-model="newTask.description" rows="3" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="输入任务描述"></textarea>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">优先级</label>
-                            <select v-model="newTask.priority" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100">
+                            <label class="block text-sm font-medium text-star-text mb-2">优先级</label>
+                            <select v-model="newTask.priority" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
                                 <option value="low">低</option>
                                 <option value="normal">中</option>
                                 <option value="high">高</option>
@@ -667,51 +714,51 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">负责人</label>
-                            <select v-model="newTask.assignee" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100">
+                            <label class="block text-sm font-medium text-star-text mb-2">负责人</label>
+                            <select v-model="newTask.assignee" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
                                 <option value="">选择 Agent 作为负责人</option>
                                 <option v-for="agent in agents" :key="agent.name" :value="agent.name">{{ agent.name }} - {{ agent.role }}</option>
                             </select>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">分配 Agent</label>
+                        <label class="block text-sm font-medium text-star-text mb-2">分配 Agent</label>
                         <div class="grid grid-cols-3 gap-2">
-                            <button v-for="agent in agents" :key="agent.name" @click="newTask.agent = agent.name" :class="newTask.agent === agent.name ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-300 dark:border-dark-100 hover:border-primary-500'" class="px-3 py-2 border rounded-lg text-sm transition">
+                            <button v-for="agent in agents" :key="agent.name" @click="newTask.agent = agent.name" :class="newTask.agent === agent.name ? 'bg-star-blue text-white border-star-blue' : 'border-star-border hover:border-star-blue text-star-text'" class="px-3 py-2 border rounded-lg text-sm transition bg-star-elevated">
                                 {{ agent.name }}
                             </button>
                         </div>
                     </div>
                 </div>
-                <div class="flex space-x-3 p-6 border-t dark:border-dark-100 bg-gray-50 dark:bg-dark-100/50 rounded-b-2xl">
-                    <button @click="createTask" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2.5 rounded-lg transition font-medium">创建任务</button>
-                    <button @click="showCreateTask = false" class="flex-1 bg-gray-200 dark:bg-dark-100 hover:bg-gray-300 dark:hover:bg-dark-100 text-gray-700 dark:text-gray-300 py-2.5 rounded-lg transition font-medium">取消</button>
+                <div class="flex space-x-3 p-6 border-t border-star-border bg-star-elevated rounded-b-2xl">
+                    <button @click="createTask" class="flex-1 bg-star-blue hover:bg-star-blue/80 text-white py-2.5 rounded-lg transition font-medium">创建任务</button>
+                    <button @click="showCreateTask = false" class="flex-1 bg-star-border hover:bg-star-text/20 text-star-text py-2.5 rounded-lg transition font-medium">取消</button>
                 </div>
             </div>
         </div>
 
         <!-- 编辑任务模态框 -->
-        <div v-if="showEditTask" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showEditTask = false">
-            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-                <div class="flex justify-between items-center p-6 border-b dark:border-dark-100">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">编辑任务</h3>
-                    <button @click="showEditTask = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+        <div v-if="showEditTask" class="fixed inset-0 bg-star-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showEditTask = false">
+            <div class="bg-star-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-star-border">
+                <div class="flex justify-between items-center p-6 border-b border-star-border">
+                    <h3 class="text-xl font-bold text-white">编辑任务</h3>
+                    <button @click="showEditTask = false" class="text-star-text hover:text-white">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
                 <div class="p-6 space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">任务标题 <span class="text-red-500">*</span></label>
-                        <input v-model="editingTask.title" type="text" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100" placeholder="输入任务标题">
+                        <label class="block text-sm font-medium text-star-text mb-2">任务标题 <span class="text-red-400">*</span></label>
+                        <input v-model="editingTask.title" type="text" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="输入任务标题">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">任务描述</label>
-                        <textarea v-model="editingTask.description" rows="3" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100" placeholder="输入任务描述"></textarea>
+                        <label class="block text-sm font-medium text-star-text mb-2">任务描述</label>
+                        <textarea v-model="editingTask.description" rows="3" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="输入任务描述"></textarea>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">优先级</label>
-                            <select v-model="editingTask.priority" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100">
+                            <label class="block text-sm font-medium text-star-text mb-2">优先级</label>
+                            <select v-model="editingTask.priority" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
                                 <option value="low">低</option>
                                 <option value="normal">中</option>
                                 <option value="high">高</option>
@@ -719,8 +766,8 @@
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">状态</label>
-                            <select v-model="editingTask.status" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100">
+                            <label class="block text-sm font-medium text-star-text mb-2">状态</label>
+                            <select v-model="editingTask.status" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
                                 <option value="pending">待处理</option>
                                 <option value="in_progress">进行中</option>
                                 <option value="completed">已完成</option>
@@ -729,80 +776,80 @@
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">负责人</label>
-                            <select v-model="editingTask.assignee" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100">
+                            <label class="block text-sm font-medium text-star-text mb-2">负责人</label>
+                            <select v-model="editingTask.assignee" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
                                 <option value="">选择 Agent 作为负责人</option>
                                 <option v-for="agent in agents" :key="agent.name" :value="agent.name">{{ agent.name }} - {{ agent.role }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">分配 Agent</label>
-                            <select v-model="editingTask.agent" class="w-full px-4 py-2.5 border dark:border-dark-100 rounded-lg bg-gray-50 dark:bg-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-100">
+                            <label class="block text-sm font-medium text-star-text mb-2">分配 Agent</label>
+                            <select v-model="editingTask.agent" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
                                 <option value="">选择 Agent</option>
                                 <option v-for="agent in agents" :key="agent.name" :value="agent.name">{{ agent.name }}</option>
                             </select>
                         </div>
                     </div>
                 </div>
-                <div class="flex space-x-3 p-6 border-t dark:border-dark-100 bg-gray-50 dark:bg-dark-100/50 rounded-b-2xl">
-                    <button @click="updateTask" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2.5 rounded-lg transition font-medium">保存修改</button>
-                    <button @click="showEditTask = false" class="flex-1 bg-gray-200 dark:bg-dark-100 hover:bg-gray-300 dark:hover:bg-dark-100 text-gray-700 dark:text-gray-300 py-2.5 rounded-lg transition font-medium">取消</button>
+                <div class="flex space-x-3 p-6 border-t border-star-border bg-star-elevated rounded-b-2xl">
+                    <button @click="updateTask" class="flex-1 bg-star-blue hover:bg-star-blue/80 text-white py-2.5 rounded-lg transition font-medium">保存修改</button>
+                    <button @click="showEditTask = false" class="flex-1 bg-star-border hover:bg-star-text/20 text-star-text py-2.5 rounded-lg transition font-medium">取消</button>
                 </div>
             </div>
         </div>
 
         <!-- 通知面板 -->
-        <div v-if="showNotifications" class="fixed top-20 right-4 w-80 bg-white dark:bg-dark-200 rounded-xl shadow-2xl z-50 border dark:border-dark-100" @click.self="showNotifications = false">
-            <div class="p-4 border-b dark:border-dark-100 flex justify-between items-center">
-                <h3 class="font-bold text-gray-800 dark:text-gray-100">通知</h3>
-                <button @click="markAllRead" class="text-sm text-primary-600 hover:text-primary-700">全部已读</button>
+        <div v-if="showNotifications" class="fixed top-20 right-4 w-80 bg-star-card rounded-xl shadow-2xl z-50 border border-star-border" @click.self="showNotifications = false">
+            <div class="p-4 border-b border-star-border flex justify-between items-center">
+                <h3 class="font-bold text-white">通知</h3>
+                <button @click="markAllRead" class="text-sm text-star-blue hover:text-star-gold">全部已读</button>
             </div>
             <div class="max-h-96 overflow-y-auto">
-                <div v-if="notifications.length === 0" class="p-8 text-center text-gray-500 dark:text-gray-400">
+                <div v-if="notifications.length === 0" class="p-8 text-center text-star-text">
                     <i class="fas fa-bell-slash text-4xl mb-3 opacity-50"></i>
                     <p>暂无通知</p>
                 </div>
-                <div v-for="notif in notifications" :key="notif.id" :class="notif.read ? 'bg-gray-50 dark:bg-dark-100/50' : 'bg-white dark:bg-dark-200'" class="p-4 border-b dark:border-dark-100 hover:bg-gray-50 dark:hover:bg-dark-100 transition cursor-pointer">
+                <div v-for="notif in notifications" :key="notif.id" :class="notif.read ? 'bg-star-elevated' : 'bg-star-card'" class="p-4 border-b border-star-border hover:bg-star-elevated transition cursor-pointer">
                     <div class="flex items-start space-x-3">
-                        <i :class="notif.icon" class="text-xl mt-0.5" :class="notif.read ? 'text-gray-400' : (notif.type === 'success' ? 'text-green-500' : notif.type === 'warning' ? 'text-yellow-500' : 'text-blue-500')"></i>
+                        <i :class="notif.icon" class="text-xl mt-0.5" :class="notif.read ? 'text-star-text' : (notif.type === 'success' ? 'text-green-400' : notif.type === 'warning' ? 'text-yellow-400' : 'text-star-blue')"></i>
                         <div class="flex-1">
-                            <p class="text-sm" :class="notif.read ? 'text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-100'">{{ notif.message }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ notif.time }}</p>
+                            <p class="text-sm" :class="notif.read ? 'text-star-text' : 'text-white'">{{ notif.message }}</p>
+                            <p class="text-xs text-star-text mt-1">{{ notif.time }}</p>
                         </div>
-                        <span v-if="!notif.read" class="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 mt-2"></span>
+                        <span v-if="!notif.read" class="w-2 h-2 bg-star-blue rounded-full flex-shrink-0 mt-2"></span>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- 快捷键帮助 -->
-        <div v-if="showShortcuts" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showShortcuts = false" @keydown.escape="showShortcuts = false">
-            <div class="bg-white dark:bg-dark-200 rounded-2xl shadow-2xl w-full max-w-md" tabindex="-1">
-                <div class="flex justify-between items-center p-6 border-b dark:border-dark-100">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-100">快捷键</h3>
-                    <button @click="showShortcuts = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition">
+        <div v-if="showShortcuts" class="fixed inset-0 bg-star-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showShortcuts = false" @keydown.escape="showShortcuts = false">
+            <div class="bg-star-card rounded-2xl shadow-2xl w-full max-w-md border border-star-border" tabindex="-1">
+                <div class="flex justify-between items-center p-6 border-b border-star-border">
+                    <h3 class="text-xl font-bold text-white">快捷键</h3>
+                    <button @click="showShortcuts = false" class="text-star-text hover:text-white transition">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
                 <div class="p-6 space-y-3">
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-700 dark:text-gray-300">搜索</span>
+                        <span class="text-star-text">搜索</span>
                         <span class="kbd">Ctrl</span><span class="kbd">K</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-700 dark:text-gray-300">新建任务</span>
+                        <span class="text-star-text">新建任务</span>
                         <span class="kbd">Ctrl</span><span class="kbd">N</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-700 dark:text-gray-300">切换深色模式</span>
+                        <span class="text-star-text">切换深色模式</span>
                         <span class="kbd">Ctrl</span><span class="kbd">D</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-700 dark:text-gray-300">刷新数据</span>
+                        <span class="text-star-text">刷新数据</span>
                         <span class="kbd">Ctrl</span><span class="kbd">R</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-gray-700 dark:text-gray-300">显示快捷键</span>
+                        <span class="text-star-text">显示快捷键</span>
                         <span class="kbd">?</span>
                     </div>
                 </div>
@@ -810,20 +857,20 @@
         </div>
 
         <!-- Agent 详情模态框 -->
-        <div v-if="showAgentDetailModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showAgentDetailModal = false" @keydown.escape="showAgentDetailModal = false">
-            <div class="bg-white dark:bg-dark-200 rounded-xl shadow-2xl w-full max-w-md" tabindex="-1">
+        <div v-if="showAgentDetailModal" class="fixed inset-0 bg-star-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showAgentDetailModal = false" @keydown.escape="showAgentDetailModal = false">
+            <div class="bg-star-card rounded-xl shadow-2xl w-full max-w-md border border-star-border" tabindex="-1">
                 <!-- 头部 -->
-                <div class="flex justify-between items-center p-5 border-b dark:border-dark-100">
+                <div class="flex justify-between items-center p-5 border-b border-star-border">
                     <div class="flex items-center space-x-3">
-                        <div class="w-11 h-11 bg-gray-100 dark:bg-dark-100 rounded-lg flex items-center justify-center">
-                            <i :class="selectedAgent?.icon" class="text-gray-600 dark:text-gray-300 text-lg"></i>
+                        <div class="w-11 h-11 bg-star-elevated rounded-lg flex items-center justify-center">
+                            <i :class="selectedAgent?.icon" class="text-star-blue text-lg"></i>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100">{{ selectedAgent?.name }}</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">{{ selectedAgent?.role }}</p>
+                            <h3 class="text-lg font-semibold text-white">{{ selectedAgent?.name }}</h3>
+                            <p class="text-sm text-star-text">{{ selectedAgent?.role }}</p>
                         </div>
                     </div>
-                    <button @click="showAgentDetailModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition p-1">
+                    <button @click="showAgentDetailModal = false" class="text-star-text hover:text-white transition p-1">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -832,45 +879,45 @@
                 <div class="p-5 space-y-4">
                     <!-- 描述 -->
                     <div>
-                        <h4 class="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">能力描述</h4>
-                        <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ selectedAgent?.description }}</p>
+                        <h4 class="text-xs font-medium text-star-text uppercase tracking-wider mb-2">能力描述</h4>
+                        <p class="text-sm text-star-text leading-relaxed">{{ selectedAgent?.description }}</p>
                     </div>
 
                     <!-- 统计数据 -->
                     <div class="grid grid-cols-3 gap-3">
-                        <div class="bg-gray-50 dark:bg-dark-100 rounded-lg p-3 text-center">
-                            <p class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ selectedAgent?.tasksCompleted }}</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">完成任务</p>
+                        <div class="bg-star-elevated rounded-lg p-3 text-center">
+                            <p class="text-xl font-semibold text-white">{{ selectedAgent?.tasksCompleted }}</p>
+                            <p class="text-xs text-star-text">完成任务</p>
                         </div>
-                        <div class="bg-gray-50 dark:bg-dark-100 rounded-lg p-3 text-center">
-                            <p class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ selectedAgent?.avgTime }}s</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">平均耗时</p>
+                        <div class="bg-star-elevated rounded-lg p-3 text-center">
+                            <p class="text-xl font-semibold text-white">{{ selectedAgent?.avgTime }}s</p>
+                            <p class="text-xs text-star-text">平均耗时</p>
                         </div>
-                        <div class="bg-gray-50 dark:bg-dark-100 rounded-lg p-3 text-center">
-                            <p class="text-xl font-semibold text-gray-800 dark:text-gray-100">{{ selectedAgent?.successRate }}%</p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">成功率</p>
+                        <div class="bg-star-elevated rounded-lg p-3 text-center">
+                            <p class="text-xl font-semibold text-white">{{ selectedAgent?.successRate }}%</p>
+                            <p class="text-xs text-star-text">成功率</p>
                         </div>
                     </div>
 
                     <!-- 状态 -->
-                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-100 rounded-lg">
-                        <span class="text-sm text-gray-600 dark:text-gray-300">当前状态</span>
-                        <span :class="selectedAgent?.status === 'idle' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'" class="px-2.5 py-1 rounded text-sm font-medium">
+                    <div class="flex items-center justify-between p-3 bg-star-elevated rounded-lg">
+                        <span class="text-sm text-star-text">当前状态</span>
+                        <span :class="selectedAgent?.status === 'idle' ? 'bg-green-500/20 text-green-400' : 'bg-star-blue/20 text-star-blue'" class="px-2.5 py-1 rounded text-sm font-medium">
                             {{ selectedAgent?.status === 'idle' ? '空闲' : '工作中' }}
                         </span>
                     </div>
                 </div>
 
                 <!-- 底部 -->
-                <div class="p-4 border-t dark:border-dark-100">
-                    <button @click="showAgentDetailModal = false" class="w-full bg-gray-100 dark:bg-dark-100 hover:bg-gray-200 dark:hover:bg-dark-50 text-gray-700 dark:text-gray-300 py-2 rounded-lg transition text-sm font-medium">关闭</button>
+                <div class="p-4 border-t border-star-border">
+                    <button @click="showAgentDetailModal = false" class="w-full bg-star-elevated hover:bg-star-border text-star-text py-2 rounded-lg transition text-sm font-medium">关闭</button>
                 </div>
             </div>
         </div>
 
         <!-- Toast 通知 -->
         <transition-group name="toast">
-            <div v-for="toast in toasts" :key="toast.id" :class="toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-blue-500'" class="fixed bottom-20 right-4 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 z-50">
+            <div v-for="toast in toasts" :key="toast.id" :class="toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-star-blue'" class="fixed bottom-20 right-4 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 z-50">
                 <i :class="toast.type === 'success' ? 'fas fa-check-circle' : toast.type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle'"></i>
                 <span>{{ toast.message }}</span>
             </div>
@@ -1051,18 +1098,18 @@
                 },
 
                 priorityClass(priority) {
-                    const classes = { low: 'bg-gray-500', normal: 'bg-blue-500', high: 'bg-orange-500', critical: 'bg-red-600' };
+                    const classes = { low: 'bg-gray-500', normal: 'bg-star-blue', high: 'bg-orange-500', critical: 'bg-red-500' };
                     return classes[priority] || 'bg-gray-500';
                 },
 
                 statusBadge(status) {
                     const badges = {
-                        pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-                        in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                        completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-                        failed: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                        pending: 'bg-yellow-500/20 text-yellow-400',
+                        in_progress: 'bg-star-blue/20 text-star-blue',
+                        completed: 'bg-green-500/20 text-green-400',
+                        failed: 'bg-red-500/20 text-red-400'
                     };
-                    return badges[status] || 'bg-gray-100 text-gray-700';
+                    return badges[status] || 'bg-star-elevated text-star-text';
                 },
 
                 // 创建任务
@@ -1299,8 +1346,8 @@
                                     datasets: [{
                                         label: '完成任务',
                                         data: [12, 19, 15, 25, 22, 18, 24],
-                                        borderColor: '#8b5cf6',
-                                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                                        borderColor: '#06b6d4',
+                                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
                                         fill: true,
                                         tension: 0.4
                                     }]
@@ -1392,8 +1439,8 @@
                                         datasets: [{
                                             label: chart.label,
                                             data: chart.data,
-                                            backgroundColor: ['#8b5cf6', '#667eea', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899'],
-                                            borderColor: '#8b5cf6',
+                                            backgroundColor: ['#06b6d4', '#0891b2', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899'],
+                                            borderColor: '#06b6d4',
                                             tension: 0.4
                                         }]
                                     },

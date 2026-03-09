@@ -191,8 +191,8 @@ API_PORT=8000
 
 ## 📚 文档
 
-- [快速开始](docs/QUICKSTART.md)
-- [API 参考](docs/API.md)
+- [快速开始](QUICKSTART.md)
+- [设计文档](docs/DESIGN.md)
 - [部署指南](docs/DEPLOYMENT.md)
 - [开发指南](docs/DEVELOPMENT.md)
 - [路线图](ROADMAP.md)

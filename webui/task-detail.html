@@ -8,35 +8,90 @@
     <script src="https://cdn.staticfile.org/vue/3.4.21/vue.global.prod.js"></script>
     <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/6.5.1/css/all.min.css">
     <link rel="manifest" href="manifest.json">
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        // 星空黑主题配色
+                        star: {
+                            bg: '#0a0a0f',        // 最深背景
+                            card: '#16161f',      // 卡片背景
+                            elevated: '#1a1a25',  // 提升元素
+                            border: '#2a2a35',    // 边框
+                            text: '#a0a0b0',      // 次要文字
+                            light: '#ffffff',     // 主要文字
+                            blue: '#4a9eff',      // 星光蓝强调色
+                            gold: '#ffd700',      // 金色强调色
+                        },
+                        primary: {
+                            50: '#e6f0ff',
+                            100: '#cce0ff',
+                            200: '#99c2ff',
+                            300: '#66a3ff',
+                            400: '#4a9eff',       // 星光蓝
+                            500: '#3385ff',
+                            600: '#1a6bff',
+                            700: '#0052e6',
+                            800: '#0040b3',
+                            900: '#002d80'
+                        },
+                        dark: { 100: '#1a1a25', 200: '#16161f', 300: '#0f0f1a', 400: '#0a0a0f' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .loading-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* 星空黑主题样式 */
+        .star-glow { box-shadow: 0 0 20px rgba(74, 158, 255, 0.3); }
+
+        /* 滚动条美化 - 星空风格 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0f; }
+        ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a9eff; }
+
+        /* 输入框聚焦效果 */
+        input:focus, textarea:focus, select:focus {
+            border-color: #4a9eff !important;
+            box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2) !important;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900">
+<body class="bg-star-bg">
     <div id="app" class="min-h-screen">
         <!-- 加载状态 -->
-        <div v-if="loading" class="fixed inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div v-if="loading" class="fixed inset-0 bg-star-bg/95 backdrop-blur-sm z-50 flex items-center justify-center">
             <div class="text-center">
-                <i class="fas fa-circle-notch text-4xl text-purple-600 loading-spin mb-4"></i>
-                <p class="text-gray-600 dark:text-gray-400">加载中...</p>
+                <i class="fas fa-circle-notch text-4xl text-star-blue loading-spin mb-4"></i>
+                <p class="text-star-text">加载中...</p>
             </div>
         </div>
 
         <!-- 顶部导航 -->
-        <nav class="bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg sticky top-0 z-40">
+        <nav class="bg-star-card text-white shadow-lg sticky top-0 z-40 border-b border-star-border">
             <div class="container mx-auto px-4 py-3">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center space-x-4">
-                        <button @click="goBack" class="hover:bg-white/10 p-2 rounded-lg transition">
+                        <button @click="goBack" class="hover:bg-star-blue/20 p-2 rounded-lg transition text-star-text hover:text-star-blue">
                             <i class="fas fa-arrow-left"></i>
                         </button>
                         <div>
-                            <h1 class="text-xl font-bold">任务详情</h1>
-                            <p class="text-xs opacity-75">{{ task.title || '加载中...' }}</p>
+                            <h1 class="text-xl font-bold text-white">任务详情</h1>
+                            <p class="text-xs text-star-text">{{ task.title || '加载中...' }}</p>
                         </div>
                     </div>
                     <div class="flex space-x-2">
-                        <button @click="editTask" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition">
+                        <button @click="editTask" class="bg-star-elevated hover:bg-star-blue/20 px-4 py-2 rounded-lg transition text-star-text hover:text-star-blue">
                             <i class="fas fa-edit mr-2"></i>编辑
                         </button>
-                        <button @click="deleteTask" class="bg-red-500/80 hover:bg-red-600 px-4 py-2 rounded-lg transition">
+                        <button @click="deleteTask" class="bg-red-500/80 hover:bg-red-500 px-4 py-2 rounded-lg transition text-white">
                             <i class="fas fa-trash mr-2"></i>删除
                         </button>
                     </div>
@@ -50,9 +105,9 @@
                 <!-- 左侧：任务信息 -->
                 <div class="lg:col-span-2 space-y-6">
                     <!-- 任务基本信息 -->
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
                         <div class="flex items-start justify-between mb-4">
-                            <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ task.title }}</h2>
+                            <h2 class="text-2xl font-bold text-white">{{ task.title }}</h2>
                             <div class="flex space-x-2">
                                 <span :class="priorityClass(task.priority)" class="px-3 py-1 rounded-full text-xs text-white font-medium">
                                     {{ task.priorityText }}
@@ -62,31 +117,31 @@
                                 </span>
                             </div>
                         </div>
-                        
-                        <p class="text-gray-600 dark:text-gray-400 mb-6">{{ task.description }}</p>
-                        
+
+                        <p class="text-star-text mb-6">{{ task.description }}</p>
+
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">负责人</p>
-                                <p class="font-semibold text-gray-800 dark:text-gray-100">
+                            <div class="bg-star-elevated rounded-lg p-3">
+                                <p class="text-xs text-star-text mb-1">负责人</p>
+                                <p class="font-semibold text-white">
                                     <i class="fas fa-user mr-1"></i>{{ task.assignee }}
                                 </p>
                             </div>
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Agent</p>
-                                <p class="font-semibold text-gray-800 dark:text-gray-100">
+                            <div class="bg-star-elevated rounded-lg p-3">
+                                <p class="text-xs text-star-text mb-1">Agent</p>
+                                <p class="font-semibold text-white">
                                     <i class="fas fa-robot mr-1"></i>{{ task.agent }}
                                 </p>
                             </div>
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">创建时间</p>
-                                <p class="font-semibold text-gray-800 dark:text-gray-100">
+                            <div class="bg-star-elevated rounded-lg p-3">
+                                <p class="text-xs text-star-text mb-1">创建时间</p>
+                                <p class="font-semibold text-white">
                                     <i class="fas fa-clock mr-1"></i>{{ task.createdAt }}
                                 </p>
                             </div>
-                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">更新时间</p>
-                                <p class="font-semibold text-gray-800 dark:text-gray-100">
+                            <div class="bg-star-elevated rounded-lg p-3">
+                                <p class="text-xs text-star-text mb-1">更新时间</p>
+                                <p class="font-semibold text-white">
                                     <i class="fas fa-sync mr-1"></i>{{ task.updatedAt || '刚刚' }}
                                 </p>
                             </div>
@@ -94,61 +149,61 @@
                     </div>
 
                     <!-- 任务历史 -->
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                            <i class="fas fa-history mr-2 text-purple-600"></i>任务历史
+                    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                        <h3 class="text-lg font-bold text-white mb-4">
+                            <i class="fas fa-history mr-2 text-star-blue"></i>任务历史
                         </h3>
                         <div class="space-y-4">
                             <div v-for="(event, index) in taskHistory" :key="index" class="flex items-start space-x-3">
-                                <div class="w-2 h-2 rounded-full bg-purple-600 mt-2 flex-shrink-0"></div>
+                                <div class="w-2 h-2 rounded-full bg-star-blue mt-2 flex-shrink-0"></div>
                                 <div class="flex-1">
-                                    <p class="text-gray-800 dark:text-gray-100">{{ event.action }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ event.time }}</p>
+                                    <p class="text-white">{{ event.action }}</p>
+                                    <p class="text-xs text-star-text">{{ event.time }}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- 评论区 -->
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                            <i class="fas fa-comments mr-2 text-purple-600"></i>评论
-                            <span class="text-sm font-normal text-gray-500 ml-2">({{ comments.length }} 条)</span>
+                    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                        <h3 class="text-lg font-bold text-white mb-4">
+                            <i class="fas fa-comments mr-2 text-star-blue"></i>评论
+                            <span class="text-sm font-normal text-star-text ml-2">({{ comments.length }} 条)</span>
                         </h3>
-                        
+
                         <!-- 发表评论 -->
                         <div class="mb-6">
-                            <textarea 
-                                v-model="newComment" 
-                                placeholder="发表评论..." 
+                            <textarea
+                                v-model="newComment"
+                                placeholder="发表评论..."
                                 rows="3"
-                                class="w-full border dark:border-gray-700 rounded-lg px-4 py-2 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:text-gray-100"
+                                class="w-full border border-star-border rounded-lg px-4 py-2 bg-star-elevated focus:outline-none focus:border-star-blue text-white placeholder-star-text"
                             ></textarea>
                             <div class="flex justify-end mt-2">
-                                <button @click="addComment" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition">
+                                <button @click="addComment" class="bg-star-blue hover:bg-star-blue/80 text-white px-6 py-2 rounded-lg transition">
                                     <i class="fas fa-paper-plane mr-2"></i>发表
                                 </button>
                             </div>
                         </div>
-                        
+
                         <!-- 评论列表 -->
                         <div class="space-y-4">
-                            <div v-for="comment in comments" :key="comment.id" class="border-b dark:border-gray-700 pb-4 last:border-0">
+                            <div v-for="comment in comments" :key="comment.id" class="border-b border-star-border pb-4 last:border-0">
                                 <div class="flex items-start justify-between mb-2">
                                     <div class="flex items-center space-x-2">
-                                        <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-                                            <span class="text-xs font-bold text-purple-600 dark:text-purple-400">{{ comment.author[0].toUpperCase() }}</span>
+                                        <div class="w-8 h-8 bg-star-blue/20 rounded-full flex items-center justify-center">
+                                            <span class="text-xs font-bold text-star-blue">{{ comment.author[0].toUpperCase() }}</span>
                                         </div>
                                         <div>
-                                            <p class="font-semibold text-sm text-gray-800 dark:text-gray-100">{{ comment.author }}</p>
-                                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ comment.time }}</p>
+                                            <p class="font-semibold text-sm text-white">{{ comment.author }}</p>
+                                            <p class="text-xs text-star-text">{{ comment.time }}</p>
                                         </div>
                                     </div>
-                                    <button @click="deleteComment(comment.id)" class="text-gray-400 hover:text-red-600 transition">
+                                    <button @click="deleteComment(comment.id)" class="text-star-text hover:text-red-400 transition">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
-                                <p class="text-gray-700 dark:text-gray-300 ml-10">{{ comment.content }}</p>
+                                <p class="text-star-text ml-10">{{ comment.content }}</p>
                             </div>
                         </div>
                     </div>
@@ -157,28 +212,28 @@
                 <!-- 右侧：操作面板 -->
                 <div class="space-y-6">
                     <!-- 状态操作 -->
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                            <i class="fas fa-tasks mr-2 text-purple-600"></i>状态操作
+                    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                        <h3 class="text-lg font-bold text-white mb-4">
+                            <i class="fas fa-tasks mr-2 text-star-blue"></i>状态操作
                         </h3>
                         <div class="space-y-3">
-                            <button 
-                                @click="updateStatus('pending')" 
-                                :class="task.status === 'pending' ? 'bg-yellow-500' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'"
+                            <button
+                                @click="updateStatus('pending')"
+                                :class="task.status === 'pending' ? 'bg-yellow-500 text-white' : 'bg-star-elevated hover:bg-star-border text-star-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-clock mr-2"></i>待处理
                             </button>
-                            <button 
-                                @click="updateStatus('in_progress')" 
-                                :class="task.status === 'in_progress' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
+                            <button
+                                @click="updateStatus('in_progress')"
+                                :class="task.status === 'in_progress' ? 'bg-star-blue text-white' : 'bg-star-elevated hover:bg-star-border text-star-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-spinner mr-2"></i>进行中
                             </button>
-                            <button 
-                                @click="updateStatus('completed')" 
-                                :class="task.status === 'completed' ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300'"
+                            <button
+                                @click="updateStatus('completed')"
+                                :class="task.status === 'completed' ? 'bg-green-500 text-white' : 'bg-star-elevated hover:bg-star-border text-star-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-check-circle mr-2"></i>已完成
@@ -187,27 +242,27 @@
                     </div>
 
                     <!-- 附件 -->
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                            <i class="fas fa-paperclip mr-2 text-purple-600"></i>附件
-                            <span class="text-sm font-normal text-gray-500 ml-2">({{ attachments.length }} 个)</span>
+                    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                        <h3 class="text-lg font-bold text-white mb-4">
+                            <i class="fas fa-paperclip mr-2 text-star-blue"></i>附件
+                            <span class="text-sm font-normal text-star-text ml-2">({{ attachments.length }} 个)</span>
                         </h3>
-                        
+
                         <div class="mb-4">
-                            <label class="block w-full border-2 border-dashed dark:border-gray-700 rounded-lg p-4 text-center cursor-pointer hover:border-purple-500 transition">
+                            <label class="block w-full border-2 border-dashed border-star-border rounded-lg p-4 text-center cursor-pointer hover:border-star-blue transition">
                                 <input type="file" @change="uploadAttachment" class="hidden" multiple>
-                                <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
-                                <p class="text-sm text-gray-600 dark:text-gray-400">点击或拖拽上传</p>
+                                <i class="fas fa-cloud-upload-alt text-3xl text-star-text mb-2"></i>
+                                <p class="text-sm text-star-text">点击或拖拽上传</p>
                             </label>
                         </div>
-                        
+
                         <div class="space-y-2">
-                            <div v-for="file in attachments" :key="file.id" class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div v-for="file in attachments" :key="file.id" class="flex items-center justify-between p-2 bg-star-elevated rounded-lg">
                                 <div class="flex items-center space-x-2">
-                                    <i class="fas fa-file text-gray-400"></i>
-                                    <span class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ file.name }}</span>
+                                    <i class="fas fa-file text-star-text"></i>
+                                    <span class="text-sm text-white truncate">{{ file.name }}</span>
                                 </div>
-                                <button @click="downloadAttachment(file)" class="text-purple-600 hover:text-purple-700">
+                                <button @click="downloadAttachment(file)" class="text-star-blue hover:text-star-gold">
                                     <i class="fas fa-download"></i>
                                 </button>
                             </div>
@@ -215,26 +270,26 @@
                     </div>
 
                     <!-- 相关信息 -->
-                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4">
-                            <i class="fas fa-link mr-2 text-purple-600"></i>相关信息
+                    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                        <h3 class="text-lg font-bold text-white mb-4">
+                            <i class="fas fa-link mr-2 text-star-blue"></i>相关信息
                         </h3>
                         <div class="space-y-3 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-gray-500 dark:text-gray-400">任务 ID</span>
-                                <span class="font-mono text-gray-800 dark:text-gray-100">#{{ task.id }}</span>
+                                <span class="text-star-text">任务 ID</span>
+                                <span class="font-mono text-white">#{{ task.id }}</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-500 dark:text-gray-400">工作流</span>
-                                <span class="text-gray-800 dark:text-gray-100">标准研发流程</span>
+                                <span class="text-star-text">工作流</span>
+                                <span class="text-white">标准研发流程</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-500 dark:text-gray-400">父任务</span>
-                                <span class="text-gray-800 dark:text-gray-100">-</span>
+                                <span class="text-star-text">父任务</span>
+                                <span class="text-white">-</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-500 dark:text-gray-400">子任务</span>
-                                <span class="text-gray-800 dark:text-gray-100">0 个</span>
+                                <span class="text-star-text">子任务</span>
+                                <span class="text-white">0 个</span>
                             </div>
                         </div>
                     </div>
@@ -474,22 +529,22 @@
                     return (priority) => {
                         const classes = {
                             low: 'bg-gray-500',
-                            normal: 'bg-blue-500',
+                            normal: 'bg-star-blue',
                             high: 'bg-orange-500',
-                            critical: 'bg-red-600'
+                            critical: 'bg-red-500'
                         };
                         return classes[priority] || 'bg-gray-500';
                     };
                 },
-                
+
                 statusBadge() {
                     return (status) => {
                         const badges = {
-                            pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-                            in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                            completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                            pending: 'bg-yellow-500/20 text-yellow-400',
+                            in_progress: 'bg-star-blue/20 text-star-blue',
+                            completed: 'bg-green-500/20 text-green-400'
                         };
-                        return badges[status] || 'bg-gray-100 text-gray-700';
+                        return badges[status] || 'bg-star-elevated text-star-text';
                     };
                 }
             },
