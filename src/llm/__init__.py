@@ -23,6 +23,15 @@ from .llm_provider import (
     llm_generate_json,
     llm_generate_stream,
 )
+from .local import (
+    LocalLLMProvider,
+    LocalLLMService,
+    LMStudioProvider,
+    OllamaProvider,
+    VLLMProvider,
+    get_local_llm,
+    local_llm_generate,
+)
 from .service import LLMService, get_llm_service
 
 __all__ = [
@@ -37,20 +46,28 @@ __all__ = [
     "BaseProvider",
     "LLMResponse",
     "LLMFactory",
-    # 提供商
+    # 云端提供商
     "OpenAIProvider",
     "ClaudeProvider",
     "AzureOpenAIProvider",
     "BailianProvider",
+    # 本地 LLM 提供商
+    "LocalLLMProvider",
+    "OllamaProvider",
+    "VLLMProvider",
+    "LMStudioProvider",
     # 服务
     "LLMService",
     "get_llm_service",
+    "LocalLLMService",
+    "get_local_llm",
     # 便捷函数
     "get_llm",
     "init_llm_providers",
     "llm_generate",
     "llm_generate_json",
     "llm_generate_stream",
+    "local_llm_generate",
 ]
 
 # 定义模块级别的异常别名

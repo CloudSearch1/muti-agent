@@ -28,7 +28,27 @@ class LLMSettings(BaseSettings):
     openai_api_key: str | None = Field(default=None)
     anthropic_api_key: str | None = Field(default=None)
     dashscope_api_key: str | None = Field(default=None)
-    
+
+    # 本地 LLM 配置
+    local_provider: str = Field(
+        default="ollama",
+        description="本地 LLM 提供商 (ollama/vllm/lmstudio)"
+    )
+    local_base_url: str | None = Field(
+        default=None,
+        description="本地 LLM 服务地址"
+    )
+    local_model: str | None = Field(
+        default=None,
+        description="本地 LLM 模型名称"
+    )
+    local_timeout: int = Field(
+        default=120,
+        ge=30,
+        le=600,
+        description="本地 LLM 超时时间（秒）"
+    )
+
     model_config = SettingsConfigDict(
         env_prefix="LLM_",
         env_file=".env",
@@ -48,6 +68,15 @@ class LLMSettings(BaseSettings):
             if field in data and data[field]:
                 data[field] = "***REDACTED***"
         return data
+
+    def get_local_config(self) -> dict[str, Any]:
+        """获取本地 LLM 配置"""
+        return {
+            "provider": self.local_provider,
+            "base_url": self.local_base_url,
+            "model": self.local_model,
+            "timeout": self.local_timeout,
+        }
 
 
 # ============ 数据库配置 ============
