@@ -5,11 +5,14 @@ FastAPI 应用入口
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from ..config.settings import AppSettings as Settings, get_settings
 from ..memory.session import SessionManager
@@ -21,6 +24,11 @@ logger = structlog.get_logger(__name__)
 
 # 全局资源
 _resources: dict[str, Any] = {}
+
+
+# Web UI 静态文件目录
+WEBUI_DIR = Path(__file__).parent.parent.parent / "webui"
+STATIC_DIR = WEBUI_DIR / "static"
 
 
 @asynccontextmanager
@@ -84,8 +92,13 @@ def create_app(settings: Settings = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # 注册路由
+    # 注册 API 路由
     app.include_router(api_router, prefix="/api/v1")
+
+    # 挂载 Web UI 静态文件
+    if STATIC_DIR.exists():
+        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+        logger.info("Web UI 静态文件挂载成功", path=str(STATIC_DIR))
 
     # 健康检查
     @app.get("/health")
@@ -96,14 +109,51 @@ def create_app(settings: Settings = None) -> FastAPI:
             "environment": settings.app_env,
         }
 
-    # 根路径
+    # Web UI 主页面
     @app.get("/")
     async def root():
+        """返回 Web UI 主页面"""
+        index_file = WEBUI_DIR / "index_v5.html"
+        if index_file.exists():
+            with open(index_file, encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
+        # 降级到 API 信息
         return {
             "name": settings.app_name,
             "version": "1.0.0",
             "docs": "/docs",
+            "message": "Web UI not found, please check webui/index_v5.html",
         }
+
+    # PWA Manifest
+    @app.get("/manifest.json")
+    async def get_manifest():
+        """返回 PWA manifest"""
+        manifest_file = WEBUI_DIR / "manifest.json"
+        if manifest_file.exists():
+            from fastapi.responses import FileResponse
+            return FileResponse(path=str(manifest_file), media_type="application/json")
+        return {"error": "manifest.json not found"}
+
+    # 离线页面
+    @app.get("/offline.html")
+    async def get_offline():
+        """返回离线页面"""
+        offline_file = WEBUI_DIR / "offline.html"
+        if offline_file.exists():
+            from fastapi.responses import FileResponse
+            return FileResponse(path=str(offline_file), media_type="text/html")
+        return HTMLResponse(content="<html><body><h1>Offline</h1></body></html>")
+
+    # 任务详情页面
+    @app.get("/task-detail.html")
+    async def get_task_detail():
+        """返回任务详情页面"""
+        task_detail_file = WEBUI_DIR / "task-detail.html"
+        if task_detail_file.exists():
+            from fastapi.responses import FileResponse
+            return FileResponse(path=str(task_detail_file), media_type="text/html")
+        return HTMLResponse(content="<html><body><h1>Task detail page not found</h1></body></html>")
 
     logger.info(
         "FastAPI app created",

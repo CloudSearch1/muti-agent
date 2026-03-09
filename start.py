@@ -60,7 +60,7 @@ async def startup_services():
         host=settings.api_host,
         port=settings.api_port,
         reload=settings.is_development(),
-        log_level=settings.log_level.lower(),
+        log_level=settings.logging.level.lower(),
     )
 
 
