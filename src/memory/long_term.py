@@ -31,8 +31,7 @@ try:
         desc,
         select,
     )
-    from sqlalchemy.ext.declarative import declarative_base
-    from sqlalchemy.orm import Session, sessionmaker
+    from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
     SQLALCHEMY_AVAILABLE = True
     Base = declarative_base()

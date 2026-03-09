@@ -11,7 +11,7 @@ API 响应标准化模块
 from datetime import datetime
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 T = TypeVar("T")
 
@@ -29,8 +29,8 @@ class APIResponse(BaseModel, Generic[T]):
     )
     request_id: str | None = Field(default=None, description="请求 ID")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "data": {"key": "value"},
@@ -40,6 +40,7 @@ class APIResponse(BaseModel, Generic[T]):
                 "request_id": "req_123456",
             }
         }
+    )
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
@@ -58,8 +59,8 @@ class PaginatedResponse(BaseModel, Generic[T]):
         description="响应时间戳",
     )
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": True,
                 "data": [{"id": 1, "name": "Item 1"}],
@@ -72,6 +73,7 @@ class PaginatedResponse(BaseModel, Generic[T]):
                 "timestamp": "2026-03-08T12:00:00",
             }
         }
+    )
 
 
 class ErrorDetail(BaseModel):
@@ -94,8 +96,8 @@ class ErrorResponse(BaseModel):
     )
     request_id: str | None = Field(default=None, description="请求 ID")
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "success": False,
                 "error": {
@@ -108,6 +110,7 @@ class ErrorResponse(BaseModel):
                 "request_id": "req_123456",
             }
         }
+    )
 
 
 # ============ 响应构建器 ============
