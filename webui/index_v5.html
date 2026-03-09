@@ -41,6 +41,9 @@
     <!-- 错误处理工具 -->
     <script src="static/js/error-handler.js"></script>
 
+    <!-- 存储服务 -->
+    <script src="static/js/storage-service.js"></script>
+
     <!-- PWA Support -->
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1062,6 +1065,13 @@
             },
 
             mounted() {
+                // 初始化存储服务
+                if (window.storageService) {
+                    storageService.init().then(() => {
+                        // 加载通知
+                        this.loadNotifications();
+                    });
+                }
                 // 页面加载时调用 loadData
                 this.loadData();
             },
@@ -1271,12 +1281,39 @@
                         time: new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
                         read: false
                     });
+
+                    // 持久化通知
+                    if (window.storageService) {
+                        storageService.saveNotifications(this.notifications);
+                    }
                 },
 
                 // 全部已读
                 markAllRead() {
                     this.notifications = this.notifications.map(n => ({ ...n, read: true }));
                     this.showNotifications = false;
+
+                    // 持久化通知状态
+                    if (window.storageService) {
+                        storageService.saveNotifications(this.notifications);
+                    }
+                },
+
+                // 加载通知
+                loadNotifications() {
+                    if (window.storageService) {
+                        const saved = storageService.getNotifications();
+                        if (saved && saved.length > 0) {
+                            this.notifications = saved;
+                        }
+                    }
+                },
+
+                // 保存通知
+                saveNotifications() {
+                    if (window.storageService) {
+                        storageService.saveNotifications(this.notifications);
+                    }
                 },
 
                 // 查看 Agent 详情

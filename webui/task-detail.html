@@ -63,6 +63,8 @@
             box-shadow: 0 0 0 2px rgba(74, 158, 255, 0.2) !important;
         }
     </style>
+<!-- Storage Service -->
+    <script src="static/js/storage-service.js"></script>
 </head>
 <body class="bg-star-bg">
     <div id="app" class="min-h-screen">
@@ -101,6 +103,58 @@
 
         <!-- 主内容区 -->
         <main class="container mx-auto px-4 py-6">
+            <!-- 状态确认弹窗 -->
+            <div v-if="showStatusConfirm" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" @click.self="cancelStatusChange">
+                <div class="bg-star-card rounded-2xl shadow-2xl w-full max-w-md p-6 border border-star-border">
+                    <div class="text-center mb-6">
+                        <div class="w-16 h-16 mx-auto bg-yellow-500/20 rounded-full flex items-center justify-center mb-4">
+                            <i class="fas fa-exclamation-triangle text-3xl text-yellow-400"></i>
+                        </div>
+                        <h3 class="text-xl font-bold text-white">确认变更任务状态？</h3>
+                    </div>
+
+                    <div class="bg-star-elevated rounded-xl p-4 mb-6 border border-star-border">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-star-text">当前状态</span>
+                            <span class="font-semibold" :class="{
+                                'text-yellow-400': task.status === 'pending',
+                                'text-star-blue': task.status === 'in_progress',
+                                'text-green-400': task.status === 'completed'
+                            }">
+                                {{ getStatusText(task.status) }}
+                            </span>
+                        </div>
+                        <div class="flex justify-center my-2">
+                            <i class="fas fa-arrow-down text-2xl text-star-text"></i>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-star-text">变更状态</span>
+                            <span class="font-semibold" :class="{
+                                'text-yellow-400': pendingStatus === 'pending',
+                                'text-star-blue': pendingStatus === 'in_progress',
+                                'text-green-400': pendingStatus === 'completed'
+                            }">
+                                {{ pendingStatusText }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-star-text text-center mb-6">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        此操作将记录到任务历史，可在历史记录中查看
+                    </p>
+
+                    <div class="flex space-x-4">
+                        <button @click="cancelStatusChange" class="flex-1 px-4 py-3 bg-star-elevated text-star-text rounded-xl font-medium hover:bg-star-border transition border border-star-border">
+                            取消
+                        </button>
+                        <button @click="confirmStatusChange" class="flex-1 px-4 py-3 bg-star-blue text-white rounded-xl font-medium hover:bg-star-blue/80 transition">
+                            确认变更
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- 左侧：任务信息 -->
                 <div class="lg:col-span-2 space-y-6">
@@ -311,11 +365,29 @@
                     comments: [],
                     newComment: '',
                     attachments: [],
-                    darkMode: false
+                    darkMode: false,
+                    storageReady: false,
+                    // 状态确认弹窗
+                    showStatusConfirm: false,
+                    pendingStatus: null,
+                    pendingStatusText: ''
                 }
             },
             
             methods: {
+                // 初始化存储服务
+                async initStorage() {
+                    try {
+                        await storageService.init();
+                        this.storageReady = true;
+                        console.log('存储服务初始化完成');
+                    } catch (error) {
+                        console.error('存储服务初始化失败:', error);
+                        // 即使失败也继续，使用降级方案
+                        this.storageReady = true;
+                    }
+                },
+
                 // 加载任务详情
                 async loadTask() {
                     try {
@@ -368,12 +440,12 @@
                     }
                 },
                 
-                // 更新状态
-                async updateStatus(status) {
+                // 更新状态 - 显示确认弹窗
+                updateStatus(status) {
                     const statusMap = {
-                        'pending': { text: '待处理', color: 'yellow' },
-                        'in_progress': { text: '进行中', color: 'blue' },
-                        'completed': { text: '已完成', color: 'green' }
+                        'pending': '待处理',
+                        'in_progress': '进行中',
+                        'completed': '已完成'
                     };
 
                     // 如果状态相同，不执行变更
@@ -381,55 +453,112 @@
                         return;
                     }
 
-                    // 弹出确认框
-                    const statusText = statusMap[status].text;
-                    if (!confirm(`是否将状态更改为 "${statusText}"？`)) {
-                        return;
-                    }
+                    // 设置待确认状态
+                    this.pendingStatus = status;
+                    this.pendingStatusText = statusMap[status];
+                    this.showStatusConfirm = true;
+                },
 
-                    this.task.status = status;
-                    this.task.statusText = statusText;
+                // 确认状态变更
+                async confirmStatusChange() {
+                    if (!this.pendingStatus) return;
+
+                    const oldStatus = this.task.status;
+                    const newStatus = this.pendingStatus;
+                    const statusMap = {
+                        'pending': '待处理',
+                        'in_progress': '进行中',
+                        'completed': '已完成'
+                    };
+
+                    // 更新任务状态
+                    this.task.status = newStatus;
+                    this.task.statusText = statusMap[newStatus];
                     this.task.updatedAt = new Date().toLocaleString('zh-CN');
 
-                    // 添加到历史
+                    // 添加历史记录
+                    const historyEntry = {
+                        id: `history_${Date.now()}`,
+                        taskId: this.taskId,
+                        action: `状态从 "${statusMap[oldStatus]}" 变更为 "${statusMap[newStatus]}"`,
+                        user: '当前用户',
+                        timestamp: new Date().toISOString(),
+                        details: { oldStatus, newStatus }
+                    };
+
+                    // 保存到存储
+                    if (this.storageReady) {
+                        try {
+                            await storageService.addHistory(historyEntry);
+                        } catch (e) {
+                            console.error('保存历史记录失败:', e);
+                        }
+                    }
+
+                    // 添加到界面
                     this.taskHistory.unshift({
-                        action: `状态更新为 ${statusText}`,
+                        action: historyEntry.action,
                         time: new Date().toLocaleString('zh-CN')
                     });
 
                     // 持久化保存
                     this.saveTaskData();
 
-                    // 保存更改到 API
+                    // 关闭弹窗
+                    this.showStatusConfirm = false;
+                    this.pendingStatus = null;
+                    this.pendingStatusText = '';
+
+                    // 尝试保存到 API
                     try {
                         await fetch(`/api/v1/tasks/${this.taskId}`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status })
+                            body: JSON.stringify({ status: newStatus })
                         });
                     } catch (error) {
                         console.error('更新状态失败:', error);
                     }
                 },
+
+                // 取消状态变更
+                cancelStatusChange() {
+                    this.showStatusConfirm = false;
+                    this.pendingStatus = null;
+                    this.pendingStatusText = '';
+                },
                 
                 // 添加评论
-                addComment() {
+                async addComment() {
                     if (!this.newComment.trim()) return;
 
                     const comment = {
-                        id: Date.now(),
+                        id: `comment_${Date.now()}`,
+                        taskId: this.taskId,
                         author: '当前用户',
                         content: this.newComment,
-                        time: new Date().toLocaleString('zh-CN')
+                        createdAt: new Date().toISOString()
                     };
 
-                    this.comments.unshift(comment);
+                    this.comments.unshift({
+                        ...comment,
+                        time: new Date().toLocaleString('zh-CN')
+                    });
                     this.newComment = '';
+
+                    // 保存到存储
+                    if (this.storageReady) {
+                        try {
+                            await storageService.addComment(comment);
+                        } catch (e) {
+                            console.error('保存评论失败:', e);
+                        }
+                    }
 
                     // 保存到历史
                     this.taskHistory.unshift({
                         action: `添加了评论`,
-                        time: comment.time
+                        time: new Date().toLocaleString('zh-CN')
                     });
 
                     // 持久化保存
@@ -437,15 +566,25 @@
                 },
 
                 // 删除评论
-                deleteComment(commentId) {
+                async deleteComment(commentId) {
                     if (confirm('确定要删除这条评论吗？')) {
                         this.comments = this.comments.filter(c => c.id !== commentId);
+
+                        // 从存储中删除
+                        if (this.storageReady) {
+                            try {
+                                await storageService.deleteComment(commentId, this.taskId);
+                            } catch (e) {
+                                console.error('删除评论失败:', e);
+                            }
+                        }
+
                         this.saveTaskData(); // 持久化保存
                     }
                 },
 
-                // 保存任务数据到 localStorage
-                saveTaskData() {
+                // 保存任务数据到 localStorage 和 IndexedDB
+                async saveTaskData() {
                     const data = {
                         task: this.task,
                         taskHistory: this.taskHistory,
@@ -456,21 +595,75 @@
                             size: a.size,
                             type: a.type,
                             content: a.content
-                        }))
+                        })),
+                        updatedAt: new Date().toISOString()
                     };
+
+                    // 保存到 LocalStorage 作为备份
                     localStorage.setItem(`task_${this.taskId}`, JSON.stringify(data));
+
+                    // 保存到 IndexedDB
+                    if (this.storageReady) {
+                        try {
+                            await storageService.saveTask(this.task);
+                        } catch (e) {
+                            console.error('保存任务到 IndexedDB 失败:', e);
+                        }
+                    }
                 },
 
-                // 从 localStorage 加载任务数据
-                loadTaskData() {
+                // 从 localStorage 和 IndexedDB 加载任务数据
+                async loadTaskData() {
+                    // 先尝试从 IndexedDB 加载
+                    if (this.storageReady) {
+                        try {
+                            // 加载历史记录
+                            const history = await storageService.getHistoryByTask(this.taskId);
+                            if (history && history.length > 0) {
+                                this.taskHistory = history.map(h => ({
+                                    action: h.action,
+                                    time: new Date(h.timestamp).toLocaleString('zh-CN')
+                                }));
+                            }
+
+                            // 加载评论
+                            const comments = await storageService.getCommentsByTask(this.taskId);
+                            if (comments && comments.length > 0) {
+                                this.comments = comments.map(c => ({
+                                    ...c,
+                                    time: new Date(c.createdAt).toLocaleString('zh-CN')
+                                }));
+                            }
+
+                            // 加载附件
+                            const attachments = await storageService.getAttachmentsByTask(this.taskId);
+                            if (attachments && attachments.length > 0) {
+                                this.attachments = attachments;
+                            }
+                        } catch (e) {
+                            console.error('从 IndexedDB 加载数据失败:', e);
+                        }
+                    }
+
+                    // 从 LocalStorage 加载（作为补充或降级方案）
                     const saved = localStorage.getItem(`task_${this.taskId}`);
                     if (saved) {
                         try {
                             const data = JSON.parse(saved);
-                            if (data.task) this.task = { ...this.task, ...data.task };
-                            if (data.taskHistory && data.taskHistory.length > 0) this.taskHistory = data.taskHistory;
-                            if (data.comments && data.comments.length > 0) this.comments = data.comments;
-                            if (data.attachments && data.attachments.length > 0) this.attachments = data.attachments;
+                            // 如果 IndexedDB 没有数据，使用 LocalStorage 数据
+                            if (this.taskHistory.length === 0 && data.taskHistory && data.taskHistory.length > 0) {
+                                this.taskHistory = data.taskHistory;
+                            }
+                            if (this.comments.length === 0 && data.comments && data.comments.length > 0) {
+                                this.comments = data.comments;
+                            }
+                            if (this.attachments.length === 0 && data.attachments && data.attachments.length > 0) {
+                                this.attachments = data.attachments;
+                            }
+                            // 合并任务数据
+                            if (data.task) {
+                                this.task = { ...this.task, ...data.task };
+                            }
                         } catch (e) {
                             console.error('加载任务数据失败:', e);
                         }
@@ -478,20 +671,44 @@
                 },
                 
                 // 上传附件
-                uploadAttachment(event) {
+                async uploadAttachment(event) {
                     const files = event.target.files;
                     for (let file of files) {
+                        // 检查文件大小 (限制 10MB)
+                        if (file.size > 10 * 1024 * 1024) {
+                            alert(`文件 "${file.name}" 超过 10MB 限制，请选择更小的文件`);
+                            continue;
+                        }
+
                         // 读取文件内容并存储
                         const reader = new FileReader();
-                        reader.onload = (e) => {
+                        reader.onload = async (e) => {
                             const attachment = {
-                                id: Date.now() + Math.random(),
+                                id: `attach_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                taskId: this.taskId,
                                 name: file.name,
                                 size: file.size,
-                                type: file.type,
-                                content: e.target.result // 存储 base64 内容
+                                type: file.type || 'application/octet-stream',
+                                content: e.target.result, // 存储 base64 内容
+                                uploadedAt: new Date().toISOString()
                             };
                             this.attachments.push(attachment);
+
+                            // 保存到 IndexedDB
+                            if (this.storageReady) {
+                                try {
+                                    await storageService.saveAttachment(attachment);
+                                } catch (err) {
+                                    console.error('保存附件失败:', err);
+                                }
+                            }
+
+                            // 添加到历史
+                            this.taskHistory.unshift({
+                                action: `上传了附件: ${file.name}`,
+                                time: new Date().toLocaleString('zh-CN')
+                            });
+
                             this.saveTaskData(); // 持久化保存
                         };
                         reader.readAsDataURL(file);
@@ -505,13 +722,45 @@
                         return;
                     }
 
-                    // 创建下载链接
-                    const link = document.createElement('a');
-                    link.href = file.content;
-                    link.download = file.name;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                    try {
+                        // 处理 base64 数据
+                        let content = file.content;
+
+                        // 如果是 data URL 格式，提取 base64 部分
+                        if (content.startsWith('data:')) {
+                            const base64Index = content.indexOf('base64,');
+                            if (base64Index !== -1) {
+                                content = content.substring(base64Index + 7);
+                            }
+                        }
+
+                        // 创建 Blob 对象
+                        const byteCharacters = atob(content);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], { type: file.type || 'application/octet-stream' });
+
+                        // 创建下载链接
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = file.name;
+                        link.style.display = 'none';
+                        document.body.appendChild(link);
+                        link.click();
+
+                        // 清理
+                        setTimeout(() => {
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        }, 100);
+                    } catch (error) {
+                        console.error('下载文件失败:', error);
+                        alert('下载失败，请重试');
+                    }
                 },
                 
                 // 加载深色模式
@@ -521,6 +770,16 @@
                         this.darkMode = true;
                         document.documentElement.classList.add('dark');
                     }
+                },
+
+                // 获取状态文本
+                getStatusText(status) {
+                    const statusMap = {
+                        'pending': '待处理',
+                        'in_progress': '进行中',
+                        'completed': '已完成'
+                    };
+                    return statusMap[status] || status;
                 }
             },
             
@@ -555,9 +814,16 @@
                 this.taskId = urlParams.get('id') || 1;
 
                 this.loadDarkMode();
-                this.loadTask();
 
-                // 初始化模拟数据（用于首次加载）
+                // 初始化存储服务
+                this.initStorage().then(() => {
+                    // 加载任务
+                    this.loadTask();
+                    // 从存储加载持久化数据
+                    this.loadTaskData();
+                });
+
+                // 初始化模拟数据（用于首次加载，如果存储中没有数据）
                 this.taskHistory = [
                     { action: '任务创建', time: '2026-03-03 10:30' },
                     { action: '分配给 张三', time: '2026-03-03 10:31' },
@@ -575,8 +841,12 @@
                     { id: 2, name: 'API 设计图.png', size: 1024 * 256 }
                 ];
 
-                // 从 localStorage 加载持久化数据（覆盖模拟数据）
-                this.loadTaskData();
+                // 监听 ESC 键关闭弹窗
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.showStatusConfirm) {
+                        this.cancelStatusChange();
+                    }
+                });
             }
         }).mount('#app');
     </script>
