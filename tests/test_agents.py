@@ -121,7 +121,10 @@ class TestPlannerAgent:
 
         assert agent.agent.name == "TestPlanner"
         assert agent.ROLE == AgentRole.PLANNER
+        # Agent needs to be started to be available
+        await agent.start()
         assert agent.is_available() is True
+        await agent.stop()
 
     @pytest.mark.asyncio
     async def test_planner_execute(self, sample_task):

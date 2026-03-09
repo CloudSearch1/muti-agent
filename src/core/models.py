@@ -5,11 +5,20 @@
 """
 
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
+
+# ============ 兼容 Python 3.10 的 StrEnum ============
+# Python 3.11+ 有内置的 StrEnum，这里为 3.10 提供兼容
+
+
+class StrEnum(str, Enum):
+    """字符串枚举基类（兼容 Python 3.10）"""
+    pass
 
 
 # ============ 枚举类型 ============

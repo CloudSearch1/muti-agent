@@ -5,6 +5,7 @@
 - 配置管理
 - 日志配置
 - 工具函数
+- 错误处理
 """
 
 from .config import Settings, get_settings, reload_settings
@@ -20,6 +21,28 @@ from .helpers import (
     truncate_text,
 )
 from .logging import get_logger, setup_logging
+from .error_handler import (
+    AppError,
+    ValidationError,
+    NotFoundError,
+    ConflictError,
+    UnauthorizedError,
+    ForbiddenError,
+    DatabaseError,
+    ExternalServiceError,
+)
+from .exceptions import (
+    IntelliTeamException,
+    ValidationError,
+    NotFoundError,
+    AuthenticationError,
+    AuthorizationError,
+    ConflictError,
+    RateLimitError,
+    DatabaseError,
+    CacheError,
+    TaskError,
+)
 
 __all__ = [
     # 配置
@@ -39,4 +62,20 @@ __all__ = [
     "filter_dict",
     "is_valid_email",
     "is_valid_url",
+    # 错误处理
+    "AppError",
+    "ValidationError",
+    "NotFoundError",
+    "ConflictError",
+    "UnauthorizedError",
+    "ForbiddenError",
+    "DatabaseError",
+    "ExternalServiceError",
+    # 异常
+    "IntelliTeamException",
+    "AuthenticationError",
+    "AuthorizationError",
+    "RateLimitError",
+    "CacheError",
+    "TaskError",
 ]

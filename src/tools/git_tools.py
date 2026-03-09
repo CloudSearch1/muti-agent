@@ -1,15 +1,17 @@
 """
 Git 工具集
 
-提供 Git 操作功能
+提供 Git 操作功能，包含命令安全验证。
 """
 
+import asyncio
 import subprocess
 from pathlib import Path
 
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
+from .security import ToolSecurity, SecurityError
 
 logger = structlog.get_logger(__name__)
 
@@ -23,15 +25,25 @@ class GitTools(BaseTool):
     - 提交历史
     - 分支管理
     - 代码差异
+
+    安全特性：
+    - 命令注入防护
+    - 敏感操作限制
+    - 执行超时控制
     """
 
     NAME = "git_tools"
     DESCRIPTION = "Git 操作工具集合"
 
+    # 允许的 Git 操作
+    ALLOWED_ACTIONS = ["status", "log", "diff", "branch", "checkout", "pull", "push"]
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         self.repo_path = Path(kwargs.get("repo_path", ".")).resolve()
+        self.security = ToolSecurity(root_dir=self.repo_path)
+        self.timeout = kwargs.get("timeout", 30)
 
     @property
     def parameters(self) -> list[ToolParameter]:
@@ -55,6 +67,23 @@ class GitTools(BaseTool):
         """执行 Git 工具"""
         action = kwargs.get("action")
         args = kwargs.get("args", "")
+
+        # 安全检查：验证操作类型
+        if action not in self.ALLOWED_ACTIONS:
+            return ToolResult(
+                success=False,
+                error=f"Action not allowed: {action}. Allowed: {self.ALLOWED_ACTIONS}",
+            )
+
+        # 安全检查：验证参数
+        if args:
+            try:
+                self.security.validate_command(["git", action, args])
+            except SecurityError as e:
+                return ToolResult(
+                    success=False,
+                    error=f"Security violation: {str(e)}",
+                )
 
         try:
             if action == "status":
@@ -88,16 +117,26 @@ class GitTools(BaseTool):
             )
 
     def _run_git(self, args: list[str]) -> ToolResult:
-        """运行 Git 命令"""
+        """运行 Git 命令（带安全检查）"""
         try:
+            # 构建完整命令
             cmd = ["git"] + args
+
+            # 安全检查
+            try:
+                self.security.validate_command(cmd)
+            except SecurityError as e:
+                return ToolResult(
+                    success=False,
+                    error=f"Security violation: {str(e)}",
+                )
 
             result = subprocess.run(
                 cmd,
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=self.timeout,
             )
 
             if result.returncode == 0:

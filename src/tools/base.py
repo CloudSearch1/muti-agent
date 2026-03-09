@@ -2,6 +2,39 @@
 工具基类
 
 职责：定义工具的通用接口和标准
+
+工具系统架构:
+┌─────────────────────────────────────────────────────────────┐
+│                       ToolRegistry                           │
+│  (注册、发现、执行工具)                                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       BaseTool                               │
+│  - 参数验证                                                  │
+│  - 安全检查                                                  │
+│  - 错误处理                                                  │
+│  - 结果标准化                                                │
+└─────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+   FileTools              GitTools             TestingTools
+   (文件操作)             (Git操作)            (测试工具)
+
+使用示例:
+    # 创建工具实例
+    file_tool = FileTools(root_dir="/project")
+
+    # 执行工具
+    result = await file_tool(action="read", path="src/main.py")
+
+    # 检查结果
+    if result.success:
+        print(result.data["content"])
+    else:
+        print(f"Error: {result.error}")
 """
 
 from abc import ABC, abstractmethod

@@ -1,7 +1,8 @@
 """
 文件操作工具集
 
-提供文件读写、目录管理等功能
+提供文件读写、目录管理等功能。
+包含路径安全验证和敏感文件保护。
 """
 
 import shutil
@@ -10,6 +11,7 @@ from pathlib import Path
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
+from .security import ToolSecurity, SecurityError
 
 logger = structlog.get_logger(__name__)
 
@@ -22,6 +24,11 @@ class FileTools(BaseTool):
     - 文件读写
     - 目录管理
     - 文件操作（复制、移动、删除）
+
+    安全特性：
+    - 路径遍历防护
+    - 敏感文件保护
+    - 文件大小限制
     """
 
     NAME = "file_tools"
@@ -32,6 +39,13 @@ class FileTools(BaseTool):
 
         # 根目录限制（安全考虑）
         self.root_dir = Path(kwargs.get("root_dir", ".")).resolve()
+
+        # 初始化安全检查器
+        self.security = ToolSecurity(
+            root_dir=self.root_dir,
+            allow_sensitive=kwargs.get("allow_sensitive", False),
+            max_file_size=kwargs.get("max_file_size", 10 * 1024 * 1024),
+        )
 
     @property
     def parameters(self) -> list[ToolParameter]:
@@ -78,17 +92,27 @@ class FileTools(BaseTool):
         destination = kwargs.get("destination")
         recursive = kwargs.get("recursive", False)
 
-        # 安全检查
-        safe_path = self._safe_path(path)
-        if not safe_path:
+        # 使用安全检查器验证路径
+        try:
+            safe_path = self.security.validate_path(path, operation="read")
+        except SecurityError as e:
             return ToolResult(
                 success=False,
-                error=f"Path '{path}' is outside root directory",
+                error=str(e),
             )
 
         if action == "read":
             return self._read_file(safe_path)
         elif action == "write":
+            # 写入操作需要额外的内容验证
+            if content:
+                try:
+                    self.security.validate_file_content(content)
+                except SecurityError as e:
+                    return ToolResult(
+                        success=False,
+                        error=str(e),
+                    )
             return self._write_file(safe_path, content)
         elif action == "list":
             return self._list_directory(safe_path, recursive)
@@ -102,11 +126,12 @@ class FileTools(BaseTool):
                     success=False,
                     error="Destination path required for copy",
                 )
-            safe_dest = self._safe_path(destination)
-            if not safe_dest:
+            try:
+                safe_dest = self.security.validate_path(destination, operation="write")
+            except SecurityError as e:
                 return ToolResult(
                     success=False,
-                    error=f"Destination path '{destination}' is outside root directory",
+                    error=str(e),
                 )
             return self._copy_file(safe_path, safe_dest)
         elif action == "move":
@@ -115,11 +140,12 @@ class FileTools(BaseTool):
                     success=False,
                     error="Destination path required for move",
                 )
-            safe_dest = self._safe_path(destination)
-            if not safe_dest:
+            try:
+                safe_dest = self.security.validate_path(destination, operation="write")
+            except SecurityError as e:
                 return ToolResult(
                     success=False,
-                    error=f"Destination path '{destination}' is outside root directory",
+                    error=str(e),
                 )
             return self._move_file(safe_path, safe_dest)
         else:

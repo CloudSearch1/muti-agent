@@ -1,7 +1,8 @@
 """
 搜索工具集
 
-提供代码搜索、文件搜索等功能
+提供代码搜索、文件搜索等功能。
+包含路径安全验证和敏感文件保护。
 """
 
 import re
@@ -10,6 +11,7 @@ from pathlib import Path
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
+from .security import ToolSecurity, SecurityError
 
 logger = structlog.get_logger(__name__)
 
@@ -32,6 +34,13 @@ class SearchTools(BaseTool):
 
         self.root_dir = Path(kwargs.get("root_dir", ".")).resolve()
         self.max_results = kwargs.get("max_results", 100)
+        self.max_file_size = kwargs.get("max_file_size", 1024 * 1024)  # 1MB
+
+        # 安全检查器
+        self.security = ToolSecurity(
+            root_dir=self.root_dir,
+            allow_sensitive=kwargs.get("allow_sensitive", False),
+        )
 
     @property
     def parameters(self) -> list[ToolParameter]:
@@ -68,11 +77,21 @@ class SearchTools(BaseTool):
     async def execute(self, **kwargs) -> ToolResult:
         """执行搜索工具"""
         action = kwargs.get("action")
-        query = kwargs.get("query")
+        query = kwargs.get("query", "")
         path = kwargs.get("path", ".")
         pattern = kwargs.get("pattern", "*")
 
-        search_path = (self.root_dir / path).resolve()
+        # 安全检查：验证搜索路径
+        try:
+            search_path = self.security.validate_path(path, operation="read")
+        except SecurityError as e:
+            return ToolResult(
+                success=False,
+                error=f"Security violation: {str(e)}",
+            )
+
+        # 安全检查：清理搜索查询
+        query = self.security.sanitize_input(query, max_length=500)
 
         if action == "content":
             return self._search_content(search_path, query, pattern)

@@ -73,6 +73,28 @@ class AgentTimeoutError(AgentError):
         )
 
 
+class AgentNotInitializedError(AgentError):
+    """Agent 未初始化"""
+
+    def __init__(self, agent_name: str, current_state: str = "unknown"):
+        super().__init__(
+            message=f"Agent '{agent_name}' is not initialized. Current state: {current_state}",
+            code="AGENT_NOT_INITIALIZED",
+            details={"agent_name": agent_name, "current_state": current_state},
+        )
+
+
+class AgentAlreadyRunningError(AgentError):
+    """Agent 已在运行"""
+
+    def __init__(self, agent_name: str, reason: str = ""):
+        super().__init__(
+            message=f"Agent '{agent_name}' is already running or in an invalid state. {reason}",
+            code="AGENT_ALREADY_RUNNING",
+            details={"agent_name": agent_name, "reason": reason},
+        )
+
+
 # ===========================================
 # 任务相关异常
 # ===========================================

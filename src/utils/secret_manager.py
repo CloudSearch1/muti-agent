@@ -43,29 +43,31 @@ class SecretManager:
     def set_secret(self, key: str, value: str, encrypt: bool = True):
         """
         设置密钥
-        
+
         Args:
             key: 密钥名称（如 openai_api_key）
             value: 密钥值
             encrypt: 是否加密存储
         """
         secrets = self._load_secrets()
-        
+
         # 简单加密（XOR + Base64）
+        stored_value = value
         if encrypt:
-            value = self._simple_encrypt(value)
-        
+            stored_value = self._simple_encrypt(value)
+
         secrets[key] = {
-            "value": value,
+            "value": stored_value,
             "encrypted": encrypt,
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
         }
-        
+
         self._save_secrets(secrets)
+        # 缓存原始值（未加密），这样 get_secret 时可以直接返回
         self._cache[key] = value
         self._last_rotation[key] = datetime.now()
-        
+
         logger.info(f"Secret set: {key}")
         self._log_audit("set_secret", key)
     

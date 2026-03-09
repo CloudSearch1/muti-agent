@@ -1,14 +1,17 @@
 """
 代码相关工具集
 
-提供代码生成、分析、格式化等功能
+提供代码生成、分析、格式化等功能。
+包含输入验证和安全检查。
 """
 
 import asyncio
+from pathlib import Path
 
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
+from .security import ToolSecurity, SecurityError
 
 logger = structlog.get_logger(__name__)
 
@@ -33,6 +36,10 @@ class CodeTools(BaseTool):
         # 代码格式化配置
         self.formatter = kwargs.get("formatter", "black")
         self.line_length = kwargs.get("line_length", 100)
+        self.max_code_size = kwargs.get("max_code_size", 100 * 1024)  # 100KB
+
+        # 安全检查器
+        self.security = ToolSecurity(root_dir=Path(kwargs.get("root_dir", ".")).resolve())
 
     @property
     def parameters(self) -> list[ToolParameter]:
@@ -68,9 +75,20 @@ class CodeTools(BaseTool):
     async def execute(self, **kwargs) -> ToolResult:
         """执行代码工具"""
         action = kwargs.get("action")
-        code = kwargs.get("code")
+        code = kwargs.get("code", "")
         language = kwargs.get("language", "python")
         options = kwargs.get("options", {})
+
+        # 安全检查：验证代码大小
+        if len(code) > self.max_code_size:
+            return ToolResult(
+                success=False,
+                error=f"Code size exceeds limit: {len(code)} > {self.max_code_size}",
+            )
+
+        # 安全检查：清理输入
+        if code:
+            code = self.security.sanitize_input(code, max_length=self.max_code_size)
 
         if action == "format":
             return await self._format_code(code, language, options)

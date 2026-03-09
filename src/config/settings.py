@@ -501,3 +501,23 @@ def get_agent_settings() -> AgentSettings:
 def get_api_settings() -> APISettings:
     """获取 API 配置"""
     return get_settings().api
+
+
+def get_redis_settings() -> RedisSettings:
+    """获取 Redis 配置"""
+    return get_settings().redis
+
+
+def get_celery_settings() -> CelerySettings:
+    """获取 Celery 配置"""
+    return get_settings().celery
+
+
+def get_logging_settings() -> LoggingSettings:
+    """获取日志配置"""
+    return get_settings().logging
+
+
+def get_security_settings() -> SecuritySettings:
+    """获取安全配置"""
+    return get_settings().security

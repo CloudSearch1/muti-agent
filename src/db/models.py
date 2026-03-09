@@ -8,6 +8,7 @@ from .database import (
     AgentModel,
     Base,
     TaskModel,
+    UserModel,
     WorkflowModel,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "TaskModel",
     "AgentModel",
     "WorkflowModel",
+    "UserModel",
     "Base",
 ]

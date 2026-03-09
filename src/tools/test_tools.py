@@ -1,15 +1,19 @@
 """
 测试相关工具集
 
-提供测试执行、覆盖率分析等功能
+提供测试执行、覆盖率分析等功能。
+包含命令执行安全验证。
 """
 
 import asyncio
+import time
 from datetime import datetime
+from pathlib import Path
 
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
+from .security import ToolSecurity, SecurityError
 
 logger = structlog.get_logger(__name__)
 
@@ -35,6 +39,10 @@ class TestingTools(BaseTool):
         self.test_framework = kwargs.get("test_framework", "pytest")
         self.coverage_tool = kwargs.get("coverage_tool", "coverage.py")
         self.test_dir = kwargs.get("test_dir", "tests")
+        self.project_root = Path(kwargs.get("project_root", ".")).resolve()
+
+        # 安全检查器
+        self.security = ToolSecurity(root_dir=self.project_root)
 
     @property
     def parameters(self) -> list[ToolParameter]:
@@ -83,12 +91,21 @@ class TestingTools(BaseTool):
         test_path: str,
         options: dict,
     ) -> ToolResult:
-        """运行测试"""
+        """运行测试（带安全检查）"""
         verbose = options.get("verbose", False)
         fail_fast = options.get("fail_fast", False)
 
+        # 安全检查：验证测试路径
+        try:
+            safe_path = self.security.validate_path(test_path, operation="read")
+        except SecurityError as e:
+            return ToolResult(
+                success=False,
+                error=f"Security violation: {str(e)}",
+            )
+
         # 构建命令 - 使用 python -m pytest 确保能找到模块
-        cmd = ["python3", "-m", self.test_framework, test_path]
+        cmd = ["python3", "-m", self.test_framework, str(safe_path)]
 
         if verbose:
             cmd.append("-v")
@@ -96,6 +113,8 @@ class TestingTools(BaseTool):
             cmd.append("-x")
 
         logger.info("Running tests", cmd=cmd)
+
+        start_time = time.time()
 
         try:
             import os

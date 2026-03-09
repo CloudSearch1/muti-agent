@@ -399,12 +399,15 @@ def main():
 if __name__ == "__main__":
     main()
 """
-    
-    # 保存脚本
+
+
+def save_auto_doc_script():
+    """保存自动化文档生成脚本"""
     script_path = Path("scripts/generate_docs.py")
     script_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(script_path, "w", encoding="utf-8") as f:
         f.write(AUTO_DOC_SCRIPT)
-    
+
     os.chmod(script_path, 0o755)
+    print(f"✅ 脚本已保存: {script_path}")
