@@ -147,6 +147,15 @@ WORKFLOWS_DATA = [
     }
 ]
 
+# 技能数据
+SKILLS_DATA = [
+    {"id": 1, "name": "simplify", "description": "Review code for reuse, quality, and efficiency", "category": "code_review", "version": "1.0.0", "config": {"auto_fix": True}, "enabled": True, "createdAt": "2026-03-01 10:00"},
+    {"id": 2, "name": "claude-api", "description": "Build apps with Claude API or Anthropic SDK", "category": "api", "version": "1.0.0", "config": {"model": "claude-sonnet-4-6"}, "enabled": True, "createdAt": "2026-03-01 10:00"},
+    {"id": 3, "name": "code-generation", "description": "Generate code from natural language", "category": "generation", "version": "1.2.0", "config": {"language": "python"}, "enabled": True, "createdAt": "2026-03-02 14:30"},
+    {"id": 4, "name": "documentation", "description": "Generate documentation for code files", "category": "docs", "version": "1.0.0", "config": {"format": "markdown"}, "enabled": True, "createdAt": "2026-03-02 14:30"},
+    {"id": 5, "name": "testing", "description": "Generate and run tests for code", "category": "testing", "version": "1.1.0", "config": {"framework": "pytest"}, "enabled": False, "createdAt": "2026-03-03 09:15"},
+]
+
 # ============ API 路由 ============
 
 @app.get("/")
@@ -313,6 +322,92 @@ async def delete_task(task_id: int):
 async def get_workflows():
     """获取工作流列表"""
     return WORKFLOWS_DATA
+
+
+# ============ Skills API ============
+
+@app.get("/api/v1/skills/")
+async def get_skills(category: str = None, enabled: bool = None):
+    """获取技能列表"""
+    skills = SKILLS_DATA.copy()
+
+    # 分类过滤
+    if category:
+        skills = [s for s in skills if s["category"] == category]
+
+    # 启用状态过滤
+    if enabled is not None:
+        skills = [s for s in skills if s["enabled"] == enabled]
+
+    return {"items": skills, "total": len(skills)}
+
+
+@app.post("/api/v1/skills/")
+async def create_skill(skill: dict):
+    """创建新技能"""
+    # 检查名称是否已存在
+    name = skill.get("name", "")
+    if any(s["name"] == name for s in SKILLS_DATA):
+        raise HTTPException(status_code=400, detail=f"Skill with name '{name}' already exists")
+
+    new_skill = {
+        "id": max(s["id"] for s in SKILLS_DATA) + 1 if SKILLS_DATA else 1,
+        "name": name,
+        "description": skill.get("description", ""),
+        "category": skill.get("category", "general"),
+        "version": skill.get("version", "1.0.0"),
+        "config": skill.get("config", {}),
+        "enabled": skill.get("enabled", True),
+        "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
+    SKILLS_DATA.append(new_skill)
+    return {"status": "success", "message": "技能创建成功", "skill": new_skill}
+
+
+@app.put("/api/v1/skills/{skill_id}")
+async def update_skill(skill_id: int, skill_update: dict):
+    """更新技能"""
+    for skill in SKILLS_DATA:
+        if skill["id"] == skill_id:
+            # 检查名称冲突
+            new_name = skill_update.get("name")
+            if new_name and new_name != skill["name"]:
+                if any(s["name"] == new_name for s in SKILLS_DATA):
+                    raise HTTPException(status_code=400, detail=f"Skill with name '{new_name}' already exists")
+
+            # 更新允许的字段
+            for field in ["name", "description", "category", "version", "config", "enabled"]:
+                if field in skill_update:
+                    skill[field] = skill_update[field]
+
+            skill["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            return {"status": "success", "message": "技能已更新", "skill": skill}
+
+    raise HTTPException(status_code=404, detail="技能不存在")
+
+
+@app.delete("/api/v1/skills/{skill_id}")
+async def delete_skill(skill_id: int):
+    """删除技能"""
+    global SKILLS_DATA
+    for i, skill in enumerate(SKILLS_DATA):
+        if skill["id"] == skill_id:
+            SKILLS_DATA.pop(i)
+            return {"status": "success", "message": "技能已删除"}
+
+    raise HTTPException(status_code=404, detail="技能不存在")
+
+
+@app.post("/api/v1/skills/{skill_id}/toggle")
+async def toggle_skill(skill_id: int):
+    """切换技能状态"""
+    for skill in SKILLS_DATA:
+        if skill["id"] == skill_id:
+            skill["enabled"] = not skill["enabled"]
+            skill["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            return {"status": "success", "message": f"技能已{'启用' if skill['enabled'] else '禁用'}", "skill": skill}
+
+    raise HTTPException(status_code=404, detail="技能不存在")
 
 
 # ============ AI 聊天 API ============
