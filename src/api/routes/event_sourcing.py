@@ -23,8 +23,8 @@ async def get_events(
 
     try:
         et = EventType(event_type) if event_type else None
-    except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid event type: {event_type}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid event type: {event_type}") from e
 
     events = event_store.get_events(
         aggregate_type=aggregate_type,
@@ -75,4 +75,4 @@ async def get_aggregate_state(
         state = event_store.rebuild_aggregate(aggregate_type, aggregate_id)
         return state
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to rebuild state: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to rebuild state: {str(e)}") from e

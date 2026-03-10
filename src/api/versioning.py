@@ -74,7 +74,7 @@ def api_version(min_version: str = "1.0", max_version: str | None = None):
                         "error": "INVALID_VERSION_FORMAT",
                         "message": "API version must be in format X.Y (e.g., 1.0)",
                     },
-                )
+                ) from None
 
             return await func(request, *args, **kwargs)
 

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any
+from typing import Any, Dict
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -471,7 +471,7 @@ class ConfigLoader:
                 with open(path, encoding="utf-8") as f:
                     return yaml.safe_load(f)
             except ImportError:
-                raise ImportError("PyYAML not installed. Install with: pip install pyyaml")
+                raise ImportError("PyYAML not installed. Install with: pip install pyyaml") from None
         elif path.suffix == ".json":
             with open(path, encoding="utf-8") as f:
                 return json.load(f)
@@ -500,7 +500,7 @@ class ConfigLoader:
                 with open(path, "w", encoding="utf-8") as f:
                     yaml.safe_dump(config, f, default_flow_style=False, allow_unicode=True)
             except ImportError:
-                raise ImportError("PyYAML not installed")
+                raise ImportError("PyYAML not installed") from None
         elif format == "json":
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)

@@ -75,7 +75,7 @@ async def create_agent(request: CreateAgentRequest):
         logger.info("Agent created via API", agent_id=agent.id)
         return agent
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get(
@@ -99,7 +99,7 @@ async def list_agents(
         try:
             status_enum = PiAgentStatus(status)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}") from None
 
     agents = manager.list_agents(
         status=status_enum,
@@ -234,7 +234,7 @@ async def list_tasks(
         try:
             status_enum = PiTaskStatus(status)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}") from None
 
     # 转换优先级
     priority_enum = None
@@ -242,7 +242,7 @@ async def list_tasks(
         try:
             priority_enum = PiTaskPriority(priority)
         except ValueError:
-            raise HTTPException(status_code=400, detail=f"Invalid priority: {priority}")
+            raise HTTPException(status_code=400, detail=f"Invalid priority: {priority}") from None
 
     tasks = scheduler.list_tasks(
         status=status_enum,
@@ -303,7 +303,7 @@ async def assign_tasks(
     try:
         strategy_enum = TaskAssignmentStrategy(strategy)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid strategy: {strategy}")
+        raise HTTPException(status_code=400, detail=f"Invalid strategy: {strategy}") from None
 
     if task_id:
         assignment = await scheduler.assign_task(task_id, strategy_enum)

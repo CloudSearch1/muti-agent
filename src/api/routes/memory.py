@@ -82,7 +82,7 @@ class MemoryStoreRequest(BaseModel):
             validate_memory_type(v)
             return v
         except ValueError as e:
-            raise ValueError(str(e))
+            raise ValueError(str(e)) from e
 
     @field_validator("importance")
     @classmethod
@@ -92,7 +92,7 @@ class MemoryStoreRequest(BaseModel):
             validate_importance(v)
             return v
         except ValueError as e:
-            raise ValueError(str(e))
+            raise ValueError(str(e)) from e
 
     @field_validator("storage")
     @classmethod
@@ -102,7 +102,7 @@ class MemoryStoreRequest(BaseModel):
             validate_storage_type(v)
             return v
         except ValueError as e:
-            raise ValueError(str(e))
+            raise ValueError(str(e)) from e
 
     @field_validator("content")
     @classmethod
@@ -138,7 +138,7 @@ class MemorySearchRequest(BaseModel):
             validate_memory_type(v)
             return v
         except ValueError as e:
-            raise ValueError(str(e))
+            raise ValueError(str(e)) from e
 
     @field_validator("importance")
     @classmethod
@@ -150,7 +150,7 @@ class MemorySearchRequest(BaseModel):
             validate_importance(v)
             return v
         except ValueError as e:
-            raise ValueError(str(e))
+            raise ValueError(str(e)) from e
 
 
 class MemoryResponse(BaseModel):
@@ -270,13 +270,13 @@ async def store_memory(request: MemoryStoreRequest) -> MemoryResponse:
 
     except MemoryValidationError as e:
         logger.warning("Validation error", error=str(e), details=e.details)
-        raise HTTPException(status_code=400, detail=e.message)
+        raise HTTPException(status_code=400, detail=e.message) from e
     except MemoryNotFoundError as e:
         logger.warning("Memory not found", error=str(e))
-        raise HTTPException(status_code=404, detail=e.message)
+        raise HTTPException(status_code=404, detail=e.message) from e
     except Exception as e:
         logger.error("Failed to store memory", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to store memory: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to store memory: {str(e)}") from e
 
 
 async def _store_short_term(request: MemoryStoreRequest) -> MemoryResponse:
@@ -422,7 +422,7 @@ async def list_memories(
         try:
             validate_storage_type(storage)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
         if storage == StorageType.SHORT_TERM.value:
             # 短期记忆不支持列表查询
@@ -477,7 +477,7 @@ async def list_memories(
         raise
     except Exception as e:
         logger.error("Failed to list memories", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to list memories: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to list memories: {str(e)}") from e
 
 
 @router.get(
@@ -499,7 +499,7 @@ async def get_memory(
         try:
             validate_storage_type(storage)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
         if storage == StorageType.SHORT_TERM.value:
             memory = get_short_term_memory()
@@ -571,7 +571,7 @@ async def get_memory(
         raise
     except Exception as e:
         logger.error("Failed to get memory", memory_id=memory_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to get memory: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get memory: {str(e)}") from e
 
 
 @router.delete(
@@ -593,7 +593,7 @@ async def delete_memory(
         try:
             validate_storage_type(storage)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
         if storage == StorageType.SHORT_TERM.value:
             memory = get_short_term_memory()
@@ -629,7 +629,7 @@ async def delete_memory(
         raise
     except Exception as e:
         logger.error("Failed to delete memory", memory_id=memory_id, error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to delete memory: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete memory: {str(e)}") from e
 
 
 @router.post(
@@ -735,7 +735,7 @@ async def search_memories(request: MemorySearchRequest) -> MemoryListResponse:
         raise
     except Exception as e:
         logger.error("Failed to search memories", error=str(e))
-        raise HTTPException(status_code=500, detail=f"Failed to search memories: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to search memories: {str(e)}") from e
 
 
 @router.get(
@@ -753,7 +753,7 @@ async def get_memory_stats(
         try:
             validate_storage_type(storage)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
 
         if storage == StorageType.SHORT_TERM.value:
             memory = get_short_term_memory()
@@ -793,7 +793,7 @@ async def get_memory_stats(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get memory stats: {str(e)}",
-        )
+        ) from e
 
 
 @router.get(
@@ -844,4 +844,4 @@ async def get_important_memories(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get important memories: {str(e)}",
-        )
+        ) from e

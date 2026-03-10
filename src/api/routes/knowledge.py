@@ -137,9 +137,9 @@ async def upload_document(
         }
 
     except KnowledgeError as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        raise HTTPException(status_code=400, detail=e.message) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/documents", response_model=dict[str, Any])
@@ -185,7 +185,7 @@ async def list_documents(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/documents/{document_id}", response_model=dict[str, Any])
@@ -211,7 +211,7 @@ async def get_document(document_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/documents/{document_id}/process", response_model=dict[str, Any])
@@ -240,11 +240,11 @@ async def process_document(document_id: str):
         }
 
     except DocumentNotFoundError:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="Document not found") from None
     except DocumentProcessingError as e:
-        raise HTTPException(status_code=400, detail=e.message)
+        raise HTTPException(status_code=400, detail=e.message) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.delete("/documents/{document_id}", status_code=204)
@@ -267,9 +267,9 @@ async def delete_document(document_id: str):
         return None
 
     except DocumentNotFoundError:
-        raise HTTPException(status_code=404, detail="Document not found")
+        raise HTTPException(status_code=404, detail="Document not found") from None
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============ 搜索 ============
@@ -314,7 +314,7 @@ async def search_knowledge(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============ 问答 ============
@@ -357,7 +357,7 @@ async def ask_question(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============ 知识图谱 ============
@@ -380,7 +380,7 @@ async def get_knowledge_graph_data():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/graph/entities/{entity_id}", response_model=dict[str, Any])
@@ -408,7 +408,7 @@ async def get_entity(entity_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/graph/entities", response_model=dict[str, Any])
@@ -439,7 +439,7 @@ async def search_entities(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============ 统计 ============
@@ -468,7 +468,7 @@ async def get_knowledge_stats():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ============ 配置 ============

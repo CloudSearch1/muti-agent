@@ -469,7 +469,6 @@ if __name__ == "__main__":
         """
         try:
             import os
-            import subprocess
             import tempfile
 
             import coverage

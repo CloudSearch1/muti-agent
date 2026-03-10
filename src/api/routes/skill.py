@@ -672,7 +672,7 @@ async def create_skill(skill: SkillCreate) -> SkillResponse:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
     logger.info("Skill created", skill_id=skill_id, name=skill.name)
     return _build_skill_response(skill_data)

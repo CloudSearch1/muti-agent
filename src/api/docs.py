@@ -7,10 +7,10 @@ IntelliTeam OpenAPI 文档配置
 import logging
 
 from fastapi import FastAPI
-
-logger = logging.getLogger(__name__)
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+
+logger = logging.getLogger(__name__)
 
 
 def setup_openapi_docs(app: FastAPI):

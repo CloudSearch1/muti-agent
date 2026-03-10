@@ -198,9 +198,9 @@ class BaseAgent(ABC):
         self._set_lifecycle_state(AgentLifecycleState.INITIALIZED)
         self.logger.info("Agent initialized")
 
-    async def _do_init(self) -> None:
-        """子类重写此方法实现自定义初始化逻辑"""
-        pass
+    async def _do_init(self) -> None:  # noqa: B027
+        """子类重写此方法实现自定义初始化逻辑（可选）"""
+        ...
 
     async def start(self) -> None:
         """
@@ -224,9 +224,9 @@ class BaseAgent(ABC):
         self._set_lifecycle_state(AgentLifecycleState.STARTED)
         self.logger.info("Agent started")
 
-    async def _do_start(self) -> None:
-        """子类重写此方法实现自定义启动逻辑"""
-        pass
+    async def _do_start(self) -> None:  # noqa: B027
+        """子类重写此方法实现自定义启动逻辑（可选）"""
+        ...
 
     async def stop(self) -> None:
         """
@@ -245,9 +245,9 @@ class BaseAgent(ABC):
         self._set_lifecycle_state(AgentLifecycleState.STOPPED)
         self.logger.info("Agent stopped")
 
-    async def _do_stop(self) -> None:
-        """子类重写此方法实现自定义停止逻辑"""
-        pass
+    async def _do_stop(self) -> None:  # noqa: B027
+        """子类重写此方法实现自定义停止逻辑（可选）"""
+        ...
 
     async def destroy(self) -> None:
         """
@@ -266,9 +266,9 @@ class BaseAgent(ABC):
         self._set_lifecycle_state(AgentLifecycleState.DESTROYED)
         self.logger.info("Agent destroyed")
 
-    async def _do_destroy(self) -> None:
-        """子类重写此方法实现自定义销毁逻辑"""
-        pass
+    async def _do_destroy(self) -> None:  # noqa: B027
+        """子类重写此方法实现自定义销毁逻辑（可选）"""
+        ...
 
     def _set_lifecycle_state(self, state: AgentLifecycleState) -> None:
         """设置生命周期状态"""

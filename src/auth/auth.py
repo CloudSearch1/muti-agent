@@ -5,7 +5,7 @@ IntelliTeam 认证模块
 """
 
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
 
 import jwt
