@@ -77,6 +77,9 @@ from .rag_store import (
 from .session import SessionInfo, SessionManager
 from .short_term import ShortTermMemory
 
+# Backwards compatibility alias
+CompressionStrategy = CompressionStrategyType
+
 __all__ = [
     # 异常类
     "MemoryError",
@@ -95,6 +98,7 @@ __all__ = [
     "MemoryImportance",
     "StorageType",
     "CompressionStrategyType",
+    "CompressionStrategy",  # Alias for backwards compatibility
     "MemoryEntry",
     "SearchResult",
     "MemoryStats",

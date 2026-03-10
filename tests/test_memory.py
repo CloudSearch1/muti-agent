@@ -124,14 +124,17 @@ class TestRAGStore:
 
     def test_unsupported_backend_raises_error(self):
         """测试不支持的后端抛出错误"""
+        from src.memory import VectorStoreError
         store = RAGStore(backend="unsupported")
-        with pytest.raises(ValueError, match="Unsupported backend"):
+        with pytest.raises(VectorStoreError, match="Unsupported backend"):
             asyncio.get_event_loop().run_until_complete(store.initialize())
 
     @pytest.mark.asyncio
     async def test_add_memory_with_mock(self):
         """测试添加记忆（使用 Mock）"""
         store = RAGStore(backend="chroma")
+        # Set initialized to True to avoid calling initialize() which requires chromadb
+        store._initialized = True
         store._collection = MagicMock()
         store._collection.add = MagicMock()
 
@@ -147,6 +150,8 @@ class TestRAGStore:
     async def test_search_with_mock(self):
         """测试搜索（使用 Mock）"""
         store = RAGStore(backend="chroma")
+        # Set initialized to True to avoid calling initialize() which requires chromadb
+        store._initialized = True
         store._collection = MagicMock()
         store._collection.query = MagicMock(return_value={
             "ids": [["mem-1", "mem-2"]],
@@ -165,6 +170,8 @@ class TestRAGStore:
     async def test_delete_memory_with_mock(self):
         """测试删除记忆（使用 Mock）"""
         store = RAGStore(backend="chroma")
+        # Set initialized to True to avoid calling initialize() which requires chromadb
+        store._initialized = True
         store._collection = MagicMock()
         store._collection.delete = MagicMock()
 
@@ -177,6 +184,8 @@ class TestRAGStore:
     async def test_get_stats_with_mock(self):
         """测试获取统计信息（使用 Mock）"""
         store = RAGStore(backend="chroma")
+        # Set initialized to True to avoid calling initialize() which requires chromadb
+        store._initialized = True
         store._collection = MagicMock()
         store._collection.count = MagicMock(return_value=10)
 
@@ -193,6 +202,8 @@ class TestRAGStoreBatch:
     async def test_add_memories_batch(self):
         """测试批量添加记忆"""
         store = RAGStore(backend="chroma")
+        # Set initialized to True to avoid calling initialize() which requires chromadb
+        store._initialized = True
         store._collection = MagicMock()
         store._collection.add = MagicMock()
 
@@ -302,8 +313,8 @@ class TestContextCompressor:
 
         result = await compressor.compress(short_content)
 
-        assert result["compressed"] == short_content
-        assert result["strategy"] == "none"
+        assert result.compressed == short_content
+        assert result.strategy == "none"
 
     @pytest.mark.asyncio
     async def test_compress_with_truncate(self):
@@ -313,8 +324,8 @@ class TestContextCompressor:
 
         result = await compressor.compress(long_content, target_ratio=0.5)
 
-        assert len(result["compressed"]) < len(long_content)
-        assert result["strategy"] == "sliding_window"
+        assert len(result.compressed) < len(long_content)
+        assert result.strategy == "sliding_window"
 
     @pytest.mark.asyncio
     async def test_compress_with_key_points(self):
@@ -325,8 +336,8 @@ class TestContextCompressor:
 
         result = await compressor.compress(content, target_ratio=0.5)
 
-        assert "compressed" in result
-        assert result["strategy"] in ["key_points", "key_points_simple"]
+        assert result.compressed is not None
+        assert result.strategy in ["key_points", "key_points_simple"]
 
     @pytest.mark.asyncio
     async def test_compress_conversation(self):
@@ -373,8 +384,8 @@ class TestIncrementalCompressor:
 
         result = await compressor.update_content("test-id", content)
 
-        assert result["changed"] is True
-        assert "compressed" in result
+        assert result.changed is True
+        assert result.compressed is not None
         assert "test-id" in compressor._original_cache
 
     @pytest.mark.asyncio
@@ -386,7 +397,7 @@ class TestIncrementalCompressor:
         await compressor.update_content("test-id", content)
         result = await compressor.update_content("test-id", content)
 
-        assert result["changed"] is False
+        assert result.changed is False
 
     @pytest.mark.asyncio
     async def test_incremental_add(self):
@@ -398,8 +409,8 @@ class TestIncrementalCompressor:
         await compressor.update_content("test-id", original)
         result = await compressor.update_content("test-id", original + added)
 
-        assert result["changed"] is True
-        assert result["strategy"] == "incremental_add"
+        assert result.changed is True
+        assert result.strategy == "incremental_add"
 
     def test_clear_cache(self):
         """测试清空缓存"""
@@ -472,18 +483,19 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_compress_empty_content(self):
         """测试压缩空内容"""
+        from src.memory import CompressionError
         compressor = ContextCompressor()
-        result = await compressor.compress("")
-
-        assert result["compressed"] == ""
-        assert result["original_length"] == 0
+        # Empty content raises CompressionError
+        with pytest.raises(CompressionError, match="Content cannot be empty"):
+            await compressor.compress("")
 
     @pytest.mark.asyncio
     async def test_compress_none_content(self):
         """测试压缩 None 内容"""
+        from src.memory import CompressionError
         compressor = ContextCompressor()
-        # 应该抛出异常或返回空
-        with pytest.raises((TypeError, AttributeError)):
+        # None content raises CompressionError
+        with pytest.raises(CompressionError, match="Content cannot be empty"):
             await compressor.compress(None)
 
     def test_context_window_zero_max_tokens(self):
@@ -496,6 +508,8 @@ class TestEdgeCases:
     async def test_search_empty_query(self):
         """测试空查询"""
         store = RAGStore(backend="chroma")
+        # Set initialized to True to avoid calling initialize() which requires chromadb
+        store._initialized = True
         store._collection = MagicMock()
         store._collection.query = MagicMock(return_value={
             "ids": [[]],
