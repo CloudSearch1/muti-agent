@@ -9,38 +9,37 @@
     <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/6.5.1/css/all.min.css">
     <link rel="manifest" href="manifest.json">
     <script>
-        window.tailwind = window.tailwind || {};
         window.tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
-                        // GitHub Dark 主题配色
+                        // 黑白主题配色
                         gh: {
-                            bg: '#0d1117',        // GitHub Dark 背景
+                            bg: '#0d1117',        // 背景
                             canvas: '#161b22',    // 画布/卡片背景
                             elevated: '#21262d',  // 提升元素
                             border: '#30363d',    // 边框
                             text: '#8b949e',      // 次要文字
                             light: '#c9d1d9',     // 主要文字
                             white: '#ffffff',     // 强调文字
-                            blue: '#58a6ff',      // GitHub Blue 强调色
-                            green: '#3fb950',     // 成功色
-                            yellow: '#d29922',    // 警告色
-                            red: '#f85149',       // 错误色
-                            purple: '#a371f7',    // 紫色
+                            blue: '#c9d1d9',      // 改为浅灰（原蓝色）
+                            green: '#a3a3a3',     // 改为灰色（原绿色）
+                            yellow: '#737373',    // 改为深灰（原黄色）
+                            red: '#525252',       // 改为暗灰（原红色）
+                            purple: '#a3a3a3',    // 改为灰色（原紫色）
                         },
                         primary: {
-                            50: '#cae8ff',
-                            100: '#a5d6ff',
-                            200: '#79c0ff',
-                            300: '#58a6ff',       // GitHub Blue
-                            400: '#388bfd',
-                            500: '#1f6feb',
-                            600: '#1158c7',
-                            700: '#0d419d',
-                            800: '#0c2d6b',
-                            900: '#051d4b'
+                            50: '#f5f5f5',
+                            100: '#e5e5e5',
+                            200: '#d4d4d4',
+                            300: '#a3a3a3',       // 灰色
+                            400: '#737373',
+                            500: '#525252',
+                            600: '#404040',
+                            700: '#262626',
+                            800: '#171717',
+                            900: '#0a0a0a'
                         },
                         dark: { 100: '#21262d', 200: '#161b22', 300: '#0d1117', 400: '#010409' }
                     }
@@ -52,19 +51,19 @@
         .loading-spin { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* GitHub Dark 主题样式 */
-        .gh-glow { box-shadow: 0 0 0 1px rgba(88, 166, 255, 0.4); }
+        /* 黑白主题样式 */
+        .gh-glow { box-shadow: 0 0 0 1px rgba(163, 163, 163, 0.4); }
 
-        /* 滚动条美化 - GitHub 风格 */
+        /* 滚动条美化 */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0d1117; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #58a6ff; }
+        ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
 
         /* 输入框聚焦效果 */
         input:focus, textarea:focus, select:focus {
-            border-color: #58a6ff !important;
-            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3) !important;
+            border-color: #a3a3a3 !important;
+            box-shadow: 0 0 0 3px rgba(163, 163, 163, 0.3) !important;
         }
     </style>
 <!-- Storage Service -->
@@ -75,7 +74,7 @@
         <!-- 加载状态 -->
         <div v-if="loading" class="fixed inset-0 bg-gh-bg/95 backdrop-blur-sm z-50 flex items-center justify-center">
             <div class="text-center">
-                <i class="fas fa-circle-notch text-4xl text-gh-blue loading-spin mb-4"></i>
+                <i class="fas fa-circle-notch text-4xl text-gh-light loading-spin mb-4"></i>
                 <p class="text-gh-text">加载中...</p>
             </div>
         </div>
@@ -85,7 +84,7 @@
             <div class="container mx-auto px-4 py-3">
                 <div class="flex justify-between items-center">
                     <div class="flex items-center space-x-4">
-                        <button @click="goBack" class="hover:bg-gh-blue/20 p-2 rounded-lg transition text-gh-text hover:text-gh-blue">
+                        <button @click="goBack" class="hover:bg-gh-border p-2 rounded-lg transition text-gh-text hover:text-gh-light">
                             <i class="fas fa-arrow-left"></i>
                         </button>
                         <div>
@@ -94,10 +93,10 @@
                         </div>
                     </div>
                     <div class="flex space-x-2">
-                        <button @click="editTask" class="bg-gh-elevated hover:bg-gh-blue/20 px-4 py-2 rounded-lg transition text-gh-text hover:text-gh-blue">
+                        <button @click="editTask" class="bg-gh-elevated hover:bg-gh-border px-4 py-2 rounded-lg transition text-gh-text hover:text-gh-light">
                             <i class="fas fa-edit mr-2"></i>编辑
                         </button>
-                        <button @click="deleteTask" class="bg-gh-red/80 hover:bg-gh-red px-4 py-2 rounded-lg transition text-white">
+                        <button @click="deleteTask" class="bg-gh-elevated hover:bg-gh-border px-4 py-2 rounded-lg transition text-gh-text">
                             <i class="fas fa-trash mr-2"></i>删除
                         </button>
                     </div>
@@ -111,8 +110,8 @@
             <div v-if="showStatusConfirm" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" @click.self="cancelStatusChange">
                 <div class="bg-gh-canvas rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gh-border">
                     <div class="text-center mb-6">
-                        <div class="w-16 h-16 mx-auto bg-gh-yellow/20 rounded-full flex items-center justify-center mb-4">
-                            <i class="fas fa-exclamation-triangle text-3xl text-gh-yellow"></i>
+                        <div class="w-16 h-16 mx-auto bg-gh-elevated rounded-full flex items-center justify-center mb-4 border border-gh-border">
+                            <i class="fas fa-exclamation-triangle text-3xl text-gh-light"></i>
                         </div>
                         <h3 class="text-xl font-bold text-white">确认变更任务状态？</h3>
                     </div>
@@ -121,9 +120,9 @@
                         <div class="flex justify-between items-center mb-3">
                             <span class="text-gh-text">当前状态</span>
                             <span class="font-semibold" :class="{
-                                'text-gh-yellow': task.status === 'pending',
-                                'text-gh-blue': task.status === 'in_progress',
-                                'text-gh-green': task.status === 'completed'
+                                'text-gh-light': task.status === 'pending',
+                                'text-gh-light': task.status === 'in_progress',
+                                'text-gh-light': task.status === 'completed'
                             }">
                                 {{ getStatusText(task.status) }}
                             </span>
@@ -134,9 +133,9 @@
                         <div class="flex justify-between items-center">
                             <span class="text-gh-text">变更状态</span>
                             <span class="font-semibold" :class="{
-                                'text-gh-yellow': pendingStatus === 'pending',
-                                'text-gh-blue': pendingStatus === 'in_progress',
-                                'text-gh-green': pendingStatus === 'completed'
+                                'text-gh-light': pendingStatus === 'pending',
+                                'text-gh-light': pendingStatus === 'in_progress',
+                                'text-gh-light': pendingStatus === 'completed'
                             }">
                                 {{ pendingStatusText }}
                             </span>
@@ -152,7 +151,7 @@
                         <button @click="cancelStatusChange" class="flex-1 px-4 py-3 bg-gh-elevated text-gh-text rounded-xl font-medium hover:bg-gh-border transition border border-gh-border">
                             取消
                         </button>
-                        <button @click="confirmStatusChange" class="flex-1 px-4 py-3 bg-gh-blue text-white rounded-xl font-medium hover:bg-gh-blue/80 transition">
+                        <button @click="confirmStatusChange" class="flex-1 px-4 py-3 bg-gh-light text-gh-bg rounded-xl font-medium hover:bg-gh-text transition">
                             确认变更
                         </button>
                     </div>
@@ -209,11 +208,11 @@
                     <!-- 任务历史 -->
                     <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
                         <h3 class="text-lg font-bold text-white mb-4">
-                            <i class="fas fa-history mr-2 text-gh-blue"></i>任务历史
+                            <i class="fas fa-history mr-2 text-gh-light"></i>任务历史
                         </h3>
                         <div class="space-y-4">
                             <div v-for="(event, index) in taskHistory" :key="index" class="flex items-start space-x-3">
-                                <div class="w-2 h-2 rounded-full bg-gh-blue mt-2 flex-shrink-0"></div>
+                                <div class="w-2 h-2 rounded-full bg-gh-light mt-2 flex-shrink-0"></div>
                                 <div class="flex-1">
                                     <p class="text-white">{{ event.action }}</p>
                                     <p class="text-xs text-gh-text">{{ event.time }}</p>
@@ -225,7 +224,7 @@
                     <!-- 评论区 -->
                     <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
                         <h3 class="text-lg font-bold text-white mb-4">
-                            <i class="fas fa-comments mr-2 text-gh-blue"></i>评论
+                            <i class="fas fa-comments mr-2 text-gh-light"></i>评论
                             <span class="text-sm font-normal text-gh-text ml-2">({{ comments.length }} 条)</span>
                         </h3>
 
@@ -235,10 +234,10 @@
                                 v-model="newComment"
                                 placeholder="发表评论..."
                                 rows="3"
-                                class="w-full border border-gh-border rounded-lg px-4 py-2 bg-gh-elevated focus:outline-none focus:border-gh-blue text-white placeholder-gh-text"
+                                class="w-full border border-gh-border rounded-lg px-4 py-2 bg-gh-elevated focus:outline-none focus:border-gh-light text-white placeholder-gh-text"
                             ></textarea>
                             <div class="flex justify-end mt-2">
-                                <button @click="addComment" class="bg-gh-blue hover:bg-gh-blue/80 text-white px-6 py-2 rounded-lg transition">
+                                <button @click="addComment" class="bg-gh-light hover:bg-gh-text text-gh-bg px-6 py-2 rounded-lg transition">
                                     <i class="fas fa-paper-plane mr-2"></i>发表
                                 </button>
                             </div>
@@ -249,15 +248,15 @@
                             <div v-for="comment in comments" :key="comment.id" class="border-b border-gh-border pb-4 last:border-0">
                                 <div class="flex items-start justify-between mb-2">
                                     <div class="flex items-center space-x-2">
-                                        <div class="w-8 h-8 bg-gh-blue/20 rounded-full flex items-center justify-center">
-                                            <span class="text-xs font-bold text-gh-blue">{{ comment.author[0].toUpperCase() }}</span>
+                                        <div class="w-8 h-8 bg-gh-elevated rounded-full flex items-center justify-center border border-gh-border">
+                                            <span class="text-xs font-bold text-gh-light">{{ comment.author[0].toUpperCase() }}</span>
                                         </div>
                                         <div>
                                             <p class="font-semibold text-sm text-white">{{ comment.author }}</p>
                                             <p class="text-xs text-gh-text">{{ comment.time }}</p>
                                         </div>
                                     </div>
-                                    <button @click="deleteComment(comment.id)" class="text-gh-text hover:text-gh-red transition">
+                                    <button @click="deleteComment(comment.id)" class="text-gh-text hover:text-gh-light transition">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
@@ -272,26 +271,26 @@
                     <!-- 状态操作 -->
                     <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
                         <h3 class="text-lg font-bold text-white mb-4">
-                            <i class="fas fa-tasks mr-2 text-gh-blue"></i>状态操作
+                            <i class="fas fa-tasks mr-2 text-gh-light"></i>状态操作
                         </h3>
                         <div class="space-y-3">
                             <button
                                 @click="updateStatus('pending')"
-                                :class="task.status === 'pending' ? 'bg-gh-yellow text-black' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
+                                :class="task.status === 'pending' ? 'bg-gh-light text-gh-bg' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-clock mr-2"></i>待处理
                             </button>
                             <button
                                 @click="updateStatus('in_progress')"
-                                :class="task.status === 'in_progress' ? 'bg-gh-blue text-white' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
+                                :class="task.status === 'in_progress' ? 'bg-gh-light text-gh-bg' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-spinner mr-2"></i>进行中
                             </button>
                             <button
                                 @click="updateStatus('completed')"
-                                :class="task.status === 'completed' ? 'bg-gh-green text-white' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
+                                :class="task.status === 'completed' ? 'bg-gh-light text-gh-bg' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-check-circle mr-2"></i>已完成
@@ -302,12 +301,12 @@
                     <!-- 附件 -->
                     <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
                         <h3 class="text-lg font-bold text-white mb-4">
-                            <i class="fas fa-paperclip mr-2 text-gh-blue"></i>附件
+                            <i class="fas fa-paperclip mr-2 text-gh-light"></i>附件
                             <span class="text-sm font-normal text-gh-text ml-2">({{ attachments.length }} 个)</span>
                         </h3>
 
                         <div class="mb-4">
-                            <label class="block w-full border-2 border-dashed border-gh-border rounded-lg p-4 text-center cursor-pointer hover:border-gh-blue transition">
+                            <label class="block w-full border-2 border-dashed border-gh-border rounded-lg p-4 text-center cursor-pointer hover:border-gh-light transition">
                                 <input type="file" @change="uploadAttachment" class="hidden" multiple>
                                 <i class="fas fa-cloud-upload-alt text-3xl text-gh-text mb-2"></i>
                                 <p class="text-sm text-gh-text">点击或拖拽上传</p>
@@ -320,7 +319,7 @@
                                     <i class="fas fa-file text-gh-text"></i>
                                     <span class="text-sm text-white truncate">{{ file.name }}</span>
                                 </div>
-                                <button @click="downloadAttachment(file)" class="text-gh-blue hover:text-gh-purple">
+                                <button @click="downloadAttachment(file)" class="text-gh-light hover:text-white">
                                     <i class="fas fa-download"></i>
                                 </button>
                             </div>
@@ -330,7 +329,7 @@
                     <!-- 相关信息 -->
                     <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
                         <h3 class="text-lg font-bold text-white mb-4">
-                            <i class="fas fa-link mr-2 text-gh-blue"></i>相关信息
+                            <i class="fas fa-link mr-2 text-gh-light"></i>相关信息
                         </h3>
                         <div class="space-y-3 text-sm">
                             <div class="flex justify-between">
@@ -791,21 +790,21 @@
                 priorityClass() {
                     return (priority) => {
                         const classes = {
-                            low: 'bg-gray-500',
-                            normal: 'bg-gh-blue',
-                            high: 'bg-orange-500',
-                            critical: 'bg-gh-red'
+                            low: 'bg-neutral-600',
+                            normal: 'bg-neutral-500',
+                            high: 'bg-neutral-400',
+                            critical: 'bg-neutral-300'
                         };
-                        return classes[priority] || 'bg-gray-500';
+                        return classes[priority] || 'bg-neutral-500';
                     };
                 },
 
                 statusBadge() {
                     return (status) => {
                         const badges = {
-                            pending: 'bg-gh-yellow/20 text-gh-yellow',
-                            in_progress: 'bg-gh-blue/20 text-gh-blue',
-                            completed: 'bg-gh-green/20 text-gh-green'
+                            pending: 'bg-gh-elevated text-gh-light border border-gh-border',
+                            in_progress: 'bg-gh-elevated text-gh-light border border-gh-border',
+                            completed: 'bg-gh-elevated text-gh-light border border-gh-border'
                         };
                         return badges[status] || 'bg-gh-elevated text-gh-text';
                     };
