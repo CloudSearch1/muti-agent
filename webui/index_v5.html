@@ -664,15 +664,10 @@
                         <i class="fas fa-keyboard text-sm"></i>
                     </button>
 
-                    <!-- AI 助手 -->
+                    <!-- AI 助手 (综合面板) -->
                     <button @click="toggleChatPanel" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition text-gh-text hover:text-white relative" title="AI 助手 (Ctrl+I)">
                         <i class="fas fa-robot text-sm"></i>
                         <span v-if="chatUnread > 0" class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gh-purple rounded-full text-[10px] flex items-center justify-center text-white font-medium">{{ chatUnread }}</span>
-                    </button>
-
-                    <!-- 文件浏览器 -->
-                    <button @click="toggleFileBrowser" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition text-gh-text hover:text-white" title="文件浏览器">
-                        <i class="fas fa-folder-open text-sm"></i>
                     </button>
                 </div>
             </div>
@@ -1628,48 +1623,26 @@
             </div>
         </transition-group>
 
-        <!-- AI 聊天面板 -->
+        <!-- AI 综合面板 (聊天 + 文件浏览器) -->
         <div :class="showChatPanel ? 'open' : ''" class="chat-panel-backdrop" @click="toggleChatPanel"></div>
-        <div :class="['chat-panel', showChatPanel ? 'open' : '', showFileBrowser ? 'with-browser' : '']">
-            <!-- 聊天头部 -->
-            <div class="flex items-center justify-between px-4 h-14 border-b border-gh-border bg-gh-canvas">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 bg-gh-purple/20 rounded-lg flex items-center justify-center border border-gh-purple/30">
-                        <i class="fas fa-robot text-gh-purple"></i>
+        <div :class="['chat-panel', 'unified-panel', showChatPanel ? 'open' : '']">
+            <!-- 左侧：文件浏览器侧边栏 -->
+            <div class="unified-sidebar">
+                <div class="unified-sidebar-header">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-folder text-yellow-400"></i>
+                        <span class="text-sm font-medium text-white">项目文件</span>
                     </div>
-                    <div>
-                        <h3 class="font-semibold text-white text-sm">AI 助手</h3>
-                        <p class="text-xs text-gh-text">{{ chatStreaming ? '正在输入...' : '随时为您提供帮助' }}</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button @click="showFileBrowser = !showFileBrowser" :class="showFileBrowser ? 'bg-gh-elevated text-white' : ''" class="chat-header-btn" title="文件浏览器">
-                        <i class="fas fa-folder-open"></i>
-                    </button>
-                    <button @click="clearChatHistory" class="chat-header-btn" title="清空对话">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                    <button @click="toggleChatPanel" class="w-8 h-8 rounded-md hover:bg-gh-elevated flex items-center justify-center transition text-gh-text hover:text-white">
-                        <i class="fas fa-times"></i>
+                    <button @click="refreshFileTree" class="text-gh-text hover:text-white transition p-1" title="刷新">
+                        <i class="fas fa-sync-alt text-xs" :class="fileTreeLoading ? 'fa-spin' : ''"></i>
                     </button>
                 </div>
-            </div>
-
-            <!-- 文件浏览器面板 -->
-            <div v-if="showFileBrowser" class="file-browser-panel">
-                <div class="file-browser-header">
-                    <i class="fas fa-folder text-yellow-400"></i>
-                    <span>项目文件</span>
-                    <button @click="refreshFileTree" class="ml-auto text-gh-text hover:text-white transition">
-                        <i class="fas fa-sync-alt" :class="fileTreeLoading ? 'fa-spin' : ''"></i>
-                    </button>
-                </div>
-                <div class="file-browser-content">
-                    <div v-if="fileTreeLoading" class="text-center py-8 text-gh-text">
+                <div class="unified-sidebar-content">
+                    <div v-if="fileTreeLoading" class="text-center py-8 text-gh-text text-xs">
                         <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
                     </div>
-                    <div v-else-if="fileTree.length === 0" class="text-center py-8 text-gh-text">
-                        <i class="fas fa-folder-open text-2xl mb-2 block"></i>
+                    <div v-else-if="fileTree.length === 0" class="text-center py-8 text-gh-text text-xs">
+                        <i class="fas fa-folder-open text-xl mb-2 block"></i>
                         暂无文件
                     </div>
                     <div v-else class="file-tree">
@@ -1702,7 +1675,30 @@
                 </div>
             </div>
 
-            <!-- 聊天消息区域 -->
+            <!-- 右侧：聊天区域 -->
+            <div class="unified-chat-area">
+                <!-- 聊天头部 -->
+                <div class="flex items-center justify-between px-4 h-14 border-b border-gh-border bg-gh-canvas">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-gh-purple/20 rounded-lg flex items-center justify-center border border-gh-purple/30">
+                            <i class="fas fa-robot text-gh-purple"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-white text-sm">AI 助手</h3>
+                            <p class="text-xs text-gh-text">{{ chatStreaming ? '正在输入...' : '随时为您提供帮助' }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button @click="clearChatHistory" class="chat-header-btn" title="清空对话">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                        <button @click="toggleChatPanel" class="w-8 h-8 rounded-md hover:bg-gh-elevated flex items-center justify-center transition text-gh-text hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 聊天消息区域 -->
             <div class="chat-messages" ref="chatMessagesContainer">
                 <!-- 欢迎消息 -->
                 <div v-if="chatMessages.length === 0" class="text-center py-12">
@@ -1900,7 +1896,8 @@
                 </div>
                 <p class="text-xs text-gh-text mt-2 text-center">Enter 发送 · Shift+Enter 换行 · Ctrl+I 切换面板</p>
             </div>
-        </div>
+            </div><!-- 关闭 unified-chat-area -->
+        </div><!-- 关闭 unified-panel -->
     </div>
 
     <!-- 加载失败备用方案 -->
@@ -2856,6 +2853,10 @@
                             this.chatUnread = 0;
                             this.$refs.chatInputTextarea?.focus();
                             this.scrollToBottom();
+                            // 自动加载文件树
+                            if (this.fileTree.length === 0) {
+                                this.refreshFileTree();
+                            }
                         }
                     });
                 },
@@ -3852,7 +3853,49 @@
             border-color: #6A737D;
         }
 
-        /* 聊天面板带浏览器样式 */
+        /* 统一面板样式 - 左侧文件浏览器 + 右侧聊天 */
+        .chat-panel.unified-panel {
+            width: 640px;
+            flex-direction: row;
+        }
+        .unified-sidebar {
+            width: 200px;
+            min-width: 180px;
+            background-color: #0d1117;
+            border-right: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .unified-sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background-color: #161b22;
+            border-bottom: 1px solid #30363d;
+            flex-shrink: 0;
+        }
+        .unified-sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .unified-chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        @media (max-width: 768px) {
+            .chat-panel.unified-panel { width: 100%; }
+            .unified-sidebar { display: none; }
+        }
+        @media (max-width: 600px) {
+            .chat-panel.unified-panel { width: 100%; }
+        }
+
+        /* 旧版样式保留（用于兼容） */
         .chat-panel.with-browser {
             width: 520px;
         }
