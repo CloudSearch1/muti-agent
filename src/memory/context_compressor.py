@@ -11,13 +11,13 @@
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 import structlog
 
+from src.utils.compat import StrEnum
 from .exceptions import CompressionError
 
 logger = structlog.get_logger(__name__)
@@ -29,7 +29,7 @@ MIN_CONTENT_LENGTH = 100
 DEFAULT_COMPRESSION_RATIO = 0.5
 
 
-class CompressionStrategyType(str, Enum):
+class CompressionStrategyType(StrEnum):
     """压缩策略类型"""
 
     SUMMARY = "summary"
@@ -47,7 +47,7 @@ class CompressionResult:
     compressed_length: int
     compression_ratio: float
     strategy: str
-    processing_time_ms: Optional[float] = None
+    processing_time_ms: float | None = None
     changed: bool = True
 
     def to_dict(self) -> dict[str, Any]:
@@ -190,7 +190,7 @@ class ContextCompressor:
         self,
         strategy: str = "hybrid",
         max_tokens: int = DEFAULT_MAX_TOKENS,
-        llm_provider: Optional[LLMProviderProtocol] = None,
+        llm_provider: LLMProviderProtocol | None = None,
     ) -> None:
         """
         初始化压缩器

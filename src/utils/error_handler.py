@@ -5,8 +5,9 @@
 """
 
 import logging
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any
 
 from fastapi import HTTPException, status
 
@@ -20,8 +21,8 @@ class AppError(Exception):
     code: str = "UNKNOWN_ERROR"
     message: str = "未知错误"
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
-    
-    def __init__(self, message: Optional[str] = None, **kwargs):
+
+    def __init__(self, message: str | None = None, **kwargs):
         if message:
             self.message = message
         super().__init__(self.message)
@@ -92,11 +93,11 @@ class LLMError(AppError):
 def handle_errors(default_return: Any = None, raise_on_error: bool = False):
     """
     错误处理装饰器
-    
+
     Args:
         default_return: 错误时的默认返回值
         raise_on_error: 是否重新抛出错误
-    
+
     用法:
         @handle_errors(default_return={"error": "处理失败"})
         async def api_handler():
@@ -117,7 +118,7 @@ def handle_errors(default_return: Any = None, raise_on_error: bool = False):
                 if raise_on_error:
                     raise
                 return default_return
-        
+
         return wrapper
     return decorator
 
@@ -125,9 +126,9 @@ def handle_errors(default_return: Any = None, raise_on_error: bool = False):
 def http_error_handler(func: Callable):
     """
     HTTP 错误处理器装饰器
-    
+
     将 AppError 转换为 HTTPException
-    
+
     用法:
         @http_error_handler
         async def api_handler():
@@ -145,7 +146,7 @@ def http_error_handler(func: Callable):
                     "message": e.message,
                 },
             )
-    
+
     return wrapper
 
 
@@ -155,17 +156,17 @@ def create_error_response(
     error: str,
     message: str,
     status_code: int = 500,
-    details: Optional[dict] = None,
+    details: dict | None = None,
 ) -> dict:
     """
     创建统一的错误响应
-    
+
     Args:
         error: 错误代码
         message: 错误消息
         status_code: HTTP 状态码
         details: 详细错误信息
-    
+
     Returns:
         错误响应字典
     """
@@ -174,10 +175,10 @@ def create_error_response(
         "message": message,
         "status_code": status_code,
     }
-    
+
     if details:
         response["details"] = details
-    
+
     return response
 
 
@@ -212,11 +213,12 @@ def raise_forbidden_error(message: str = "禁止访问"):
 
 from contextlib import contextmanager
 
+
 @contextmanager
 def handle_exception(error_class: type[AppError], message: str):
     """
     异常上下文管理器
-    
+
     用法:
         with handle_exception(DatabaseError, "数据库操作失败"):
             # 可能抛出异常的代码

@@ -4,10 +4,11 @@
 集成 Prometheus + Grafana，实现完整监控告警
 """
 
-from fastapi import FastAPI, Response
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
-import time
 import logging
+import time
+
+from fastapi import FastAPI, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 logger = logging.getLogger(__name__)
 
@@ -117,37 +118,37 @@ CPU_USAGE = Gauge(
 class MonitoringMiddleware:
     """
     监控中间件
-    
+
     自动收集请求指标
     """
-    
+
     def __init__(self, app):
         self.app = app
-    
+
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
-        
+
         method = scope["method"]
         path = scope["path"]
-        
+
         # 增加活跃请求数
         REQUESTS_IN_PROGRESS.labels(method=method, endpoint=path).inc()
-        
+
         start_time = time.time()
-        
+
         try:
             # 包装发送函数以捕获状态码
             status_code = None
-            
+
             async def send_wrapper(message):
                 nonlocal status_code
                 if message["type"] == "http.response.start":
                     status_code = message["status"]
                 await send(message)
-            
+
             await self.app(scope, receive, send_wrapper)
-            
+
         finally:
             # 记录指标
             duration = time.time() - start_time
@@ -156,12 +157,12 @@ class MonitoringMiddleware:
                 endpoint=path,
                 status=status_code or 500
             ).inc()
-            
+
             REQUEST_DURATION.labels(
                 method=method,
                 endpoint=path
             ).observe(duration)
-            
+
             REQUESTS_IN_PROGRESS.labels(
                 method=method,
                 endpoint=path
@@ -173,11 +174,11 @@ class MonitoringMiddleware:
 def setup_monitoring(app: FastAPI):
     """
     设置监控端点
-    
+
     Args:
         app: FastAPI 应用实例
     """
-    
+
     @app.get("/metrics")
     async def get_metrics():
         """Prometheus 指标端点"""
@@ -185,7 +186,7 @@ def setup_monitoring(app: FastAPI):
             content=generate_latest(),
             media_type=CONTENT_TYPE_LATEST,
         )
-    
+
     @app.get("/health/metrics")
     async def get_health_metrics():
         """健康指标（简化版）"""
@@ -193,7 +194,7 @@ def setup_monitoring(app: FastAPI):
             "status": "healthy",
             "timestamp": time.time(),
         }
-    
+
     logger.info("Monitoring endpoints configured")
 
 
@@ -215,7 +216,7 @@ groups:
         annotations:
           summary: "High error rate detected"
           description: "Error rate is {{ $value | humanizePercentage }}"
-      
+
       # 慢请求
       - alert: SlowRequests
         expr: histogram_quantile(0.95, rate(app_request_duration_seconds_bucket[5m])) > 2
@@ -225,7 +226,7 @@ groups:
         annotations:
           summary: "Slow requests detected"
           description: "95th percentile latency is {{ $value }}s"
-      
+
       # LLM 调用失败
       - alert: LLMCallFailures
         expr: sum(rate(app_llm_calls_total{status="error"}[5m])) > 0.1
@@ -235,7 +236,7 @@ groups:
         annotations:
           summary: "LLM call failures detected"
           description: "LLM error rate is high"
-      
+
       # 数据库慢查询
       - alert: SlowDatabaseQueries
         expr: histogram_quantile(0.95, rate(app_db_query_duration_seconds_bucket[5m])) > 0.5
@@ -245,7 +246,7 @@ groups:
         annotations:
           summary: "Slow database queries detected"
           description: "95th percentile query latency is {{ $value }}s"
-      
+
       # 缓存命中率低
       - alert: LowCacheHitRate
         expr: sum(rate(app_cache_hits_total[5m])) / (sum(rate(app_cache_hits_total[5m])) + sum(rate(app_cache_misses_total[5m]))) < 0.5
@@ -255,7 +256,7 @@ groups:
         annotations:
           summary: "Low cache hit rate"
           description: "Cache hit rate is {{ $value | humanizePercentage }}"
-      
+
       # Agent 执行失败
       - alert: AgentExecutionFailures
         expr: sum(rate(app_agent_executions_total{status="failed"}[5m])) > 0.05
@@ -265,7 +266,7 @@ groups:
         annotations:
           summary: "Agent execution failures detected"
           description: "Agent failure rate is high"
-      
+
       # 内存使用过高
       - alert: HighMemoryUsage
         expr: app_memory_usage_bytes / 1024 / 1024 / 1024 > 1.5
@@ -275,7 +276,7 @@ groups:
         annotations:
           summary: "High memory usage"
           description: "Memory usage is {{ $value }}GB"
-      
+
       # 服务不可用
       - alert: ServiceDown
         expr: up{job="intelliteam"} == 0

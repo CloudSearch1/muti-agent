@@ -11,7 +11,7 @@ from typing import Any, BinaryIO
 
 import structlog
 
-from .chunking import ChunkerFactory, TextChunker
+from .chunking import ChunkerFactory
 from .exceptions import (
     ChunkingError,
     DocumentNotFoundError,
@@ -19,7 +19,7 @@ from .exceptions import (
     FileParseError,
     UnsupportedDocumentTypeError,
 )
-from .types import Chunk, Document, DocumentStatus, DocumentType, ChunkStrategy
+from .types import Chunk, ChunkStrategy, Document, DocumentStatus, DocumentType
 
 logger = structlog.get_logger(__name__)
 
@@ -309,7 +309,7 @@ class DocumentManager:
     async def _parse_markdown(self, file_path: str) -> str:
         """解析 Markdown 文件"""
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return f.read()
         except Exception as e:
             raise FileParseError(
@@ -321,12 +321,12 @@ class DocumentManager:
     async def _parse_txt(self, file_path: str) -> str:
         """解析纯文本文件"""
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return f.read()
         except UnicodeDecodeError:
             # 尝试其他编码
             try:
-                with open(file_path, "r", encoding="gbk") as f:
+                with open(file_path, encoding="gbk") as f:
                     return f.read()
             except Exception as e:
                 raise FileParseError(
@@ -347,11 +347,11 @@ class DocumentManager:
             from bs4 import BeautifulSoup
         except ImportError:
             self.logger.warning("beautifulsoup4 not installed, returning raw content")
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return f.read()
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 soup = BeautifulSoup(f.read(), "html.parser")
 
             # 移除脚本和样式

@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 import threading
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query, status
@@ -235,16 +235,16 @@ class SkillUpdate(BaseModel):
         enabled: 新的启用状态
     """
 
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=1000)
-    category: Optional[str] = Field(None, max_length=50)
-    version: Optional[str] = Field(None, max_length=20)
-    config: Optional[dict[str, Any]] = None
-    enabled: Optional[bool] = None
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=1000)
+    category: str | None = Field(None, max_length=50)
+    version: str | None = Field(None, max_length=20)
+    config: dict[str, Any] | None = None
+    enabled: bool | None = None
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+    def validate_name(cls, v: str | None) -> str | None:
         """验证技能名称格式"""
         if v is None:
             return None
@@ -308,7 +308,7 @@ class SkillErrorResponse(BaseModel):
     """错误响应模型"""
 
     detail: str
-    error_code: Optional[str] = None
+    error_code: str | None = None
 
 
 # ===========================================
@@ -365,11 +365,11 @@ class SkillStorage:
 
             return skill_id
 
-    def get(self, skill_id: int) -> Optional[dict[str, Any]]:
+    def get(self, skill_id: int) -> dict[str, Any] | None:
         """获取技能"""
         return self._skills.get(skill_id)
 
-    def get_by_name(self, name: str) -> Optional[dict[str, Any]]:
+    def get_by_name(self, name: str) -> dict[str, Any] | None:
         """通过名称获取技能"""
         skill_id = self._name_index.get(name)
         if skill_id is not None:
@@ -531,16 +531,16 @@ def _build_skill_response(skill_data: dict[str, Any]) -> SkillResponse:
     description="获取技能列表，支持分类过滤、状态过滤和分页。",
 )
 async def list_skills(
-    category: Optional[str] = Query(
+    category: str | None = Query(
         None,
         description="按分类过滤",
         examples=["code_review"],
     ),
-    enabled: Optional[bool] = Query(
+    enabled: bool | None = Query(
         None,
         description="按启用状态过滤",
     ),
-    search: Optional[str] = Query(
+    search: str | None = Query(
         None,
         description="搜索关键词（匹配名称和描述）",
         max_length=100,

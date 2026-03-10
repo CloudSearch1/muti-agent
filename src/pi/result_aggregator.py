@@ -10,7 +10,6 @@ Pi 结果聚合器
 版本: 1.0.0
 """
 
-import asyncio
 from datetime import datetime
 from typing import Any
 

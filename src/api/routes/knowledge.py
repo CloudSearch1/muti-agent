@@ -7,21 +7,18 @@
 import os
 import tempfile
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from ...knowledge import (
     ChunkStrategy,
-    Document,
     DocumentManager,
     DocumentStatus,
     DocumentType,
     KnowledgeGraph,
     KnowledgeVectorStore,
     QASystem,
-    QAResponse,
-    RAGEngine,
 )
 from ...knowledge.exceptions import (
     DocumentNotFoundError,
@@ -78,8 +75,8 @@ async def get_knowledge_graph() -> KnowledgeGraph:
 @router.post("/documents", response_model=dict[str, Any], status_code=201)
 async def upload_document(
     file: UploadFile = File(...),
-    title: Optional[str] = Form(None),
-    metadata: Optional[str] = Form(None),
+    title: str | None = Form(None),
+    metadata: str | None = Form(None),
     auto_process: bool = Form(True),
 ):
     """
@@ -147,8 +144,8 @@ async def upload_document(
 
 @router.get("/documents", response_model=dict[str, Any])
 async def list_documents(
-    status: Optional[str] = Query(None),
-    doc_type: Optional[str] = Query(None),
+    status: str | None = Query(None),
+    doc_type: str | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
 ):
@@ -282,7 +279,7 @@ async def delete_document(document_id: str):
 async def search_knowledge(
     query: str = Query(..., min_length=1),
     top_k: int = Query(5, ge=1, le=50),
-    document_id: Optional[str] = Query(None),
+    document_id: str | None = Query(None),
     min_score: float = Query(0.0, ge=0.0, le=1.0),
 ):
     """
@@ -326,7 +323,7 @@ async def search_knowledge(
 @router.post("/qa", response_model=dict[str, Any])
 async def ask_question(
     question: str = Query(..., min_length=1),
-    document_id: Optional[str] = Query(None),
+    document_id: str | None = Query(None),
     top_k: int = Query(5, ge=1, le=20),
 ):
     """
@@ -367,7 +364,7 @@ async def ask_question(
 
 
 @router.get("/graph", response_model=dict[str, Any])
-async def get_knowledge_graph():
+async def get_knowledge_graph_data():
     """
     获取知识图谱数据
 
@@ -417,7 +414,7 @@ async def get_entity(entity_id: str):
 @router.get("/graph/entities", response_model=dict[str, Any])
 async def search_entities(
     query: str = Query(..., min_length=1),
-    entity_type: Optional[str] = Query(None),
+    entity_type: str | None = Query(None),
     limit: int = Query(10, ge=1, le=50),
 ):
     """

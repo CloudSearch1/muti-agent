@@ -4,7 +4,7 @@ Memory 系统异常定义
 提供统一的异常层次结构，便于错误处理和调试。
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class MemoryError(Exception):
@@ -13,7 +13,7 @@ class MemoryError(Exception):
     def __init__(
         self,
         message: str,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         """
         初始化异常
@@ -41,7 +41,7 @@ class MemoryConnectionError(MemoryError):
     def __init__(
         self,
         message: str = "Failed to connect to memory backend",
-        backend: Optional[str] = None,
+        backend: str | None = None,
     ) -> None:
         details = {"backend": backend} if backend else {}
         super().__init__(message, details)
@@ -53,8 +53,8 @@ class MemoryStorageError(MemoryError):
     def __init__(
         self,
         message: str = "Failed to store memory",
-        memory_id: Optional[str] = None,
-        storage_type: Optional[str] = None,
+        memory_id: str | None = None,
+        storage_type: str | None = None,
     ) -> None:
         details = {}
         if memory_id:
@@ -70,7 +70,7 @@ class MemoryRetrievalError(MemoryError):
     def __init__(
         self,
         message: str = "Failed to retrieve memory",
-        memory_id: Optional[str] = None,
+        memory_id: str | None = None,
     ) -> None:
         details = {"memory_id": memory_id} if memory_id else {}
         super().__init__(message, details)
@@ -82,7 +82,7 @@ class MemoryNotFoundError(MemoryError):
     def __init__(
         self,
         memory_id: str,
-        storage_type: Optional[str] = None,
+        storage_type: str | None = None,
     ) -> None:
         details = {"memory_id": memory_id}
         if storage_type:
@@ -96,8 +96,8 @@ class MemoryValidationError(MemoryError):
     def __init__(
         self,
         message: str,
-        field: Optional[str] = None,
-        value: Optional[Any] = None,
+        field: str | None = None,
+        value: Any | None = None,
     ) -> None:
         details = {}
         if field:
@@ -113,7 +113,7 @@ class MemoryDecayError(MemoryError):
     def __init__(
         self,
         message: str = "Failed to apply memory decay",
-        affected_count: Optional[int] = None,
+        affected_count: int | None = None,
     ) -> None:
         details = {}
         if affected_count is not None:
@@ -127,8 +127,8 @@ class VectorStoreError(MemoryError):
     def __init__(
         self,
         message: str = "Vector store operation failed",
-        operation: Optional[str] = None,
-        backend: Optional[str] = None,
+        operation: str | None = None,
+        backend: str | None = None,
     ) -> None:
         details = {}
         if operation:
@@ -144,7 +144,7 @@ class EmbeddingError(MemoryError):
     def __init__(
         self,
         message: str = "Failed to generate embedding",
-        text_length: Optional[int] = None,
+        text_length: int | None = None,
     ) -> None:
         details = {}
         if text_length is not None:
@@ -158,7 +158,7 @@ class SessionError(MemoryError):
     def __init__(
         self,
         message: str,
-        session_id: Optional[str] = None,
+        session_id: str | None = None,
     ) -> None:
         details = {"session_id": session_id} if session_id else {}
         super().__init__(message, details)
@@ -170,8 +170,8 @@ class CompressionError(MemoryError):
     def __init__(
         self,
         message: str = "Failed to compress content",
-        content_length: Optional[int] = None,
-        strategy: Optional[str] = None,
+        content_length: int | None = None,
+        strategy: str | None = None,
     ) -> None:
         details = {}
         if content_length is not None:

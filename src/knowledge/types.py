@@ -6,11 +6,12 @@ Knowledge System 类型定义
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional
+from typing import Any
+
+from src.utils.compat import StrEnum
 
 
-class DocumentStatus(str, Enum):
+class DocumentStatus(StrEnum):
     """文档状态"""
 
     PENDING = "pending"  # 等待处理
@@ -19,7 +20,7 @@ class DocumentStatus(str, Enum):
     FAILED = "failed"  # 处理失败
 
 
-class DocumentType(str, Enum):
+class DocumentType(StrEnum):
     """文档类型"""
 
     PDF = "pdf"
@@ -30,7 +31,7 @@ class DocumentType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class ChunkStrategy(str, Enum):
+class ChunkStrategy(StrEnum):
     """分块策略"""
 
     FIXED = "fixed"  # 固定大小分块
@@ -45,10 +46,10 @@ class Chunk:
     id: str
     document_id: str
     content: str
-    embedding: Optional[list[float]] = None
+    embedding: list[float] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     position: int = 0
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -74,10 +75,10 @@ class Document:
     status: DocumentStatus = DocumentStatus.PENDING
     chunks: list[Chunk] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    file_path: Optional[str] = None
+    file_path: str | None = None
     file_size: int = 0
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -101,7 +102,7 @@ class KnowledgeQuery:
     """知识库查询"""
 
     query: str
-    filters: Optional[dict[str, Any]] = None
+    filters: dict[str, Any] | None = None
     top_k: int = 5
     min_score: float = 0.0
 
@@ -124,7 +125,7 @@ class SearchResult:
     content: str
     score: float
     metadata: dict[str, Any] = field(default_factory=dict)
-    document_title: Optional[str] = None
+    document_title: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -164,7 +165,7 @@ class Entity:
     id: str
     name: str
     entity_type: str
-    description: Optional[str] = None
+    description: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -186,7 +187,7 @@ class Relation:
     source_id: str
     target_id: str
     relation_type: str
-    description: Optional[str] = None
+    description: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:

@@ -12,16 +12,16 @@ from fastapi.openapi.utils import get_openapi
 def setup_enhanced_docs(app: FastAPI):
     """
     设置增强版 API 文档
-    
+
     Args:
         app: FastAPI 应用实例
     """
-    
+
     # 自定义 OpenAPI 配置
     def custom_openapi():
         if app.openapi_schema:
             return app.openapi_schema
-        
+
         openapi_schema = get_openapi(
             title="IntelliTeam API",
             version="2.0.0",
@@ -127,7 +127,7 @@ GET /health/ready
             redoc_url=None,  # 自定义
             openapi_url="/openapi.json",
         )
-        
+
         # 添加标签说明
         openapi_schema["tags"] = [
             {
@@ -155,12 +155,12 @@ GET /health/ready
                 "description": "工作流 API - Agent 执行引擎和工作流编排",
             },
         ]
-        
+
         app.openapi_schema = openapi_schema
         return openapi_schema
-    
+
     app.openapi = custom_openapi
-    
+
     # 自定义 Swagger UI
     @app.get("/docs", include_in_schema=False)
     async def custom_swagger_ui_html():
@@ -177,7 +177,7 @@ GET /health/ready
                 "showCommonExtensions": True,
             },
         )
-    
+
     # 自定义 ReDoc
     @app.get("/redoc", include_in_schema=False)
     async def custom_redoc_html():
@@ -192,14 +192,14 @@ GET /health/ready
 def add_api_examples(app: FastAPI):
     """
     添加 API 示例到文档
-    
+
     Args:
         app: FastAPI 应用实例
     """
-    
+
     # 示例在路由中通过 examples 参数添加
     # 这里添加全局示例
-    
+
     print("✅ API 示例已添加")
     print("📚 Swagger UI: http://localhost:8080/docs")
     print("📖 ReDoc: http://localhost:8080/redoc")
@@ -207,9 +207,10 @@ def add_api_examples(app: FastAPI):
 
 # ============ 示例响应模型 ============
 
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class TaskExample(BaseModel):
@@ -219,10 +220,10 @@ class TaskExample(BaseModel):
     description: str = Field("", description="任务描述", example="实现用户注册、登录、权限管理等功能")
     status: str = Field("pending", description="任务状态", example="pending")
     priority: str = Field("normal", description="优先级", example="high")
-    assignee: Optional[str] = Field(None, description="负责人", example="张三")
-    agent: Optional[str] = Field(None, description="执行 Agent", example="Coder")
+    assignee: str | None = Field(None, description="负责人", example="张三")
+    agent: str | None = Field(None, description="执行 Agent", example="Coder")
     created_at: datetime = Field(default_factory=datetime.now, description="创建时间")
-    updated_at: Optional[datetime] = Field(None, description="更新时间")
+    updated_at: datetime | None = Field(None, description="更新时间")
 
 
 class TaskCreateExample(BaseModel):
@@ -230,8 +231,8 @@ class TaskCreateExample(BaseModel):
     title: str = Field(..., description="任务标题", example="创建用户管理 API")
     description: str = Field("", description="任务描述", example="实现用户注册、登录、权限管理等功能")
     priority: str = Field("normal", description="优先级", example="high")
-    assignee: Optional[str] = Field(None, description="负责人", example="张三")
-    agent: Optional[str] = Field(None, description="执行 Agent", example="Coder")
+    assignee: str | None = Field(None, description="负责人", example="张三")
+    agent: str | None = Field(None, description="执行 Agent", example="Coder")
 
 
 class TaskResponseExample(BaseModel):
@@ -246,7 +247,7 @@ class ErrorResponseExample(BaseModel):
     """错误响应示例"""
     error: str = Field(..., description="错误代码", example="VALIDATION_ERROR")
     message: str = Field(..., description="错误消息", example="数据验证失败")
-    details: Optional[Dict[str, Any]] = Field(None, description="详细错误信息")
+    details: dict[str, Any] | None = Field(None, description="详细错误信息")
     timestamp: datetime = Field(default_factory=datetime.now, description="错误时间")
 
 
@@ -255,19 +256,19 @@ class HealthCheckExample(BaseModel):
     status: str = Field(..., description="整体状态", example="ok")
     timestamp: datetime = Field(default_factory=datetime.now, description="检查时间")
     version: str = Field("2.0.0", description="应用版本", example="2.0.0")
-    checks: Dict[str, Any] = Field(..., description="组件检查状态")
+    checks: dict[str, Any] = Field(..., description="组件检查状态")
     uptime_seconds: float = Field(..., description="运行时间（秒）", example=3600.5)
 
 
 class BatchGetRequestExample(BaseModel):
     """批量获取请求示例"""
-    task_ids: List[int] = Field(..., description="任务 ID 列表", example=[1, 2, 3, 4, 5])
+    task_ids: list[int] = Field(..., description="任务 ID 列表", example=[1, 2, 3, 4, 5])
 
 
 class BatchGetResponseExample(BaseModel):
     """批量获取响应示例"""
-    tasks: List[TaskExample] = Field(..., description="任务列表")
-    not_found: List[int] = Field([], description="未找到的任务 ID")
+    tasks: list[TaskExample] = Field(..., description="任务列表")
+    not_found: list[int] = Field([], description="未找到的任务 ID")
 
 
 # ============ API 使用示例 ============

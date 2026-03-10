@@ -4,7 +4,7 @@ Knowledge System 异常定义
 提供知识库系统特定的异常类。
 """
 
-from typing import Any, Optional
+from typing import Any
 
 
 class KnowledgeError(Exception):
@@ -13,7 +13,7 @@ class KnowledgeError(Exception):
     def __init__(
         self,
         message: str,
-        details: Optional[dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         self.message = message
         self.details = details or {}
@@ -44,8 +44,8 @@ class DocumentProcessingError(KnowledgeError):
     def __init__(
         self,
         message: str,
-        document_id: Optional[str] = None,
-        stage: Optional[str] = None,
+        document_id: str | None = None,
+        stage: str | None = None,
     ) -> None:
         details = {}
         if document_id:
@@ -61,8 +61,8 @@ class ChunkingError(KnowledgeError):
     def __init__(
         self,
         message: str,
-        document_id: Optional[str] = None,
-        strategy: Optional[str] = None,
+        document_id: str | None = None,
+        strategy: str | None = None,
     ) -> None:
         details = {}
         if document_id:
@@ -78,7 +78,7 @@ class EmbeddingGenerationError(KnowledgeError):
     def __init__(
         self,
         message: str,
-        text_length: Optional[int] = None,
+        text_length: int | None = None,
     ) -> None:
         details = {}
         if text_length is not None:
@@ -92,7 +92,7 @@ class VectorStoreOperationError(KnowledgeError):
     def __init__(
         self,
         message: str,
-        operation: Optional[str] = None,
+        operation: str | None = None,
     ) -> None:
         details = {}
         if operation:
@@ -106,7 +106,7 @@ class QASystemError(KnowledgeError):
     def __init__(
         self,
         message: str,
-        query: Optional[str] = None,
+        query: str | None = None,
     ) -> None:
         details = {}
         if query:
@@ -120,7 +120,7 @@ class KnowledgeGraphError(KnowledgeError):
     def __init__(
         self,
         message: str,
-        entity_id: Optional[str] = None,
+        entity_id: str | None = None,
     ) -> None:
         details = {}
         if entity_id:
@@ -144,8 +144,8 @@ class FileParseError(KnowledgeError):
     def __init__(
         self,
         message: str,
-        file_path: Optional[str] = None,
-        file_type: Optional[str] = None,
+        file_path: str | None = None,
+        file_type: str | None = None,
     ) -> None:
         details = {}
         if file_path:

@@ -11,13 +11,12 @@
 """
 
 import json
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
 from .exceptions import (
     MemoryConnectionError,
-    MemoryNotFoundError,
     MemoryRetrievalError,
     MemoryStorageError,
     MemoryValidationError,
@@ -89,8 +88,8 @@ class ShortTermMemory:
         self.redis_url = redis_url
         self.default_ttl = default_ttl
         self.max_connections = max_connections
-        self._redis: Optional[redis.Redis] = None
-        self._pool: Optional[ConnectionPool] = None
+        self._redis: redis.Redis | None = None
+        self._pool: ConnectionPool | None = None
         self._kwargs = kwargs
 
         self.logger = logger.bind(component="short_term_memory")
@@ -212,7 +211,7 @@ class ShortTermMemory:
                 field="value",
             ) from e
 
-    def _deserialize(self, data: Optional[str]) -> Any:
+    def _deserialize(self, data: str | None) -> Any:
         """
         反序列化值
 
@@ -235,7 +234,7 @@ class ShortTermMemory:
         self,
         key: str,
         value: Any,
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> bool:
         """
         设置记忆
@@ -536,7 +535,7 @@ class ShortTermMemory:
     async def mset(
         self,
         items: dict[str, Any],
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> int:
         """
         批量设置多个键值对

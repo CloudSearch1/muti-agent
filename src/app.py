@@ -10,10 +10,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
+from .api.batch_endpoints import router as batch_router
 from .api.docs import setup_openapi_docs
 from .api.middleware import setup_middlewares
 from .api.routes import router as api_router
-from .api.batch_endpoints import router as batch_router
 from .api.routes.knowledge import router as knowledge_router
 from .api.security import setup_security_middleware
 from .monitoring.health import init_health_checks

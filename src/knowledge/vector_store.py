@@ -4,13 +4,13 @@
 封装 RAGStore，提供知识库专用的向量存储功能。
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
 from ..memory import RAGStore, SimpleEmbeddingProvider
 from .exceptions import VectorStoreOperationError
-from .types import Chunk, KnowledgeStats, SearchResult
+from .types import Chunk, SearchResult
 
 logger = structlog.get_logger(__name__)
 

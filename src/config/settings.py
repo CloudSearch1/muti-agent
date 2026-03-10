@@ -6,13 +6,11 @@
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
 
 # ============ LLM 配置 ============
 
@@ -289,7 +287,7 @@ class AppSettings(BaseSettings):
     security: SecuritySettings = Field(default_factory=SecuritySettings)
 
     @model_validator(mode="after")
-    def validate_production_security(self) -> "AppSettings":
+    def validate_production_security(self) -> AppSettings:
         """生产环境安全检查"""
         if self.environment == "production":
             if self.security.secret_key == "change-me-in-production":
@@ -307,15 +305,15 @@ class AppSettings(BaseSettings):
                 "Environment must be 'development', 'staging', or 'production'"
             )
         return v
-    
+
     def is_development(self) -> bool:
         """是否开发环境"""
         return self.environment == "development"
-    
+
     def is_production(self) -> bool:
         """是否生产环境"""
         return self.environment == "production"
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """获取配置摘要"""
         return {
@@ -328,92 +326,92 @@ class AppSettings(BaseSettings):
             "api_port": self.api.port,
             "debug": self.api.debug,
         }
-    
+
     # ============ 向后兼容属性（旧版 flat settings API） ============
-    
+
     @property
     def app_name(self) -> str:
         """兼容旧版 app_name"""
         return self.name
-    
+
     @property
     def app_env(self) -> str:
         """兼容旧版 app_env"""
         return self.environment
-    
+
     @property
     def debug(self) -> bool:
         """兼容旧版 debug"""
         return self.api.debug
-    
+
     @property
     def api_host(self) -> str:
         """兼容旧版 api_host"""
         return self.api.host
-    
+
     @property
     def api_port(self) -> int:
         """兼容旧版 api_port"""
         return self.api.port
-    
+
     @property
     def database_url(self) -> str:
         """兼容旧版 database_url"""
         return self.database.url
-    
+
     @property
     def redis_url(self) -> str:
         """兼容旧版 redis_url"""
         if self.redis.password:
             return f"redis://:{self.redis.password}@{self.redis.host}:{self.redis.port}/{self.redis.db}"
         return f"redis://{self.redis.host}:{self.redis.port}/{self.redis.db}"
-    
+
     @property
     def agent_timeout_seconds(self) -> int:
         """兼容旧版 agent_timeout_seconds"""
         return self.agent.timeout_seconds
-    
+
     @property
     def agent_temperature(self) -> float:
         """兼容旧版 agent_temperature"""
         return self.llm.temperature
-    
+
     # LLM 兼容属性
     @property
     def openai_api_key(self) -> str | None:
         """兼容旧版 openai_api_key"""
         return self.llm.openai_api_key
-    
+
     @property
     def openai_model(self) -> str:
         """兼容旧版 openai_model"""
         return self.llm.model
-    
+
     @property
     def openai_api_base(self) -> str | None:
         """兼容旧版 openai_api_base"""
         return None
-    
+
     @property
     def anthropic_api_key(self) -> str | None:
         """兼容旧版 anthropic_api_key"""
         return self.llm.anthropic_api_key
-    
+
     @property
     def dashscope_api_key(self) -> str | None:
         """兼容旧版 dashscope_api_key"""
         return self.llm.dashscope_api_key
-    
+
     @property
     def azure_openai_api_key(self) -> str | None:
         """兼容旧版 azure_openai_api_key"""
         return None
-    
+
     @property
     def azure_openai_endpoint(self) -> str | None:
         """兼容旧版 azure_openai_endpoint"""
         return None
-    
+
     @property
     def azure_openai_deployment(self) -> str | None:
         """兼容旧版 azure_openai_deployment"""
@@ -422,11 +420,11 @@ class AppSettings(BaseSettings):
 
 # ============ 全局配置实例 ============
 
-@lru_cache()
+@lru_cache
 def get_settings() -> AppSettings:
     """
     获取应用配置（单例，带缓存）
-    
+
     Returns:
         AppSettings: 应用配置实例
     """
@@ -436,7 +434,7 @@ def get_settings() -> AppSettings:
 def reload_settings() -> AppSettings:
     """
     重新加载配置（清除缓存）
-    
+
     Returns:
         AppSettings: 新的应用配置实例
     """
@@ -448,43 +446,43 @@ def reload_settings() -> AppSettings:
 
 class ConfigLoader:
     """配置加载器"""
-    
+
     @staticmethod
     def load_from_file(file_path: str) -> Dict[str, Any]:
         """
         从文件加载配置
-        
+
         Args:
             file_path: 配置文件路径（YAML/JSON）
-        
+
         Returns:
             配置字典
         """
         import json
         from pathlib import Path
-        
+
         path = Path(file_path)
         if not path.exists():
             raise FileNotFoundError(f"Config file not found: {file_path}")
-        
+
         if path.suffix in [".yaml", ".yml"]:
             try:
                 import yaml
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     return yaml.safe_load(f)
             except ImportError:
                 raise ImportError("PyYAML not installed. Install with: pip install pyyaml")
         elif path.suffix == ".json":
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
         else:
             raise ValueError(f"Unsupported config file format: {path.suffix}")
-    
+
     @staticmethod
     def save_to_file(config: Dict[str, Any], file_path: str, format: str = "yaml"):
         """
         保存配置到文件
-        
+
         Args:
             config: 配置字典
             file_path: 文件路径
@@ -492,10 +490,10 @@ class ConfigLoader:
         """
         import json
         from pathlib import Path
-        
+
         path = Path(file_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         if format in ["yaml", "yml"]:
             try:
                 import yaml

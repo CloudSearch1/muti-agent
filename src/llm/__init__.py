@@ -24,9 +24,9 @@ from .llm_provider import (
     llm_generate_stream,
 )
 from .local import (
+    LMStudioProvider,
     LocalLLMProvider,
     LocalLLMService,
-    LMStudioProvider,
     OllamaProvider,
     VLLMProvider,
     get_local_llm,

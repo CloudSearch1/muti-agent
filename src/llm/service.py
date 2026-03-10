@@ -11,11 +11,12 @@ from collections.abc import AsyncIterator
 import structlog
 from pydantic import BaseModel, Field
 
-from ..config.settings import AppSettings as Settings, get_settings
+from ..config.settings import AppSettings as Settings
+from ..config.settings import get_settings
 from .llm_provider import (
     AzureOpenAIProvider,
-    BaseProvider,
     BailianProvider,
+    BaseProvider,
     ClaudeProvider,
     LLMConfigError,
     LLMError,

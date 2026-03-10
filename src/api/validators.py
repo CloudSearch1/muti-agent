@@ -6,13 +6,14 @@
 
 import re
 from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from src.utils.compat import StrEnum
 
 
-class TaskPriority(str, Enum):
+class TaskPriority(StrEnum):
     """任务优先级"""
     LOW = "low"
     NORMAL = "normal"
@@ -20,7 +21,7 @@ class TaskPriority(str, Enum):
     CRITICAL = "critical"
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     """任务状态"""
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
@@ -45,55 +46,55 @@ class TaskCreateRequest(BaseModel):
         default=TaskPriority.NORMAL,
         description="优先级",
     )
-    requirements: List[str] = Field(
+    requirements: list[str] = Field(
         default_factory=list,
         max_length=50,
         description="需求列表",
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: dict[str, Any] | None = Field(
         default=None,
         description="元数据",
     )
-    
+
     @field_validator("title")
     @classmethod
     def validate_title(cls, v: str) -> str:
         """验证标题"""
         # 去除首尾空白
         v = v.strip()
-        
+
         # 检查危险字符（防止注入）
         dangerous_chars = ["<", ">", ";", "--", "/*", "*/", "xp_", "UNION", "SELECT"]
         for char in dangerous_chars:
             if char.lower() in v.lower():
                 raise ValueError(f"Title contains dangerous characters: {char}")
-        
+
         # 检查长度
         if len(v) < 1:
             raise ValueError("Title cannot be empty")
-        
+
         return v
-    
+
     @field_validator("description")
     @classmethod
     def validate_description(cls, v: str) -> str:
         """验证描述"""
         # 去除首尾空白
         v = v.strip()
-        
+
         # 检查过长的内容
         if len(v) > 5000:
             raise ValueError("Description too long (max 5000 characters)")
-        
+
         return v
-    
+
     @field_validator("requirements")
     @classmethod
-    def validate_requirements(cls, v: List[str]) -> List[str]:
+    def validate_requirements(cls, v: list[str]) -> list[str]:
         """验证需求列表"""
         if not v:
             return v
-        
+
         # 验证每个需求
         validated = []
         for req in v:
@@ -103,31 +104,31 @@ class TaskCreateRequest(BaseModel):
             if len(req) > 1000:
                 raise ValueError("Each requirement must be less than 1000 characters")
             validated.append(req)
-        
+
         return validated
 
 
 class TaskUpdateRequest(BaseModel):
     """更新任务请求"""
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None,
         min_length=1,
         max_length=200,
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         None,
         max_length=5000,
     )
-    priority: Optional[TaskPriority] = None
-    status: Optional[TaskStatus] = None
-    assignee: Optional[str] = Field(
+    priority: TaskPriority | None = None
+    status: TaskStatus | None = None
+    assignee: str | None = Field(
         None,
         max_length=100,
     )
-    
+
     @field_validator("title")
     @classmethod
-    def validate_title(cls, v: Optional[str]) -> Optional[str]:
+    def validate_title(cls, v: str | None) -> str | None:
         if v is None:
             return v
         v = v.strip()
@@ -146,7 +147,7 @@ class AgentExecuteRequest(BaseModel):
         max_length=100,
         pattern=r"^[a-zA-Z0-9_-]+$",  # 只允许字母数字下划线横线
     )
-    parameters: Optional[Dict[str, Any]] = Field(
+    parameters: dict[str, Any] | None = Field(
         default=None,
         description="执行参数",
     )
@@ -156,7 +157,7 @@ class AgentExecuteRequest(BaseModel):
         le=3600,
         description="超时时间（秒）",
     )
-    
+
     @field_validator("task_id")
     @classmethod
     def validate_task_id(cls, v: str) -> str:
@@ -164,14 +165,14 @@ class AgentExecuteRequest(BaseModel):
         if not v.strip():
             raise ValueError("Task ID cannot be empty")
         return v.strip()
-    
+
     @field_validator("parameters")
     @classmethod
-    def validate_parameters(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def validate_parameters(cls, v: dict[str, Any] | None) -> dict[str, Any] | None:
         """验证参数"""
         if v is None:
             return v
-        
+
         # 验证参数键
         for key in v.keys():
             if not isinstance(key, str):
@@ -181,7 +182,7 @@ class AgentExecuteRequest(BaseModel):
             # 检查危险字符
             if any(char in key for char in ["<", ">", ";", "'", '"']):
                 raise ValueError("Parameter key contains invalid characters")
-        
+
         return v
 
 
@@ -193,7 +194,7 @@ class LLMGenerateRequest(BaseModel):
         max_length=10000,
         description="提示词",
     )
-    system_prompt: Optional[str] = Field(
+    system_prompt: str | None = Field(
         None,
         max_length=5000,
     )
@@ -209,7 +210,7 @@ class LLMGenerateRequest(BaseModel):
         le=8192,
         description="最大 token 数",
     )
-    
+
     @field_validator("prompt")
     @classmethod
     def validate_prompt(cls, v: str) -> str:
@@ -217,7 +218,7 @@ class LLMGenerateRequest(BaseModel):
         v = v.strip()
         if len(v) < 1:
             raise ValueError("Prompt cannot be empty")
-        
+
         # 检查 prompt 注入攻击
         injection_patterns = [
             r"ignore\s+previous\s+instructions",
@@ -225,11 +226,11 @@ class LLMGenerateRequest(BaseModel):
             r"you\s+are\s+now\s+",
             r"system\s+instruction:",
         ]
-        
+
         for pattern in injection_patterns:
             if re.search(pattern, v, re.IGNORECASE):
                 raise ValueError("Prompt contains potential injection attack")
-        
+
         return v
 
 
@@ -250,7 +251,7 @@ class CodeExecutionRequest(BaseModel):
         ge=1,
         le=300,
     )
-    
+
     @field_validator("code")
     @classmethod
     def validate_code(cls, v: str) -> str:
@@ -265,40 +266,40 @@ class CodeExecutionRequest(BaseModel):
             "__import__",
             "open(",
         ]
-        
+
         for func in dangerous_functions:
             if func in v:
                 raise ValueError(f"Code contains dangerous function: {func}")
-        
+
         return v
 
 
 class BatchOperationRequest(BaseModel):
     """批量操作请求"""
-    operations: List[Dict[str, Any]] = Field(
+    operations: list[dict[str, Any]] = Field(
         ...,
         min_length=1,
         max_length=100,
         description="操作列表",
     )
-    
+
     @field_validator("operations")
     @classmethod
-    def validate_operations(cls, v: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def validate_operations(cls, v: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """验证批量操作"""
         if len(v) > 100:
             raise ValueError("Maximum 100 operations per batch")
-        
+
         for i, op in enumerate(v):
             if not isinstance(op, dict):
                 raise ValueError(f"Operation {i} must be a dictionary")
-            
+
             if "type" not in op:
                 raise ValueError(f"Operation {i} missing 'type' field")
-            
+
             if not isinstance(op["type"], str):
                 raise ValueError(f"Operation {i} 'type' must be a string")
-        
+
         return v
 
 
@@ -310,9 +311,9 @@ class TaskResponse(BaseModel):
     description: str
     priority: TaskPriority
     status: TaskStatus
-    assignee: Optional[str]
+    assignee: str | None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -321,7 +322,7 @@ class ErrorResponse(BaseModel):
     """错误响应"""
     error: str
     message: str
-    details: Optional[Dict[str, Any]] = None
+    details: dict[str, Any] | None = None
     timestamp: datetime = Field(default_factory=datetime.now)
 
 
@@ -329,5 +330,5 @@ class SuccessResponse(BaseModel):
     """成功响应"""
     status: str = "success"
     message: str
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
     timestamp: datetime = Field(default_factory=datetime.now)

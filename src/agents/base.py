@@ -14,23 +14,21 @@ Agent 基类
 """
 
 import asyncio
-import time
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, AsyncIterator
+from typing import Any
 
 import structlog
 
 from ..core.exceptions import (
+    AgentAlreadyRunningError,
     AgentExecutionError,
     AgentTimeoutError,
-    AgentNotInitializedError,
-    AgentAlreadyRunningError,
 )
 from ..core.models import (
     Agent,

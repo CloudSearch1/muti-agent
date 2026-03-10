@@ -6,16 +6,16 @@ Memory 系统类型定义
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from typing import Any, Optional, Protocol, TypeVar, runtime_checkable
+from typing import Any, Protocol, TypeVar, runtime_checkable
 
+from src.utils.compat import StrEnum
 
 # ===========================================
 # 枚举类型
 # ===========================================
 
 
-class MemoryType(str, Enum):
+class MemoryType(StrEnum):
     """记忆类型"""
 
     EPISODIC = "episodic"  # 情节记忆（具体事件）
@@ -25,7 +25,7 @@ class MemoryType(str, Enum):
     TASK_RESULT = "task_result"  # 任务结果
 
 
-class MemoryImportance(str, Enum):
+class MemoryImportance(StrEnum):
     """记忆重要性"""
 
     LOW = "low"
@@ -34,7 +34,7 @@ class MemoryImportance(str, Enum):
     CRITICAL = "critical"
 
 
-class StorageType(str, Enum):
+class StorageType(StrEnum):
     """存储类型"""
 
     SHORT_TERM = "short_term"  # 短期记忆 (Redis)
@@ -42,7 +42,7 @@ class StorageType(str, Enum):
     VECTOR = "vector"  # 向量存储 (RAG)
 
 
-class CompressionStrategyType(str, Enum):
+class CompressionStrategyType(StrEnum):
     """压缩策略类型"""
 
     SUMMARY = "summary"
@@ -62,18 +62,18 @@ class MemoryEntry:
 
     id: str
     content: str
-    memory_type: Optional[str] = None
-    importance: Optional[str] = None
-    summary: Optional[str] = None
+    memory_type: str | None = None
+    importance: str | None = None
+    summary: str | None = None
     tags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
-    agent_id: Optional[str] = None
-    session_id: Optional[str] = None
-    task_id: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    agent_id: str | None = None
+    session_id: str | None = None
+    task_id: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
     access_count: int = 0
-    similarity_score: Optional[float] = None
+    similarity_score: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -103,8 +103,8 @@ class SearchResult:
     total: int
     limit: int
     offset: int
-    query: Optional[str] = None
-    storage_type: Optional[str] = None
+    query: str | None = None
+    storage_type: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -124,12 +124,12 @@ class MemoryStats:
 
     storage_type: str
     total_count: int
-    by_type: Optional[dict[str, int]] = None
-    by_importance: Optional[dict[str, int]] = None
-    recently_accessed_24h: Optional[int] = None
-    rag_enabled: Optional[bool] = None
-    used_memory: Optional[int] = None
-    used_memory_human: Optional[str] = None
+    by_type: dict[str, int] | None = None
+    by_importance: dict[str, int] | None = None
+    recently_accessed_24h: int | None = None
+    rag_enabled: bool | None = None
+    used_memory: int | None = None
+    used_memory_human: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典"""
@@ -178,7 +178,7 @@ class MemoryStorageProtocol(Protocol):
         """存储记忆，返回 ID"""
         ...
 
-    async def retrieve(self, memory_id: str) -> Optional[dict[str, Any]]:
+    async def retrieve(self, memory_id: str) -> dict[str, Any] | None:
         """检索记忆"""
         ...
 
@@ -188,7 +188,7 @@ class MemoryStorageProtocol(Protocol):
 
     async def search(
         self,
-        query: Optional[str] = None,
+        query: str | None = None,
         limit: int = 10,
         offset: int = 0,
         **filters: Any,
@@ -284,7 +284,7 @@ def validate_tags(tags: list[str], max_tags: int = 20) -> list[str]:
         raise ValueError(f"Too many tags: {len(tags)} > {max_tags}")
 
     # 清理和去重
-    cleaned = list(set(tag.strip().lower() for tag in tags if tag.strip()))
+    cleaned = list({tag.strip().lower() for tag in tags if tag.strip()})
     return cleaned
 
 

@@ -319,7 +319,7 @@ import pytest
 def {name}():
     """
     {description}
-    
+
     AAA 模式:
     - Arrange: 准备测试数据
     - Act: 执行被测试的函数
@@ -327,10 +327,10 @@ def {name}():
     """
     # Arrange
     # TODO: 准备测试数据
-    
+
     # Act
     # TODO: 执行被测试的函数
-    
+
     # Assert
     # TODO: 添加断言
     assert True, "测试通过"
@@ -346,7 +346,7 @@ if __name__ == "__main__":
     ) -> dict[str, Any]:
         """
         执行测试用例 - 使用 pytest 真实运行
-        
+
         支持：
         - 真实执行 pytest 测试
         - 收集测试覆盖率
@@ -463,20 +463,21 @@ if __name__ == "__main__":
     async def _collect_coverage(self, test_cases: list[dict[str, Any]]) -> float:
         """
         收集代码覆盖率 - 集成 coverage.py
-        
+
         支持真实运行 coverage.py 并收集覆盖率数据。
         如果 coverage.py 不可用，返回估算值。
         """
         try:
-            import coverage
             import os
-            import tempfile
             import subprocess
-            
+            import tempfile
+
+            import coverage
+
             # 创建临时目录存放覆盖率数据
             with tempfile.TemporaryDirectory() as tmpdir:
                 cov_file = os.path.join(tmpdir, ".coverage")
-                
+
                 # 初始化 coverage
                 cov = coverage.Coverage(
                     data_file=cov_file,
@@ -487,7 +488,7 @@ if __name__ == "__main__":
                     ],
                 )
                 cov.start()
-                
+
                 try:
                     # 运行测试
                     for test_case in test_cases:
@@ -497,30 +498,30 @@ if __name__ == "__main__":
                             test_file = os.path.join(tmpdir, f"test_{test_case.get('name', 'temp')}.py")
                             with open(test_file, "w") as f:
                                 f.write(test_code)
-                            
+
                             # 执行测试
                             try:
                                 exec(compile(test_code, test_file, "exec"), {"__name__": "__main__"})
                             except Exception:
                                 pass  # 测试失败不影响覆盖率收集
-                    
+
                 finally:
                     cov.stop()
                     cov.save()
-                
+
                 # 获取覆盖率报告
                 cov.load()
-                
+
                 # 计算总覆盖率
                 total_lines = 0
                 covered_lines = 0
-                
+
                 for filename in cov.get_data().measured_files():
                     analysis = cov.analysis2(filename)
                     if analysis:
                         total_lines += len(analysis[1]) + len(analysis[2])  # 可执行行
                         covered_lines += len(analysis[1])  # 已覆盖行
-                
+
                 if total_lines > 0:
                     coverage_percent = (covered_lines / total_lines) * 100
                     self.logger.info(
@@ -530,12 +531,12 @@ if __name__ == "__main__":
                         coverage=f"{coverage_percent:.2f}%",
                     )
                     return coverage_percent
-                    
+
         except ImportError:
             self.logger.warning("coverage.py not installed, using estimation")
         except Exception as e:
             self.logger.warning("Coverage collection failed", error=str(e))
-        
+
         # Fallback: 返回估算值
         estimated = 75.0 + (len(test_cases) * 2.5)
         self.logger.info("Using estimated coverage", estimated=f"{estimated:.2f}%")
@@ -665,7 +666,7 @@ import pytest
 def test_regression_{title.replace(' ', '_').lower()[:30]}():
     """
     回归测试：验证缺陷已修复
-    
+
     测试步骤:
     1. 复现缺陷的条件
     2. 执行相关操作
@@ -673,10 +674,10 @@ def test_regression_{title.replace(' ', '_').lower()[:30]}():
     """
     # Arrange - 准备测试环境
     # TODO: 根据具体缺陷设置环境
-    
+
     # Act - 执行可能触发缺陷的操作
     # TODO: 执行相关代码
-    
+
     # Assert - 验证缺陷已修复
     # TODO: 添加断言确保行为正确
     assert True, "回归测试通过 - 缺陷已修复"

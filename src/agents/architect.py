@@ -245,7 +245,7 @@ class ArchitectAgent(BaseAgent):
     async def _generate_component_diagram(self, components: list[dict[str, Any]]) -> str:
         """
         使用 LLM 生成组件图（Mermaid 格式）
-        
+
         TODO: 生成组件图
         """
         if not components:
@@ -310,7 +310,7 @@ class ArchitectAgent(BaseAgent):
     ) -> str:
         """
         使用 LLM 生成时序图（Mermaid 格式）
-        
+
         TODO: 生成时序图
         """
         if not components:

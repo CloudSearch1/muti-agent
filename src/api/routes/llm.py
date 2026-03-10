@@ -19,16 +19,18 @@ import os
 import re
 import time
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
 import httpx
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
+
+from src.utils.compat import StrEnum
 
 logger = structlog.get_logger(__name__)
 
@@ -45,7 +47,7 @@ LOCAL_PROVIDERS = {"ollama", "vllm", "lmstudio"}
 # ============ 枚举类型 ============
 
 
-class ProviderType(str, Enum):
+class ProviderType(StrEnum):
     """服务商类型"""
 
     OPENAI = "openai"
@@ -54,7 +56,7 @@ class ProviderType(str, Enum):
     LOCAL = "local"
 
 
-class ErrorCode(str, Enum):
+class ErrorCode(StrEnum):
     """错误代码"""
 
     PROVIDER_NOT_FOUND = "provider_not_found"
@@ -245,10 +247,10 @@ class HTTPClientPool:
     使用单例模式管理 httpx.AsyncClient，实现连接复用
     """
 
-    _instance: "HTTPClientPool | None" = None
+    _instance: HTTPClientPool | None = None
     _client: httpx.AsyncClient | None = None
 
-    def __new__(cls) -> "HTTPClientPool":
+    def __new__(cls) -> HTTPClientPool:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -303,7 +305,7 @@ class ConfigManager:
 
         if self.config_path.exists():
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     self._config = json.load(f)
             except json.JSONDecodeError as e:
                 logger.error("配置文件 JSON 解析失败", error=str(e))

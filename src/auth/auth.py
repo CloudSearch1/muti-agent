@@ -11,6 +11,8 @@ from typing import Any
 import jwt
 from pydantic import BaseModel
 
+from src.utils.compat import UTC
+
 # JWT 配置
 JWT_SECRET = "your-secret-key-change-in-production"
 JWT_ALGORITHM = "HS256"
@@ -95,9 +97,9 @@ def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = 
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+        expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)
+        expire = datetime.now(UTC) + timedelta(hours=JWT_EXPIRE_HOURS)
 
     to_encode.update({"exp": expire})
 
@@ -180,7 +182,7 @@ class AuthManager:
         new_payload = {
             "user_id": token_data["user_id"],
             "username": token_data["username"],
-            "refreshed_at": datetime.now(timezone.utc).isoformat(),
+            "refreshed_at": datetime.now(UTC).isoformat(),
         }
         return create_access_token(new_payload)
 

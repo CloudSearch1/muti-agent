@@ -7,11 +7,9 @@
 
 import logging
 from datetime import datetime
-from typing import List
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from .models import AgentModel, TaskModel, WorkflowModel
 
@@ -37,7 +35,7 @@ async def get_all_tasks(db: AsyncSession, limit: int = 100, offset: int = 0) -> 
 async def get_tasks_with_stats(db: AsyncSession) -> dict:
     """
     获取任务统计（单次查询）
-    
+
     避免多次查询数据库
     """
     result = await db.execute(
@@ -49,7 +47,7 @@ async def get_tasks_with_stats(db: AsyncSession) -> dict:
         )
     )
     stats = result.first()
-    
+
     return {
         "total": stats.total or 0,
         "completed": stats.completed or 0,
@@ -67,7 +65,7 @@ async def get_task_by_id(db: AsyncSession, task_id: int) -> TaskModel | None:
     return result.scalar_one_or_none()
 
 
-async def get_tasks_by_ids(db: AsyncSession, task_ids: List[int]) -> list[TaskModel]:
+async def get_tasks_by_ids(db: AsyncSession, task_ids: list[int]) -> list[TaskModel]:
     """
     批量获取任务
 

@@ -11,7 +11,7 @@ from pathlib import Path
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
-from .security import ToolSecurity, SecurityError
+from .security import SecurityError, ToolSecurity
 
 logger = structlog.get_logger(__name__)
 

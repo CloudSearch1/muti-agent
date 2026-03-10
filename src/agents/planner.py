@@ -320,12 +320,12 @@ class PlannerAgent(BaseAgent):
     def _topological_sort(self, tasks: list[Task]) -> list[Task]:
         """
         实现完整的拓扑排序（Kahn 算法）
-        
+
         用于处理任务依赖关系，确保先执行没有依赖的任务。
-        
+
         Args:
             tasks: 任务列表，每个任务可能有 dependencies 属性
-        
+
         Returns:
             排序后的任务列表
         """

@@ -10,7 +10,7 @@ import csv
 import io
 import logging
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
@@ -22,6 +22,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db import crud
 from src.db.database import get_database_manager, get_db_session, init_database
 from src.db.models import AgentModel, TaskModel
+
+# Python 3.10 兼容性
+UTC = timezone.utc
 
 # 配置结构化日志
 logging.basicConfig(

@@ -177,7 +177,7 @@ class CoderAgent(BaseAgent):
     ) -> dict[str, Any]:
         """
         使用 LLM 生成代码实现方案
-        
+
         已实现真实 LLM 调用
         """
         # 构建提示词

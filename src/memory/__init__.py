@@ -16,6 +16,15 @@ Example:
 """
 
 # 异常类
+# 核心模块
+from .context_compressor import (
+    CompressionResult,
+    ContextCompressor,
+    ContextWindow,
+    IncrementalCompressor,
+    LLMProviderProtocol,
+    create_compressor,
+)
 from .exceptions import (
     CompressionError,
     EmbeddingError,
@@ -29,6 +38,22 @@ from .exceptions import (
     SessionError,
     VectorStoreError,
 )
+from .long_term import (
+    LongTermMemory,
+    create_long_term_memory,
+)
+from .rag_store import (
+    BaseEmbeddingProvider,
+    MemoryItem,
+    RAGStore,
+    SimpleEmbeddingProvider,
+    create_rag_store,
+)
+from .rag_store import (
+    EmbeddingProviderProtocol as RAGEmbeddingProviderProtocol,
+)
+from .session import SessionInfo, SessionManager
+from .short_term import ShortTermMemory
 
 # 类型定义
 from .types import (
@@ -52,30 +77,6 @@ from .types import (
     validate_storage_type,
     validate_tags,
 )
-
-# 核心模块
-from .context_compressor import (
-    CompressionResult,
-    ContextCompressor,
-    ContextWindow,
-    IncrementalCompressor,
-    LLMProviderProtocol,
-    create_compressor,
-)
-from .long_term import (
-    LongTermMemory,
-    create_long_term_memory,
-)
-from .rag_store import (
-    BaseEmbeddingProvider,
-    EmbeddingProviderProtocol as RAGEmbeddingProviderProtocol,
-    MemoryItem,
-    RAGStore,
-    SimpleEmbeddingProvider,
-    create_rag_store,
-)
-from .session import SessionInfo, SessionManager
-from .short_term import ShortTermMemory
 
 # Backwards compatibility alias
 CompressionStrategy = CompressionStrategyType

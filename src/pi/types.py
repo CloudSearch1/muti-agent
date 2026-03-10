@@ -7,14 +7,15 @@ Pi 系统 - 类型定义
 """
 
 from datetime import datetime
-from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from src.utils.compat import StrEnum
 
-class PiAgentStatus(str, Enum):
+
+class PiAgentStatus(StrEnum):
     """Pi Agent 状态"""
 
     IDLE = "idle"  # 空闲
@@ -24,7 +25,7 @@ class PiAgentStatus(str, Enum):
     INITIALIZING = "initializing"  # 初始化中
 
 
-class PiTaskStatus(str, Enum):
+class PiTaskStatus(StrEnum):
     """Pi 任务状态"""
 
     PENDING = "pending"  # 待处理
@@ -36,7 +37,7 @@ class PiTaskStatus(str, Enum):
     CANCELLED = "cancelled"  # 已取消
 
 
-class PiTaskPriority(str, Enum):
+class PiTaskPriority(StrEnum):
     """Pi 任务优先级"""
 
     LOW = "low"
@@ -45,7 +46,7 @@ class PiTaskPriority(str, Enum):
     CRITICAL = "critical"
 
 
-class MessageType(str, Enum):
+class MessageType(StrEnum):
     """消息类型"""
 
     TASK = "task"  # 任务消息
@@ -56,7 +57,7 @@ class MessageType(str, Enum):
     BROADCAST = "broadcast"  # 广播消息
 
 
-class AgentCapability(str, Enum):
+class AgentCapability(StrEnum):
     """Agent 能力"""
 
     CODE_GENERATION = "code_generation"
@@ -69,7 +70,7 @@ class AgentCapability(str, Enum):
     ANALYSIS = "analysis"
 
 
-class TaskAssignmentStrategy(str, Enum):
+class TaskAssignmentStrategy(StrEnum):
     """任务分配策略"""
 
     ROUND_ROBIN = "round_robin"  # 轮询

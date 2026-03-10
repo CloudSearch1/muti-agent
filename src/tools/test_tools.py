@@ -13,7 +13,7 @@ from pathlib import Path
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
-from .security import ToolSecurity, SecurityError
+from .security import SecurityError, ToolSecurity
 
 logger = structlog.get_logger(__name__)
 
@@ -166,9 +166,9 @@ class TestingTools(BaseTool):
         options: dict,
     ) -> ToolResult:
         """运行覆盖率分析 - 集成 coverage.py"""
+
         import coverage
-        import subprocess
-        
+
         try:
             # 1. 先运行测试并收集覆盖率
             cmd = [
@@ -178,41 +178,41 @@ class TestingTools(BaseTool):
                 test_path,
                 "-v",
             ]
-            
+
             result = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await result.communicate()
-            
+
             if result.returncode != 0:
                 logger.warning("Coverage run failed, using fallback")
                 return self._fallback_coverage()
-            
+
             # 2. 生成覆盖率报告
             cov = coverage.Coverage()
             cov.load()  # 加载 .coverage 数据文件
-            
+
             # 计算覆盖率
             total_stats = cov.analysis()
             lines_total = len(total_stats[1])  # 所有行
             lines_covered = len(total_stats[2])  # 已执行行
             missing_lines = total_stats[3]  # 未执行行
-            
+
             coverage_percent = (lines_covered / lines_total * 100) if lines_total > 0 else 0
-            
+
             # 3. 生成 HTML 报告（可选）
             if options.get("html_report", False):
                 cov.html_report(directory=options.get("html_dir", "htmlcov"))
-            
+
             logger.info(
                 "Coverage analysis complete",
                 percent=coverage_percent,
                 lines_covered=lines_covered,
                 lines_total=lines_total,
             )
-            
+
             return ToolResult(
                 success=True,
                 data={
@@ -227,14 +227,14 @@ class TestingTools(BaseTool):
                     "report_path": "htmlcov/index.html" if options.get("html_report") else None,
                 },
             )
-            
+
         except FileNotFoundError:
             logger.warning("coverage.py not installed, using fallback")
             return self._fallback_coverage()
         except Exception as e:
             logger.error(f"Coverage analysis failed: {e}")
             return self._fallback_coverage()
-    
+
     def _fallback_coverage(self) -> ToolResult:
         """备用覆盖率数据"""
         return ToolResult(
@@ -253,12 +253,11 @@ class TestingTools(BaseTool):
         options: dict,
     ) -> ToolResult:
         """生成测试报告 - 支持 HTML/Markdown/XML 格式"""
-        import subprocess
-        
+
         report_format = options.get("format", "html")
         output_path = options.get("output", "test_report")
         test_path = options.get("test_path", "tests/")
-        
+
         try:
             # 使用 pytest 生成报告
             if report_format == "html":
@@ -285,7 +284,7 @@ class TestingTools(BaseTool):
                     success=False,
                     error=f"Unsupported report format: {report_format}",
                 )
-            
+
             # 执行 pytest
             process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -293,16 +292,16 @@ class TestingTools(BaseTool):
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await process.communicate()
-            
+
             if process.returncode not in [0, 1]:  # 0=全部通过，1=有失败
                 logger.warning(f"Report generation returned code {process.returncode}")
-            
+
             logger.info(
                 "Test report generated",
                 format=report_format,
                 path=f"{output_path}.{report_format}",
             )
-            
+
             return ToolResult(
                 success=True,
                 data={
@@ -314,18 +313,17 @@ class TestingTools(BaseTool):
                     "tests_failed": options.get("tests_failed", 0),
                 },
             )
-            
+
         except FileNotFoundError:
             logger.warning("pytest not found, generating simple report")
             return self._generate_simple_report(report_format, output_path)
         except Exception as e:
             logger.error(f"Report generation failed: {e}")
             return self._generate_simple_report(report_format, output_path)
-    
+
     async def _generate_markdown_report(self, test_path: str, output_path: str) -> ToolResult:
         """生成 Markdown 格式测试报告"""
-        import subprocess
-        
+
         # 运行 pytest 获取结果
         cmd = ["pytest", test_path, "-v", "--tb=short"]
         process = await asyncio.create_subprocess_exec(
@@ -334,16 +332,16 @@ class TestingTools(BaseTool):
             stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await process.communicate()
-        
+
         # 解析结果
         output = stdout.decode()
         lines = output.split('\n')
-        
+
         # 统计
         total = 0
         passed = 0
         failed = 0
-        
+
         for line in lines:
             if 'PASSED' in line:
                 passed += 1
@@ -351,7 +349,7 @@ class TestingTools(BaseTool):
             elif 'FAILED' in line:
                 failed += 1
                 total += 1
-        
+
         # 生成 Markdown 报告
         report = f"""# 测试报告
 
@@ -372,11 +370,11 @@ class TestingTools(BaseTool):
 {output[:5000]}  # 限制长度
 ```
 """
-        
+
         # 保存报告
         with open(f"{output_path}.md", "w", encoding="utf-8") as f:
             f.write(report)
-        
+
         return ToolResult(
             success=True,
             data={
@@ -387,7 +385,7 @@ class TestingTools(BaseTool):
                 "tests_failed": failed,
             },
         )
-    
+
     def _generate_simple_report(self, report_format: str, output_path: str) -> ToolResult:
         """生成简单报告（备用）"""
         return ToolResult(

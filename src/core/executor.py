@@ -6,9 +6,10 @@ Agent 执行引擎
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 from .models import Task, TaskStatus, WorkflowStatus
 
@@ -91,11 +92,11 @@ class AgentExecutor:
     ) -> dict[str, Any]:
         """
         执行工作流
-        
+
         Args:
             workflow: 工作流定义
             context: 执行上下文
-        
+
         Returns:
             执行结果
         """
@@ -104,16 +105,16 @@ class AgentExecutor:
             "workflow_name": workflow.name,
             "task_count": len(workflow.tasks),
         })
-        
+
         workflow.status = WorkflowStatus.RUNNING
         workflow.started_at = datetime.now()
-        
+
         try:
             # 构建任务依赖图
-            task_map = {i: task for i, task in enumerate(workflow.tasks)}
+            task_map = dict(enumerate(workflow.tasks))
             completed_tasks = set()
             results = {}
-            
+
             # 执行任务（考虑依赖）
             while len(completed_tasks) < len(workflow.tasks):
                 # 找到所有可以执行的任务（依赖已满足）
@@ -123,29 +124,29 @@ class AgentExecutor:
                         continue
                     if all(dep in completed_tasks for dep in task.dependencies):
                         ready_tasks.append((i, task))
-                
+
                 if not ready_tasks:
                     # 检查是否有循环依赖
                     remaining = [i for i in task_map if i not in completed_tasks]
                     if remaining:
                         raise ValueError(f"Circular dependency detected: {remaining}")
                     break
-                
+
                 # 并发执行就绪任务
                 tasks_to_run = [
                     self._execute_task(task, context, results)
                     for _, task in ready_tasks
                 ]
-                
+
                 task_results = await asyncio.gather(*tasks_to_run, return_exceptions=True)
-                
+
                 # 处理结果
-                for (task_idx, task), result in zip(ready_tasks, task_results):
+                for (task_idx, task), result in zip(ready_tasks, task_results, strict=False):
                     if isinstance(result, Exception):
                         task.status = TaskStatus.FAILED
                         task.error = str(result)
                         logger.error(f"Task failed: {task.agent_name} - {result}")
-                        
+
                         # 如果是关键任务失败，可以选择终止工作流
                         if task.retry_count == 0:
                             workflow.status = WorkflowStatus.FAILED
@@ -162,40 +163,40 @@ class AgentExecutor:
                         task.completed_at = datetime.now()
                         completed_tasks.add(task_idx)
                         results[task.agent_name] = result
-                        
+
                         logger.info(f"Task completed: {task.agent_name}")
                         await self._emit_event("task_completed", {
                             "agent_name": task.agent_name,
                             "result": result,
                         })
-            
+
             # 所有任务完成
             workflow.status = WorkflowStatus.COMPLETED
             workflow.completed_at = datetime.now()
-            
+
             await self._emit_event("workflow_completed", {
                 "workflow_name": workflow.name,
                 "results": results,
             })
-            
+
             return {
                 "status": "completed",
                 "results": results,
                 "workflow_name": workflow.name,
             }
-            
+
         except Exception as e:
             workflow.status = WorkflowStatus.FAILED
             workflow.completed_at = datetime.now()
             logger.error(f"Workflow failed: {e}", exc_info=True)
-            
+
             await self._emit_event("workflow_failed", {
                 "workflow_name": workflow.name,
                 "error": str(e),
             })
-            
+
             return {"status": "failed", "error": str(e)}
-    
+
     async def _execute_task(
         self,
         task: WorkflowTask,
@@ -205,25 +206,25 @@ class AgentExecutor:
         """执行单个任务"""
         task.status = TaskStatus.IN_PROGRESS
         task.started_at = datetime.now()
-        
+
         logger.info(f"Executing task: {task.agent_name}")
         await self._emit_event("task_started", {
             "agent_name": task.agent_name,
             "description": task.task_description,
         })
-        
+
         # 获取 Agent
         agent = self._agents.get(task.agent_name)
         if not agent:
             raise ValueError(f"Agent not found: {task.agent_name}")
-        
+
         # 准备任务数据
         task_input = {
             "description": task.task_description,
             "context": context,
             "previous_results": previous_results,
         }
-        
+
         # 创建任务对象
         task_obj = Task(
             id=f"workflow_task_{task.agent_name}",
@@ -231,7 +232,7 @@ class AgentExecutor:
             description=task.task_description,
             input_data=task_input,
         )
-        
+
         # 执行 Agent
         try:
             result = await asyncio.wait_for(
@@ -239,20 +240,20 @@ class AgentExecutor:
                 timeout=task.timeout_seconds,
             )
             return result
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise TimeoutError(f"Task timeout: {task.agent_name} ({task.timeout_seconds}s)")
-    
+
     def create_standard_workflow(self, workflow_name: str) -> Workflow:
         """
         创建标准研发工作流
-        
+
         包含：Planner → Architect → Coder → Tester → DocWriter
         """
         workflow = Workflow(
             name=workflow_name,
             description="标准研发工作流",
         )
-        
+
         # 添加标准任务
         workflow.tasks = [
             WorkflowTask(
@@ -281,15 +282,15 @@ class AgentExecutor:
                 dependencies=[2],  # 依赖 Coder（可以和 Tester 并行）
             ),
         ]
-        
+
         return workflow
-    
+
     def get_workflow_status(self, workflow_name: str) -> dict[str, Any] | None:
         """获取工作流状态"""
         workflow = self._workflows.get(workflow_name)
         if not workflow:
             return None
-        
+
         return {
             "name": workflow.name,
             "status": workflow.status.value,

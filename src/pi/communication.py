@@ -12,7 +12,6 @@ Pi 通信协议
 
 import asyncio
 from collections.abc import Callable
-from datetime import datetime
 from typing import Any
 
 import structlog
@@ -403,7 +402,7 @@ class MessageBus:
             else:
                 message = await queue.get()
             return message
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
 
     def get_pending_count(self, agent_id: str) -> int:

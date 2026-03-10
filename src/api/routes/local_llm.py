@@ -10,14 +10,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from ...llm.llm_provider import LLMConfigError, LLMError
 from ...llm.local import (
-    LMStudioProvider,
     LocalLLMService,
     OllamaProvider,
-    VLLMProvider,
     get_local_llm,
 )
-from ...llm.llm_provider import LLMConfigError, LLMError
 
 router = APIRouter(prefix="/local", tags=["Local LLM"])
 
@@ -255,8 +253,9 @@ async def local_chat_stream(
 
     返回 Server-Sent Events (SSE) 格式的流式响应
     """
-    from fastapi.responses import StreamingResponse
     import json
+
+    from fastapi.responses import StreamingResponse
 
     async def generate_stream():
         try:

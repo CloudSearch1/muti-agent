@@ -4,7 +4,7 @@
 提供基于 RAG 的智能问答功能。
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 

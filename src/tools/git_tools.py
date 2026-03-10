@@ -4,14 +4,13 @@ Git 工具集
 提供 Git 操作功能，包含命令安全验证。
 """
 
-import asyncio
 import subprocess
 from pathlib import Path
 
 import structlog
 
 from .base import BaseTool, ToolParameter, ToolResult
-from .security import ToolSecurity, SecurityError
+from .security import SecurityError, ToolSecurity
 
 logger = structlog.get_logger(__name__)
 

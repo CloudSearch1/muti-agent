@@ -15,7 +15,6 @@ Pi 系统 API 路由
 版本: 1.0.0
 """
 
-from typing import Any
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query
@@ -342,9 +341,9 @@ async def execute_workflow(request: ExecuteWorkflowRequest):
 
     # 转换策略
     try:
-        strategy = TaskAssignmentStrategy(request.assignment_strategy)
+        TaskAssignmentStrategy(request.assignment_strategy)
     except ValueError:
-        strategy = TaskAssignmentStrategy.SMART
+        pass
 
     # 提交所有任务
     task_ids = []
@@ -376,7 +375,7 @@ async def execute_workflow(request: ExecuteWorkflowRequest):
     )
 
     # 分配任务
-    assigned = await scheduler.assign_pending_tasks()
+    await scheduler.assign_pending_tasks()
 
     # 模拟执行（实际应该由 Agent 执行）
     for task_id in task_ids:

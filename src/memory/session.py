@@ -12,12 +12,12 @@
 
 import uuid
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from pydantic import BaseModel, Field, field_serializer
 
-from .exceptions import MemoryNotFoundError, SessionError
+from .exceptions import SessionError
 from .short_term import ShortTermMemory
 
 logger = structlog.get_logger(__name__)
@@ -33,7 +33,7 @@ class SessionInfo(BaseModel):
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     agent_id: str = Field(..., description="Agent ID")
-    user_id: Optional[str] = Field(default=None, description="用户 ID")
+    user_id: str | None = Field(default=None, description="用户 ID")
 
     # 会话状态
     active: bool = Field(default=True, description="是否活跃")
@@ -111,8 +111,8 @@ class SessionManager:
     async def create_session(
         self,
         agent_id: str,
-        user_id: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        user_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> SessionInfo:
         """
         创建新会话
@@ -173,7 +173,7 @@ class SessionManager:
     async def get_session(
         self,
         session_id: str,
-    ) -> Optional[SessionInfo]:
+    ) -> SessionInfo | None:
         """
         获取会话
 
@@ -430,7 +430,7 @@ class SessionManager:
 
     async def get_active_sessions(
         self,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
     ) -> list[SessionInfo]:
         """
         获取活跃会话
@@ -500,9 +500,9 @@ class SessionManager:
 
     async def get_or_create_session(
         self,
-        session_id: Optional[str],
+        session_id: str | None,
         agent_id: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> SessionInfo:
         """
         获取或创建会话

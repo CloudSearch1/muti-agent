@@ -16,6 +16,15 @@ Example:
 """
 
 # 异常类
+# 核心模块
+from .chunking import (
+    ChunkerFactory,
+    FixedSizeChunker,
+    SemanticChunker,
+    SentenceChunker,
+    TextChunker,
+)
+from .document_manager import DocumentManager
 from .exceptions import (
     ChunkingError,
     DocumentNotFoundError,
@@ -28,6 +37,9 @@ from .exceptions import (
     UnsupportedDocumentTypeError,
     VectorStoreOperationError,
 )
+from .knowledge_graph import KnowledgeGraph
+from .qa_system import QASystem
+from .rag_engine import RAGEngine
 
 # 类型定义
 from .types import (
@@ -45,20 +57,7 @@ from .types import (
     Relation,
     SearchResult,
 )
-
-# 核心模块
-from .chunking import (
-    ChunkerFactory,
-    FixedSizeChunker,
-    SemanticChunker,
-    SentenceChunker,
-    TextChunker,
-)
-from .document_manager import DocumentManager
 from .vector_store import KnowledgeVectorStore
-from .rag_engine import RAGEngine
-from .qa_system import QASystem
-from .knowledge_graph import KnowledgeGraph
 
 __all__ = [
     # 异常类

@@ -4,12 +4,11 @@ RAG 检索引擎模块
 提供检索增强生成（RAG）核心功能。
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
 from ..llm.llm_provider import BaseProvider, get_llm
-from .exceptions import QASystemError
 from .types import SearchResult
 from .vector_store import KnowledgeVectorStore
 

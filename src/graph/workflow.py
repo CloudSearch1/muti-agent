@@ -13,11 +13,13 @@ LangGraph 工作流编排（增强版）
 
 import asyncio
 import time
+from collections.abc import Callable
 from datetime import datetime
-from enum import Enum
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 import structlog
+
+from src.utils.compat import StrEnum
 
 try:
     from langgraph.graph import END, StateGraph
@@ -52,7 +54,7 @@ NodeType = Literal[
 ]
 
 
-class WorkflowStatus(str, Enum):
+class WorkflowStatus(StrEnum):
     """工作流状态"""
     PENDING = "pending"
     RUNNING = "running"
@@ -263,7 +265,7 @@ class AgentWorkflow:
         """带超时控制的执行"""
         try:
             return await asyncio.wait_for(coro, timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             raise WorkflowTimeoutError(
                 f"Node '{node_name}' timed out after {timeout} seconds"
             )

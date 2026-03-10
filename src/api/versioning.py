@@ -4,9 +4,9 @@ API 版本管理模块
 支持多版本 API 共存，平滑升级
 """
 
-from fastapi import APIRouter, Header, HTTPException, Request
 from functools import wraps
-from typing import Optional
+
+from fastapi import APIRouter, Header, HTTPException, Request
 
 # 版本路由器
 v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
@@ -15,14 +15,14 @@ v2_router = APIRouter(prefix="/api/v2", tags=["v2"])
 
 # ============ 版本装饰器 ============
 
-def api_version(min_version: str = "1.0", max_version: Optional[str] = None):
+def api_version(min_version: str = "1.0", max_version: str | None = None):
     """
     API 版本控制装饰器
-    
+
     Args:
         min_version: 最低支持版本
         max_version: 最高支持版本（None 表示无上限）
-    
+
     用法:
         @api_version(min_version="1.0", max_version="2.0")
         async def api_handler():
@@ -32,7 +32,7 @@ def api_version(min_version: str = "1.0", max_version: Optional[str] = None):
         @wraps(func)
         async def wrapper(
             request: Request,
-            x_api_version: Optional[str] = Header(default="1.0"),
+            x_api_version: str | None = Header(default="1.0"),
             *args,
             **kwargs
         ):
@@ -40,7 +40,7 @@ def api_version(min_version: str = "1.0", max_version: Optional[str] = None):
             try:
                 version_parts = [int(x) for x in x_api_version.split(".")]
                 min_version_parts = [int(x) for x in min_version.split(".")]
-                
+
                 # 检查最低版本
                 if version_parts < min_version_parts:
                     raise HTTPException(
@@ -52,7 +52,7 @@ def api_version(min_version: str = "1.0", max_version: Optional[str] = None):
                             "current_version": x_api_version,
                         },
                     )
-                
+
                 # 检查最高版本
                 if max_version:
                     max_version_parts = [int(x) for x in max_version.split(".")]
@@ -66,7 +66,7 @@ def api_version(min_version: str = "1.0", max_version: Optional[str] = None):
                                 "current_version": x_api_version,
                             },
                         )
-                
+
             except ValueError:
                 raise HTTPException(
                     status_code=400,
@@ -75,9 +75,9 @@ def api_version(min_version: str = "1.0", max_version: Optional[str] = None):
                         "message": "API version must be in format X.Y (e.g., 1.0)",
                     },
                 )
-            
+
             return await func(request, *args, **kwargs)
-        
+
         return wrapper
     return decorator
 
@@ -89,7 +89,7 @@ def api_version(min_version: str = "1.0", max_version: Optional[str] = None):
 async def get_tasks_v1(request: Request):
     """
     V1 版本：获取任务列表（旧版）
-    
+
     返回简化版任务数据
     """
     return {
@@ -106,7 +106,7 @@ async def get_tasks_v1(request: Request):
 async def get_tasks_v2(request: Request):
     """
     V2 版本：获取任务列表（新版）
-    
+
     返回完整版任务数据，包含更多字段
     """
     return {
@@ -144,24 +144,24 @@ async def get_tasks_v2(request: Request):
 class VersionMiddleware:
     """
     API 版本中间件
-    
+
     自动处理版本兼容性和迁移
     """
-    
+
     def __init__(self, app, default_version: str = "1.0"):
         self.app = app
         self.default_version = default_version
         self.supported_versions = ["1.0", "2.0"]
-    
+
     async def __call__(self, scope, receive, send):
         # 添加版本信息到请求
         if scope["type"] == "http":
             headers = dict(scope.get("headers", []))
             version = headers.get(b"x-api-version", b"").decode() or self.default_version
-            
+
             # 存储版本信息到请求 scope
             scope["api_version"] = version
-        
+
         await self.app(scope, receive, send)
 
 
@@ -170,18 +170,18 @@ class VersionMiddleware:
 class VersionMigrator:
     """
     版本迁移工具
-    
+
     在不同版本间转换数据格式
     """
-    
+
     @staticmethod
     def migrate_v1_to_v2(v1_data: dict) -> dict:
         """
         将 V1 数据格式迁移到 V2
-        
+
         Args:
             v1_data: V1 格式数据
-        
+
         Returns:
             V2 格式数据
         """
@@ -194,15 +194,15 @@ class VersionMigrator:
             "assignee": v1_data.get("assignee", ""),
             "created_at": v1_data.get("created_at", ""),
         }
-    
+
     @staticmethod
     def migrate_v2_to_v1(v2_data: dict) -> dict:
         """
         将 V2 数据格式迁移到 V1（降级）
-        
+
         Args:
             v2_data: V2 格式数据
-        
+
         Returns:
             V1 格式数据（简化版）
         """
@@ -216,14 +216,15 @@ class VersionMigrator:
 
 from fastapi import FastAPI
 
+
 def add_version_endpoints(app: FastAPI):
     """
     添加版本信息端点
-    
+
     Args:
         app: FastAPI 应用实例
     """
-    
+
     @app.get("/api/version")
     async def get_api_version():
         """获取 API 版本信息"""
@@ -244,26 +245,26 @@ def add_version_endpoints(app: FastAPI):
                 ],
             },
         }
-    
+
     @app.get("/api/version/check")
     async def check_version_compatibility(
         client_version: str,
     ):
         """
         检查客户端版本兼容性
-        
+
         Args:
             client_version: 客户端版本号
-        
+
         Returns:
             兼容性信息
         """
         supported = ["1.0", "2.0"]
         deprecated = []
-        
+
         is_supported = client_version in supported
         is_deprecated = client_version in deprecated
-        
+
         return {
             "client_version": client_version,
             "is_supported": is_supported,

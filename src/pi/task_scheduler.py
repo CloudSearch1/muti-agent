@@ -10,7 +10,6 @@ Pi 任务调度器
 版本: 1.0.0
 """
 
-import asyncio
 import heapq
 from datetime import datetime
 from typing import Any
@@ -20,7 +19,6 @@ import structlog
 from .agent_manager import AgentManager, get_agent_manager
 from .types import (
     PiAgentInfo,
-    PiAgentStatus,
     PiTaskConfig,
     PiTaskInfo,
     PiTaskPriority,

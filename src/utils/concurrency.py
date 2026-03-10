@@ -8,9 +8,10 @@ import asyncio
 import logging
 import time
 from collections import defaultdict
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,47 +26,47 @@ class RateLimitConfig:
 class RateLimiter:
     """
     速率限制器
-    
+
     功能:
     - 令牌桶算法
     - 滑动窗口
     - 支持多键值（如多用户）
     """
-    
-    def __init__(self, config: Optional[RateLimitConfig] = None):
+
+    def __init__(self, config: RateLimitConfig | None = None):
         self.config = config or RateLimitConfig()
-        self._requests: Dict[str, list] = defaultdict(list)
+        self._requests: dict[str, list] = defaultdict(list)
         self._lock = asyncio.Lock()
-    
+
     async def acquire(self, key: str = "default") -> bool:
         """
         获取许可
-        
+
         Args:
             key: 限流键（如用户 ID、IP 等）
-        
+
         Returns:
             是否允许通过
         """
         async with self._lock:
             now = time.time()
             window_start = now - self.config.period
-            
+
             # 清理过期请求
             self._requests[key] = [
                 req_time for req_time in self._requests[key]
                 if req_time > window_start
             ]
-            
+
             # 检查是否超限
             if len(self._requests[key]) >= self.config.calls:
                 logger.warning(f"Rate limit exceeded for {key}")
                 return False
-            
+
             # 记录请求
             self._requests[key].append(now)
             return True
-    
+
     async def wait_and_acquire(self, key: str = "default") -> None:
         """等待并获取许可"""
         while not await self.acquire(key):
@@ -83,17 +84,17 @@ class RateLimiter:
 class SemaphoreController:
     """
     信号量控制器
-    
+
     功能:
     - 限制并发数量
     - 支持多层级信号量
     - 超时控制
     """
-    
+
     def __init__(
         self,
         max_concurrent: int = 10,
-        timeout: Optional[float] = None,
+        timeout: float | None = None,
     ):
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._timeout = timeout
@@ -101,39 +102,39 @@ class SemaphoreController:
         self._total_acquired = 0
         self._total_released = 0
         self._lock = asyncio.Lock()
-    
-    async def acquire(self, timeout: Optional[float] = None) -> bool:
+
+    async def acquire(self, timeout: float | None = None) -> bool:
         """获取信号量"""
         try:
             acquired = await asyncio.wait_for(
                 self._semaphore.acquire(),
                 timeout=timeout or self._timeout,
             )
-            
+
             if acquired:
                 async with self._lock:
                     self._active += 1
                     self._total_acquired += 1
                 logger.debug(f"Semaphore acquired, active: {self._active}")
-            
+
             return acquired
-            
-        except asyncio.TimeoutError:
+
+        except TimeoutError:
             logger.warning("Semaphore acquire timeout")
             return False
-    
+
     def release(self):
         """释放信号量"""
         self._semaphore.release()
-        
+
         async def update():
             async with self._lock:
                 self._active -= 1
                 self._total_released += 1
-        
+
         asyncio.create_task(update())
         logger.debug(f"Semaphore released, active: {self._active - 1}")
-    
+
     def get_stats(self) -> dict:
         """获取统计"""
         return {
@@ -162,34 +163,34 @@ class CircuitBreakerState:
 class CircuitBreaker:
     """
     熔断器
-    
+
     功能:
     - 自动熔断
     - 半开测试
     - 自动恢复
     """
-    
-    def __init__(self, config: Optional[CircuitBreakerConfig] = None):
+
+    def __init__(self, config: CircuitBreakerConfig | None = None):
         self.config = config or CircuitBreakerConfig()
         self._state = CircuitBreakerState.CLOSED
         self._failure_count = 0
         self._success_count = 0
-        self._last_failure_time: Optional[datetime] = None
+        self._last_failure_time: datetime | None = None
         self._half_open_calls = 0
         self._lock = asyncio.Lock()
-    
+
     async def call(self, func: Callable, *args, **kwargs) -> Any:
         """
         通过熔断器调用函数
-        
+
         Args:
             func: 要调用的函数（异步）
             *args: 位置参数
             **kwargs: 关键字参数
-        
+
         Returns:
             函数返回值
-        
+
         Raises:
             CircuitBreakerOpen: 熔断器打开时
         """
@@ -202,56 +203,56 @@ class CircuitBreaker:
                     logger.info("Circuit breaker entering half-open state")
                 else:
                     raise CircuitBreakerOpen("Circuit breaker is open")
-        
+
         try:
             # 调用函数
             if asyncio.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
                 result = func(*args, **kwargs)
-            
+
             # 调用成功
             await self._on_success()
             return result
-            
-        except Exception as e:
+
+        except Exception:
             # 调用失败
             await self._on_failure()
             raise
-    
+
     def _should_attempt_reset(self) -> bool:
         """检查是否应该尝试重置"""
         if self._last_failure_time is None:
             return True
-        
+
         elapsed = (datetime.now() - self._last_failure_time).total_seconds()
         return elapsed >= self.config.recovery_timeout
-    
+
     async def _on_success(self):
         """成功回调"""
         async with self._lock:
             self._failure_count = 0
-            
+
             if self._state == CircuitBreakerState.HALF_OPEN:
                 self._success_count += 1
                 if self._success_count >= self.config.half_open_max_calls:
                     self._state = CircuitBreakerState.CLOSED
                     self._success_count = 0
                     logger.info("Circuit breaker closed (recovered)")
-    
+
     async def _on_failure(self):
         """失败回调"""
         async with self._lock:
             self._failure_count += 1
             self._last_failure_time = datetime.now()
-            
+
             if self._state == CircuitBreakerState.HALF_OPEN:
                 self._state = CircuitBreakerState.OPEN
                 logger.warning("Circuit breaker opened (half-open failed)")
             elif self._failure_count >= self.config.failure_threshold:
                 self._state = CircuitBreakerState.OPEN
                 logger.warning(f"Circuit breaker opened (failures={self._failure_count})")
-    
+
     def get_state(self) -> dict:
         """获取状态"""
         return {
@@ -268,17 +269,17 @@ class CircuitBreakerOpen(Exception):
 
 
 # 装饰器：并发控制
-def concurrent_limit(max_concurrent: int, timeout: Optional[float] = None):
+def concurrent_limit(max_concurrent: int, timeout: float | None = None):
     """
     装饰器：限制并发数
-    
+
     用法:
         @concurrent_limit(max_concurrent=10)
         async def process_task(task):
             ...
     """
     controller = SemaphoreController(max_concurrent=max_concurrent, timeout=timeout)
-    
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             if await controller.acquire():
@@ -290,8 +291,8 @@ def concurrent_limit(max_concurrent: int, timeout: Optional[float] = None):
                 finally:
                     controller.release()
             else:
-                raise asyncio.TimeoutError(f"Concurrent limit exceeded for {func.__name__}")
-        
+                raise TimeoutError(f"Concurrent limit exceeded for {func.__name__}")
+
         return wrapper
     return decorator
 
@@ -300,23 +301,23 @@ def concurrent_limit(max_concurrent: int, timeout: Optional[float] = None):
 def rate_limit(calls: int = 100, period: float = 60.0):
     """
     装饰器：速率限制
-    
+
     用法:
         @rate_limit(calls=10, period=60)  # 每分钟 10 次
         async def api_call():
             ...
     """
     limiter = RateLimiter(RateLimitConfig(calls=calls, period=period))
-    
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             await limiter.wait_and_acquire()
-            
+
             if asyncio.iscoroutinefunction(func):
                 return await func(*args, **kwargs)
             else:
                 return func(*args, **kwargs)
-        
+
         return wrapper
     return decorator
 
@@ -328,7 +329,7 @@ def circuit_breaker(
 ):
     """
     装饰器：熔断器
-    
+
     用法:
         @circuit_breaker(failure_threshold=5)
         async def external_api_call():
@@ -340,17 +341,17 @@ def circuit_breaker(
             recovery_timeout=recovery_timeout,
         )
     )
-    
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             return await breaker.call(func, *args, **kwargs)
-        
+
         return wrapper
     return decorator
 
 
 # 全局并发控制器
-_global_controllers: Dict[str, SemaphoreController] = {}
+_global_controllers: dict[str, SemaphoreController] = {}
 
 
 def get_concurrent_controller(name: str, max_concurrent: int = 10) -> SemaphoreController:

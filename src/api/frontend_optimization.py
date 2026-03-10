@@ -4,34 +4,34 @@
 优化 Web UI 加载速度和用户体验
 """
 
+import os
+
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.middleware.gzip import GZipMiddleware
-import os
 
 
 def setup_frontend_optimization(app: FastAPI):
     """
     设置前端性能优化
-    
+
     Args:
         app: FastAPI 应用实例
     """
-    
+
     # 1. 静态资源缓存
     @app.get("/static/{path:path}")
     async def get_static(path: str):
         """提供静态资源，带长期缓存"""
         file_path = f"webui/static/{path}"
-        
+
         if not os.path.exists(file_path):
             return {"error": "File not found"}
-        
+
         response = FileResponse(file_path)
-        
+
         # 设置长期缓存（1 年）
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
-        
+
         # 根据文件类型设置 Content-Type
         if path.endswith(".js"):
             response.headers["Content-Type"] = "application/javascript; charset=utf-8"
@@ -47,16 +47,16 @@ def setup_frontend_optimization(app: FastAPI):
             response.headers["Content-Type"] = "image/gif"
         elif path.endswith(".webp"):
             response.headers["Content-Type"] = "image/webp"
-        
+
         return response
-    
+
     # 2. HTML 资源预加载提示
     @app.get("/", response_class=HTMLResponse)
     async def get_index():
         """提供主页面，带资源预加载"""
-        with open("webui/index_v5.html", "r", encoding="utf-8") as f:
+        with open("webui/index_v5.html", encoding="utf-8") as f:
             content = f.read()
-        
+
         # 添加资源预加载提示
         preload_hints = """
         <link rel="preload" href="/static/js/app.js" as="script">
@@ -64,20 +64,20 @@ def setup_frontend_optimization(app: FastAPI):
         <link rel="dns-prefetch" href="//localhost:8080">
         <link rel="preconnect" href="//localhost:8080" crossorigin>
         """
-        
+
         # 插入到 head 标签内
         content = content.replace("<head>", f"<head>\n{preload_hints}")
-        
+
         response = HTMLResponse(content=content)
-        
+
         # 设置短期缓存（5 分钟）
         response.headers["Cache-Control"] = "public, max-age=300"
-        
+
         return response
-    
+
     # 3. 添加 GZip 压缩（已在主应用中添加）
     # app.add_middleware(GZipMiddleware, minimum_size=1000)
-    
+
     print("✅ 前端性能优化已配置")
     print("  - 静态资源长期缓存")
     print("  - 资源预加载")
@@ -227,7 +227,7 @@ onTTFB(console.log);
 // 监控页面加载性能
 window.addEventListener('load', () => {
   const perfData = performance.getEntriesByType('navigation')[0];
-  
+
   console.log('DNS 查询时间:', perfData.domainLookupEnd - perfData.domainLookupStart);
   console.log('TCP 连接时间:', perfData.connectEnd - perfData.connectStart);
   console.log('首字节时间:', perfData.responseStart);

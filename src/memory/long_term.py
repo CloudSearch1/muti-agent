@@ -12,10 +12,10 @@
 """
 
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from functools import lru_cache
-from typing import Any, Iterator, Optional
+from typing import Any
 
 import structlog
 
@@ -159,7 +159,7 @@ class LongTermMemory:
         self,
         db_url: str = DEFAULT_DB_URL,
         auto_create_tables: bool = True,
-        rag_store: Optional[Any] = None,
+        rag_store: Any | None = None,
         pool_size: int = 5,
         **kwargs: Any,
     ) -> None:
@@ -260,7 +260,7 @@ class LongTermMemory:
 
         return content
 
-    def _validate_tags(self, tags: Optional[list[str]]) -> list[str]:
+    def _validate_tags(self, tags: list[str] | None) -> list[str]:
         """验证并清理标签"""
         if not tags:
             return []
@@ -272,11 +272,11 @@ class LongTermMemory:
             )
 
         # 清理和去重
-        cleaned = list(set(
+        cleaned = list({
             tag.strip().lower()
             for tag in tags
             if tag and tag.strip()
-        ))
+        })
 
         return cleaned[:MAX_TAGS_COUNT]
 
@@ -285,12 +285,12 @@ class LongTermMemory:
         content: str,
         memory_type: MemoryType = MemoryType.EPISODIC,
         importance: MemoryImportance = MemoryImportance.MEDIUM,
-        summary: Optional[str] = None,
-        tags: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None,
-        agent_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        task_id: Optional[str] = None,
+        summary: str | None = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+        agent_id: str | None = None,
+        session_id: str | None = None,
+        task_id: str | None = None,
     ) -> str:
         """
         存储长期记忆
@@ -433,15 +433,15 @@ class LongTermMemory:
 
     async def search(
         self,
-        query: Optional[str] = None,
-        memory_type: Optional[MemoryType] = None,
-        importance: Optional[MemoryImportance] = None,
-        tags: Optional[list[str]] = None,
-        agent_id: Optional[str] = None,
-        session_id: Optional[str] = None,
-        task_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        query: str | None = None,
+        memory_type: MemoryType | None = None,
+        importance: MemoryImportance | None = None,
+        tags: list[str] | None = None,
+        agent_id: str | None = None,
+        session_id: str | None = None,
+        task_id: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
         limit: int = MAX_MEMORIES_PER_QUERY,
         offset: int = 0,
         order_by: str = "created_at",
@@ -526,7 +526,7 @@ class LongTermMemory:
     async def _semantic_search(
         self,
         query: str,
-        memory_type: Optional[MemoryType] = None,
+        memory_type: MemoryType | None = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
@@ -575,11 +575,11 @@ class LongTermMemory:
     async def update(
         self,
         memory_id: str,
-        content: Optional[str] = None,
-        summary: Optional[str] = None,
-        importance: Optional[MemoryImportance] = None,
-        tags: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        content: str | None = None,
+        summary: str | None = None,
+        importance: MemoryImportance | None = None,
+        tags: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         更新记忆
@@ -742,7 +742,7 @@ class LongTermMemory:
     async def get_important_memories(
         self,
         limit: int = 10,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取重要记忆
@@ -782,7 +782,7 @@ class LongTermMemory:
         self,
         hours: int = 24,
         limit: int = 50,
-        agent_id: Optional[str] = None,
+        agent_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         获取最近的记忆
@@ -865,9 +865,9 @@ class LongTermMemory:
 
     async def count(
         self,
-        memory_type: Optional[MemoryType] = None,
-        importance: Optional[MemoryImportance] = None,
-        agent_id: Optional[str] = None,
+        memory_type: MemoryType | None = None,
+        importance: MemoryImportance | None = None,
+        agent_id: str | None = None,
     ) -> int:
         """
         计数记忆

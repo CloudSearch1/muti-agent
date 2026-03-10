@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 import os
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator

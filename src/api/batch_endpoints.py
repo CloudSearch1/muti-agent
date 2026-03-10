@@ -5,20 +5,18 @@
 """
 
 import logging
-from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db.database import get_db
 from ..db.crud import (
-    get_task_by_id,
-    get_all_tasks,
     create_task,
-    update_task,
     delete_task,
+    get_task_by_id,
+    update_task,
 )
+from ..db.database import get_db
 from ..db.models import TaskModel
 
 logger = logging.getLogger(__name__)
@@ -30,49 +28,49 @@ router = APIRouter(prefix="/batch", tags=["批量操作"])
 
 class TaskBatchGetRequest(BaseModel):
     """批量获取任务请求"""
-    task_ids: List[int] = Field(..., description="任务 ID 列表", max_length=100)
+    task_ids: list[int] = Field(..., description="任务 ID 列表", max_length=100)
 
 
 class TaskBatchCreateRequest(BaseModel):
     """批量创建任务请求"""
-    tasks: List[dict] = Field(..., description="任务数据列表", max_length=50)
+    tasks: list[dict] = Field(..., description="任务数据列表", max_length=50)
 
 
 class TaskBatchUpdateRequest(BaseModel):
     """批量更新任务请求"""
-    updates: List[dict] = Field(..., description="更新数据列表", max_length=50)
+    updates: list[dict] = Field(..., description="更新数据列表", max_length=50)
 
 
 class TaskBatchDeleteRequest(BaseModel):
     """批量删除任务请求"""
-    task_ids: List[int] = Field(..., description="任务 ID 列表", max_length=100)
+    task_ids: list[int] = Field(..., description="任务 ID 列表", max_length=100)
 
 
 # ============ 响应模型 ============
 
 class TaskBatchGetResponse(BaseModel):
     """批量获取任务响应"""
-    tasks: List[dict]
-    not_found: List[int] = []
+    tasks: list[dict]
+    not_found: list[int] = []
 
 
 class TaskBatchCreateResponse(BaseModel):
     """批量创建任务响应"""
-    created: List[dict]
-    failed: List[dict] = []
+    created: list[dict]
+    failed: list[dict] = []
 
 
 class TaskBatchUpdateResponse(BaseModel):
     """批量更新任务响应"""
-    updated: List[dict]
-    failed: List[dict] = []
+    updated: list[dict]
+    failed: list[dict] = []
 
 
 class TaskBatchDeleteResponse(BaseModel):
     """批量删除任务响应"""
     deleted_count: int
-    deleted_ids: List[int]
-    not_found: List[int] = []
+    deleted_ids: list[int]
+    not_found: list[int] = []
 
 
 # ============ API 端点 ============
@@ -84,14 +82,14 @@ async def batch_get_tasks(
 ):
     """
     批量获取任务
-    
+
     一次请求获取多个任务，减少网络往返
-    
+
     - **task_ids**: 任务 ID 列表（最多 100 个）
     """
     tasks = []
     not_found = []
-    
+
     for task_id in request.task_ids:
         task = await get_task_by_id(db, task_id)
         if task:
@@ -107,9 +105,9 @@ async def batch_get_tasks(
             })
         else:
             not_found.append(task_id)
-    
+
     logger.info(f"Batch get tasks: {len(tasks)} found, {len(not_found)} not found")
-    
+
     return TaskBatchGetResponse(tasks=tasks, not_found=not_found)
 
 
@@ -120,14 +118,14 @@ async def batch_create_tasks(
 ):
     """
     批量创建任务
-    
+
     一次请求创建多个任务
-    
+
     - **tasks**: 任务数据列表（最多 50 个）
     """
     created = []
     failed = []
-    
+
     for task_data in request.tasks:
         try:
             task = await create_task(
@@ -150,9 +148,9 @@ async def batch_create_tasks(
                 "data": task_data,
                 "error": str(e),
             })
-    
+
     logger.info(f"Batch create tasks: {len(created)} created, {len(failed)} failed")
-    
+
     return TaskBatchCreateResponse(created=created, failed=failed)
 
 
@@ -163,14 +161,14 @@ async def batch_update_tasks(
 ):
     """
     批量更新任务
-    
+
     一次请求更新多个任务
-    
+
     - **updates**: 更新数据列表（最多 50 个）
     """
     updated = []
     failed = []
-    
+
     for update_data in request.updates:
         task_id = update_data.get("id")
         if not task_id:
@@ -179,7 +177,7 @@ async def batch_update_tasks(
                 "error": "Missing task id",
             })
             continue
-        
+
         try:
             task = await update_task(
                 db,
@@ -191,7 +189,7 @@ async def batch_update_tasks(
                 assignee=update_data.get("assignee"),
                 agent=update_data.get("agent"),
             )
-            
+
             if task:
                 updated.append({
                     "id": task.id,
@@ -209,9 +207,9 @@ async def batch_update_tasks(
                 "data": update_data,
                 "error": str(e),
             })
-    
+
     logger.info(f"Batch update tasks: {len(updated)} updated, {len(failed)} failed")
-    
+
     return TaskBatchUpdateResponse(updated=updated, failed=failed)
 
 
@@ -222,23 +220,23 @@ async def batch_delete_tasks(
 ):
     """
     批量删除任务
-    
+
     一次请求删除多个任务
-    
+
     - **task_ids**: 任务 ID 列表（最多 100 个）
     """
     deleted_ids = []
     not_found = []
-    
+
     for task_id in request.task_ids:
         deleted = await delete_task(db, task_id)
         if deleted:
             deleted_ids.append(task_id)
         else:
             not_found.append(task_id)
-    
+
     logger.info(f"Batch delete tasks: {len(deleted_ids)} deleted, {len(not_found)} not found")
-    
+
     return TaskBatchDeleteResponse(
         deleted_count=len(deleted_ids),
         deleted_ids=deleted_ids,
@@ -250,16 +248,16 @@ async def batch_delete_tasks(
 async def get_batch_stats(db: AsyncSession = Depends(get_db)):
     """
     获取批量统计
-    
+
     返回任务统计信息
     """
     from sqlalchemy import func
-    
+
     result = await db.execute(
         func.count(TaskModel.id)
     )
     total = result.scalar()
-    
+
     return {
         "total_tasks": total,
         "batch_endpoints": [

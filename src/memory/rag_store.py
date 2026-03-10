@@ -16,7 +16,7 @@ import os
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Optional, Protocol
+from typing import Any, Protocol
 
 import structlog
 
@@ -142,9 +142,9 @@ class MemoryItem:
     def __init__(
         self,
         content: str,
-        metadata: Optional[dict[str, Any]] = None,
-        memory_id: Optional[str] = None,
-        embedding: Optional[list[float]] = None,
+        metadata: dict[str, Any] | None = None,
+        memory_id: str | None = None,
+        embedding: list[float] | None = None,
     ) -> None:
         self.memory_id = memory_id or str(uuid.uuid4())
         self.content = content
@@ -193,7 +193,7 @@ class RAGStore:
         self,
         backend: str = "chroma",
         persist_directory: str = DEFAULT_PERSIST_DIR,
-        embedding_provider: Optional[EmbeddingProviderProtocol] = None,
+        embedding_provider: EmbeddingProviderProtocol | None = None,
         collection_name: str = DEFAULT_COLLECTION,
         **kwargs: Any,
     ) -> None:
@@ -390,8 +390,8 @@ class RAGStore:
     async def add_memory(
         self,
         content: str,
-        metadata: Optional[dict[str, Any]] = None,
-        memory_id: Optional[str] = None,
+        metadata: dict[str, Any] | None = None,
+        memory_id: str | None = None,
     ) -> str:
         """
         添加记忆
@@ -541,7 +541,7 @@ class RAGStore:
         self,
         query: str,
         top_k: int = 5,
-        filter_metadata: Optional[dict[str, Any]] = None,
+        filter_metadata: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         语义搜索
@@ -611,7 +611,7 @@ class RAGStore:
             self.logger.error("Search failed", error=str(e))
             return []
 
-    async def get_memory(self, memory_id: str) -> Optional[dict[str, Any]]:
+    async def get_memory(self, memory_id: str) -> dict[str, Any] | None:
         """
         获取单个记忆
 
@@ -705,8 +705,8 @@ class RAGStore:
     async def update_memory(
         self,
         memory_id: str,
-        content: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        content: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """
         更新记忆

@@ -6,7 +6,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
 
-from ...core.event_sourcing import EventStore, EventType, get_event_store
+from ...core.event_sourcing import EventType, get_event_store
 
 router = APIRouter(prefix="/events", tags=["事件溯源"])
 

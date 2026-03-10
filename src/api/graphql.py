@@ -4,11 +4,11 @@ GraphQL API 支持
 提供 GraphQL 查询接口，更灵活的数据获取
 """
 
-from typing import Any, Dict, List, Optional
-import strawberry
-from strawberry.fastapi import GraphQLRouter
+import asyncio
 from datetime import datetime
 
+import strawberry
+from strawberry.fastapi import GraphQLRouter
 
 # ============ GraphQL 类型 ============
 
@@ -20,10 +20,10 @@ class Task:
     description: str
     status: str
     priority: str
-    assignee: Optional[str]
-    agent: Optional[str]
+    assignee: str | None
+    agent: str | None
     created_at: datetime
-    updated_at: Optional[datetime]
+    updated_at: datetime | None
 
 
 @strawberry.type
@@ -47,7 +47,7 @@ class Workflow:
     name: str
     state: str
     created_at: datetime
-    completed_at: Optional[datetime]
+    completed_at: datetime | None
 
 
 @strawberry.type
@@ -67,9 +67,9 @@ class Stats:
 @strawberry.type
 class Query:
     """GraphQL 查询"""
-    
+
     @strawberry.field
-    async def task(self, id: int) -> Optional[Task]:
+    async def task(self, id: int) -> Task | None:
         """获取单个任务"""
         # TODO: 从数据库获取
         return Task(
@@ -83,15 +83,15 @@ class Query:
             created_at=datetime.now(),
             updated_at=None,
         )
-    
+
     @strawberry.field
     async def tasks(
         self,
         limit: int = 20,
         offset: int = 0,
-        status: Optional[str] = None,
-        priority: Optional[str] = None,
-    ) -> List[Task]:
+        status: str | None = None,
+        priority: str | None = None,
+    ) -> list[Task]:
         """获取任务列表"""
         # TODO: 从数据库获取
         return [
@@ -108,9 +108,9 @@ class Query:
             )
             for i in range(offset, offset + limit)
         ]
-    
+
     @strawberry.field
-    async def agent(self, name: str) -> Optional[Agent]:
+    async def agent(self, name: str) -> Agent | None:
         """获取 Agent"""
         # TODO: 从数据库获取
         return Agent(
@@ -124,9 +124,9 @@ class Query:
             success_rate=95.0,
             created_at=datetime.now(),
         )
-    
+
     @strawberry.field
-    async def agents(self) -> List[Agent]:
+    async def agents(self) -> list[Agent]:
         """获取所有 Agent"""
         # TODO: 从数据库获取
         return [
@@ -148,7 +148,7 @@ class Query:
                 ("Architect", "架构师"),
             ], start=1)
         ]
-    
+
     @strawberry.field
     async def stats(self) -> Stats:
         """获取统计信息"""
@@ -168,15 +168,15 @@ class Query:
 @strawberry.type
 class Mutation:
     """GraphQL 变更"""
-    
+
     @strawberry.mutation
     async def create_task(
         self,
         title: str,
         description: str = "",
         priority: str = "normal",
-        assignee: Optional[str] = None,
-        agent: Optional[str] = None,
+        assignee: str | None = None,
+        agent: str | None = None,
     ) -> Task:
         """创建任务"""
         # TODO: 创建到数据库
@@ -191,16 +191,16 @@ class Mutation:
             created_at=datetime.now(),
             updated_at=None,
         )
-    
+
     @strawberry.mutation
     async def update_task(
         self,
         id: int,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        status: Optional[str] = None,
-        priority: Optional[str] = None,
-    ) -> Optional[Task]:
+        title: str | None = None,
+        description: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+    ) -> Task | None:
         """更新任务"""
         # TODO: 更新数据库
         return Task(
@@ -214,7 +214,7 @@ class Mutation:
             created_at=datetime.now(),
             updated_at=datetime.now(),
         )
-    
+
     @strawberry.mutation
     async def delete_task(self, id: int) -> bool:
         """删除任务"""
@@ -227,7 +227,7 @@ class Mutation:
 @strawberry.type
 class Subscription:
     """GraphQL 订阅"""
-    
+
     @strawberry.subscription
     async def task_updates(self, task_id: int) -> Task:
         """订阅任务更新"""

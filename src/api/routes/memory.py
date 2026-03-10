@@ -17,13 +17,14 @@ API 端点：
 """
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 
 from src.memory import (
+    LongTermMemory,
     MemoryImportance,
     MemoryNotFoundError,
     MemoryType,
@@ -31,15 +32,12 @@ from src.memory import (
     RAGStore,
     ShortTermMemory,
     StorageType,
+    create_long_term_memory,
+    create_rag_store,
     validate_content,
     validate_importance,
     validate_memory_type,
     validate_storage_type,
-)
-from src.memory import (
-    LongTermMemory,
-    create_long_term_memory,
-    create_rag_store,
 )
 
 logger = structlog.get_logger(__name__)
@@ -68,13 +66,13 @@ class MemoryStoreRequest(BaseModel):
         default="medium",
         description="重要性: low, medium, high, critical",
     )
-    summary: Optional[str] = Field(None, description="摘要", max_length=1000)
+    summary: str | None = Field(None, description="摘要", max_length=1000)
     tags: list[str] = Field(default_factory=list, description="标签", max_length=20)
     metadata: dict[str, Any] = Field(default_factory=dict, description="元数据")
-    agent_id: Optional[str] = Field(None, description="Agent ID", max_length=64)
-    session_id: Optional[str] = Field(None, description="会话 ID", max_length=64)
-    task_id: Optional[str] = Field(None, description="任务 ID", max_length=64)
-    ttl: Optional[int] = Field(None, description="TTL（秒），仅用于短期记忆", ge=1, le=86400)
+    agent_id: str | None = Field(None, description="Agent ID", max_length=64)
+    session_id: str | None = Field(None, description="会话 ID", max_length=64)
+    task_id: str | None = Field(None, description="任务 ID", max_length=64)
+    ttl: int | None = Field(None, description="TTL（秒），仅用于短期记忆", ge=1, le=86400)
 
     @field_validator("memory_type")
     @classmethod
@@ -116,13 +114,13 @@ class MemoryStoreRequest(BaseModel):
 class MemorySearchRequest(BaseModel):
     """搜索记忆请求"""
 
-    query: Optional[str] = Field(None, description="搜索查询", max_length=1000)
-    memory_type: Optional[str] = Field(None, description="记忆类型过滤")
-    importance: Optional[str] = Field(None, description="重要性过滤")
-    tags: Optional[list[str]] = Field(None, description="标签过滤")
-    agent_id: Optional[str] = Field(None, description="Agent ID 过滤")
-    session_id: Optional[str] = Field(None, description="会话 ID 过滤")
-    task_id: Optional[str] = Field(None, description="任务 ID 过滤")
+    query: str | None = Field(None, description="搜索查询", max_length=1000)
+    memory_type: str | None = Field(None, description="记忆类型过滤")
+    importance: str | None = Field(None, description="重要性过滤")
+    tags: list[str] | None = Field(None, description="标签过滤")
+    agent_id: str | None = Field(None, description="Agent ID 过滤")
+    session_id: str | None = Field(None, description="会话 ID 过滤")
+    task_id: str | None = Field(None, description="任务 ID 过滤")
     storage: str = Field(
         default="long_term",
         description="存储类型: short_term, long_term, vector",
@@ -132,7 +130,7 @@ class MemorySearchRequest(BaseModel):
 
     @field_validator("memory_type")
     @classmethod
-    def validate_memory_type(cls, v: Optional[str]) -> Optional[str]:
+    def validate_memory_type(cls, v: str | None) -> str | None:
         """验证记忆类型"""
         if v is None:
             return None
@@ -144,7 +142,7 @@ class MemorySearchRequest(BaseModel):
 
     @field_validator("importance")
     @classmethod
-    def validate_importance(cls, v: Optional[str]) -> Optional[str]:
+    def validate_importance(cls, v: str | None) -> str | None:
         """验证重要性"""
         if v is None:
             return None
@@ -159,20 +157,20 @@ class MemoryResponse(BaseModel):
     """记忆响应"""
 
     id: str
-    memory_id: Optional[str] = None
+    memory_id: str | None = None
     content: str
-    memory_type: Optional[str] = None
-    importance: Optional[str] = None
-    summary: Optional[str] = None
+    memory_type: str | None = None
+    importance: str | None = None
+    summary: str | None = None
     tags: list[str] = []
     metadata: dict[str, Any] = {}
-    agent_id: Optional[str] = None
-    session_id: Optional[str] = None
-    task_id: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    access_count: Optional[int] = None
-    similarity_score: Optional[float] = None
+    agent_id: str | None = None
+    session_id: str | None = None
+    task_id: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    access_count: int | None = None
+    similarity_score: float | None = None
 
 
 class MemoryListResponse(BaseModel):
@@ -189,10 +187,10 @@ class MemoryStatsResponse(BaseModel):
 
     storage_type: str
     total_count: int
-    by_type: Optional[dict[str, int]] = None
-    by_importance: Optional[dict[str, int]] = None
-    recently_accessed_24h: Optional[int] = None
-    rag_enabled: Optional[bool] = None
+    by_type: dict[str, int] | None = None
+    by_importance: dict[str, int] | None = None
+    recently_accessed_24h: int | None = None
+    rag_enabled: bool | None = None
 
 
 class DeleteResponse(BaseModel):
@@ -207,9 +205,9 @@ class DeleteResponse(BaseModel):
 # ===========================================
 
 
-_short_term_memory: Optional[ShortTermMemory] = None
-_long_term_memory: Optional[LongTermMemory] = None
-_rag_store: Optional[RAGStore] = None
+_short_term_memory: ShortTermMemory | None = None
+_long_term_memory: LongTermMemory | None = None
+_rag_store: RAGStore | None = None
 
 
 def get_short_term_memory() -> ShortTermMemory:
@@ -411,10 +409,10 @@ async def _store_long_term(request: MemoryStoreRequest) -> MemoryResponse:
 )
 async def list_memories(
     storage: str = Query(default="long_term", description="存储类型"),
-    memory_type: Optional[str] = Query(None, description="记忆类型过滤"),
-    importance: Optional[str] = Query(None, description="重要性过滤"),
-    agent_id: Optional[str] = Query(None, description="Agent ID 过滤"),
-    session_id: Optional[str] = Query(None, description="会话 ID 过滤"),
+    memory_type: str | None = Query(None, description="记忆类型过滤"),
+    importance: str | None = Query(None, description="重要性过滤"),
+    agent_id: str | None = Query(None, description="Agent ID 过滤"),
+    session_id: str | None = Query(None, description="会话 ID 过滤"),
     limit: int = Query(default=10, ge=1, le=100, description="数量限制"),
     offset: int = Query(default=0, ge=0, description="偏移量"),
 ) -> MemoryListResponse:
@@ -806,7 +804,7 @@ async def get_memory_stats(
 )
 async def get_important_memories(
     limit: int = Query(default=10, ge=1, le=100, description="数量限制"),
-    agent_id: Optional[str] = Query(None, description="Agent ID 过滤"),
+    agent_id: str | None = Query(None, description="Agent ID 过滤"),
 ) -> MemoryListResponse:
     """获取重要记忆"""
     try:

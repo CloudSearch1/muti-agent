@@ -5,13 +5,14 @@ LLM 数据模型定义
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
 
+from src.utils.compat import StrEnum
 
-class ProviderType(str, Enum):
+
+class ProviderType(StrEnum):
     """服务商类型"""
     OPENAI = "openai"
     OPENAI_COMPATIBLE = "openai-compatible"

@@ -18,7 +18,6 @@ from typing import Any
 import structlog
 
 from .types import (
-    AgentCapability,
     AgentLoadInfo,
     PiAgentConfig,
     PiAgentInfo,

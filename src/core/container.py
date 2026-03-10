@@ -25,23 +25,23 @@ class AgentConfig:
     llm_model: str = "gpt-3.5-turbo"
     temperature: float = 0.7
     max_tokens: int = 2048
-    
+
     # 缓存配置
     use_cache: bool = True
     cache_ttl: int = 3600
     semantic_cache_threshold: float = 0.9
-    
+
     # Agent 特定配置
     preferred_language: str = "python"
     code_style: str = "pep8"
     testing_framework: str = "pytest"
     doc_format: str = "markdown"
-    
+
     # 执行配置
     timeout_seconds: int = 300
     max_retries: int = 3
     retry_delay: float = 1.0
-    
+
     # 日志配置
     log_level: str = "INFO"
     verbose: bool = False
@@ -93,108 +93,108 @@ class AgentContainer:
     def get_container(cls, name: str = "default") -> "AgentContainer":
         """获取容器实例"""
         return cls(name)
-    
+
     @classmethod
     def reset(cls, name: str = "default"):
         """重置容器（用于测试）"""
         if name in cls._instances:
             del cls._instances[name]
-    
+
     def configure(self, **kwargs):
         """配置 Agent"""
         for key, value in kwargs.items():
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
-        
+
         logger.info(f"AgentContainer '{self.name}' configured: {kwargs}")
         return self
-    
+
     def set_llm_provider(self, provider: LLMProvider):
         """设置 LLM 提供商"""
         self._llm_provider = provider
         logger.info(f"LLM provider set: {provider.__class__.__name__}")
         return self
-    
+
     def set_llm_cache(self, cache: LLMCache):
         """设置 LLM 缓存"""
         self._llm_cache = cache
         logger.info("LLM cache set")
         return self
-    
+
     def set_semantic_cache(self, cache: SemanticCache):
         """设置语义缓存"""
         self._semantic_cache = cache
         logger.info("Semantic cache set")
         return self
-    
+
     def set_db_manager(self, db_manager: DatabaseManager):
         """设置数据库管理器"""
         self._db_manager = db_manager
         logger.info("Database manager set")
         return self
-    
+
     def set_state_store(self, state_store: StateStore):
         """设置状态存储"""
         self._state_store = state_store
         logger.info("State store set")
         return self
-    
+
     def register_dependency(self, name: str, dependency: Any):
         """注册自定义依赖"""
         self._custom_deps[name] = dependency
         logger.info(f"Custom dependency registered: {name}")
         return self
-    
+
     def get_llm(self) -> LLMProvider:
         """获取 LLM 提供商"""
         if self._llm_provider:
             return self._llm_provider
-        
+
         # 使用默认配置
         self._llm_provider = get_llm(self.config.llm_provider)
         return self._llm_provider
-    
+
     def get_llm_cache(self) -> LLMCache:
         """获取 LLM 缓存"""
         if self._llm_cache:
             return self._llm_cache
-        
+
         self._llm_cache = get_llm_cache()
         return self._llm_cache
-    
+
     def get_semantic_cache(self) -> SemanticCache:
         """获取语义缓存"""
         if self._semantic_cache:
             return self._semantic_cache
-        
+
         self._semantic_cache = get_semantic_cache(
             similarity_threshold=self.config.semantic_cache_threshold,
         )
         return self._semantic_cache
-    
+
     def get_db_manager(self) -> DatabaseManager:
         """获取数据库管理器"""
         if self._db_manager:
             return self._db_manager
-        
+
         self._db_manager = get_database_manager()
         return self._db_manager
-    
+
     def get_state_store(self) -> StateStore:
         """获取状态存储"""
         if self._state_store:
             return self._state_store
-        
+
         self._state_store = get_state_store()
         return self._state_store
-    
+
     def get_dependency(self, name: str) -> Any:
         """获取自定义依赖"""
         if name in self._custom_deps:
             return self._custom_deps[name]
-        
+
         raise KeyError(f"Dependency not found: {name}")
-    
+
     def get_all_dependencies(self) -> dict[str, Any]:
         """获取所有依赖"""
         return {
@@ -205,36 +205,36 @@ class AgentContainer:
             "state_store": self._state_store,
             **self._custom_deps,
         }
-    
+
     async def initialize(self):
         """初始化所有依赖"""
         logger.info(f"Initializing AgentContainer '{self.name}'")
-        
+
         # 初始化缓存
         if self.config.use_cache:
             await self.get_llm_cache()
             await self.get_semantic_cache()
-        
+
         # 初始化数据库
         self.get_db_manager()
-        
+
         # 初始化状态存储
         self.get_state_store()
-        
+
         logger.info(f"AgentContainer '{self.name}' initialized")
-    
+
     async def shutdown(self):
         """关闭所有依赖"""
         logger.info(f"Shutting down AgentContainer '{self.name}'")
-        
+
         # 关闭数据库
         if self._db_manager:
             await self._db_manager.disconnect()
-        
+
         # 关闭缓存
         if self._llm_cache:
             await self._llm_cache.close()
-        
+
         logger.info(f"AgentContainer '{self.name}' shut down")
 
 
@@ -265,7 +265,7 @@ async def init_agent_container(
 def inject_dependencies(*dep_names: str):
     """
     装饰器：自动注入依赖
-    
+
     用法:
         @inject_dependencies("llm_provider", "llm_cache")
         async def generate(self, llm_provider, llm_cache, prompt: str) -> str:
@@ -274,13 +274,13 @@ def inject_dependencies(*dep_names: str):
     def decorator(func):
         async def wrapper(self, *args, **kwargs):
             container = get_agent_container()
-            
+
             # 注入依赖
             for dep_name in dep_names:
                 if dep_name not in kwargs:
                     kwargs[dep_name] = getattr(container, f"get_{dep_name}")()
-            
+
             return await func(self, *args, **kwargs)
-        
+
         return wrapper
     return decorator

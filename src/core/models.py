@@ -11,7 +11,6 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-
 # ============ 兼容 Python 3.10 的 StrEnum ============
 # Python 3.11+ 有内置的 StrEnum，这里为 3.10 提供兼容
 

@@ -6,12 +6,11 @@
 
 import re
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 import structlog
 
 from ..llm.llm_provider import BaseProvider, get_llm
-from .exceptions import KnowledgeGraphError
 from .types import Document, Entity, Relation
 
 logger = structlog.get_logger(__name__)
