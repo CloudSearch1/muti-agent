@@ -1116,23 +1116,6 @@
                     </div>
                 </div>
             </div>
-                            </div>
-                        </div>
-                        <div class="border border-gh-border rounded-xl p-6 bg-gh-elevated">
-                            <h3 class="font-bold text-white mb-4">任务类型分布</h3>
-                            <div style="height: 250px; position: relative;">
-                                <canvas id="analyticsTaskType"></canvas>
-                            </div>
-                        </div>
-                        <div class="border border-gh-border rounded-xl p-6 bg-gh-elevated">
-                            <h3 class="font-bold text-white mb-4">每周活跃度</h3>
-                            <div style="height: 250px; position: relative;">
-                                <canvas id="analyticsWeeklyActivity"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- 技能管理 -->
             <div v-if="currentTab === 'skills'" class="space-y-6">
@@ -1688,6 +1671,9 @@
                     showAgentDetailModal: false,
                     selectedAgent: null,
                     selectAll: false,
+                    searchTimeout: null,
+                    updateInterval: null,
+                    latencyTimeout: null,
 
                     // Skills 相关
                     skills: [],
@@ -1700,7 +1686,6 @@
                     editingSkill: null,
                     newSkill: { name: '', description: '', category: 'general', version: '1.0.0', enabled: true },
 
-                    selectAll: false,
                     selectedTasks: [],
                     wsConnected: false,
                     systemLatency: 0,
@@ -1805,6 +1790,8 @@
                         this.loadNotifications();
                     });
                 }
+                // 加载深色模式设置
+                this.loadDarkMode();
                 // 页面加载时调用 loadData
                 this.loadData();
                 // 加载技能数据
@@ -1832,7 +1819,11 @@
                 debouncedSearch: function() {
                     clearTimeout(this.searchTimeout);
                     this.searchTimeout = setTimeout(() => {
-                        // 搜索逻辑
+                        // 搜索逻辑已由 computed filteredTasks 自动处理
+                        // 这里可以添加额外的搜索操作，如日志记录或 API 调用
+                        if (this.searchQuery.trim()) {
+                            console.log('搜索:', this.searchQuery);
+                        }
                     }, 300);
                 },
 
@@ -2402,7 +2393,7 @@
                     this.updateSystemLatency();
 
                     // 模拟实时数据更新
-                    setInterval(() => {
+                    this.updateInterval = setInterval(() => {
                         this.lastUpdateTime = new Date().toLocaleTimeString('zh-CN');
                         // 随机更新 Agent 状态
                         const randomAgent = this.agents[Math.floor(Math.random() * this.agents.length)];
@@ -2412,7 +2403,7 @@
 
                 updateSystemLatency() {
                     this.systemLatency = Math.floor(Math.random() * 50) + 10;
-                    setTimeout(() => this.updateSystemLatency(), 3000);
+                    this.latencyTimeout = setTimeout(() => this.updateSystemLatency(), 3000);
                 },
 
                 // 快捷键
@@ -2478,6 +2469,10 @@
             beforeUnmount() {
                 document.removeEventListener('keydown', this.handleKeydown);
                 Object.values(this.charts).forEach(chart => chart.destroy());
+                // 清理定时器
+                clearInterval(this.updateInterval);
+                clearTimeout(this.latencyTimeout);
+                clearTimeout(this.searchTimeout);
             }
         }).mount('#app');
 
