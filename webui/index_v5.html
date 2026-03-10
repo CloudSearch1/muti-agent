@@ -622,6 +622,9 @@
                         <button @click="currentTab = 'skills'" :class="currentTab === 'skills' ? 'border-white text-white' : 'border-transparent text-gh-text hover:text-gh-light hover:border-gh-border'" class="h-full px-4 border-b-2 font-medium text-sm transition flex items-center">
                             <i class="fas fa-puzzle-piece mr-2 text-xs"></i>技能
                         </button>
+                        <a href="/ai-assistant.html" target="_blank" class="h-full px-4 border-b-2 border-transparent text-gh-text hover:text-gh-light hover:border-gh-border font-medium text-sm transition flex items-center">
+                            <i class="fas fa-robot mr-2 text-xs"></i>AI 助手
+                        </a>
                     </div>
                 </div>
 
@@ -663,12 +666,6 @@
                     <button @click="showShortcuts = true" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition hide-mobile text-gh-text hover:text-white" title="快捷键 (?">
                         <i class="fas fa-keyboard text-sm"></i>
                     </button>
-
-                    <!-- AI 助手 (综合面板) -->
-                    <button @click="toggleChatPanel" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition text-gh-text hover:text-white relative" title="AI 助手 (Ctrl+I)">
-                        <i class="fas fa-robot text-sm"></i>
-                        <span v-if="chatUnread > 0" class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gh-purple rounded-full text-[10px] flex items-center justify-center text-white font-medium">{{ chatUnread }}</span>
-                    </button>
                 </div>
             </div>
 
@@ -692,6 +689,9 @@
                 <button @click="currentTab = 'skills'" :class="currentTab === 'skills' ? 'bg-white/10 text-white' : 'text-gh-text hover:text-gh-light'" class="px-3 py-1.5 rounded-md transition text-sm font-medium">
                     <i class="fas fa-puzzle-piece"></i>
                 </button>
+                <a href="/ai-assistant.html" target="_blank" class="px-3 py-1.5 rounded-md transition text-sm font-medium text-gh-text hover:text-gh-light hover:bg-white/10">
+                    <i class="fas fa-robot"></i>
+                </a>
             </div>
         </nav>
 
