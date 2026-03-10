@@ -1630,7 +1630,7 @@
 
         <!-- AI 聊天面板 -->
         <div :class="showChatPanel ? 'open' : ''" class="chat-panel-backdrop" @click="toggleChatPanel"></div>
-        <div :class="['chat-panel', showFileBrowser ? 'with-browser' : '']">
+        <div :class="['chat-panel', showChatPanel ? 'open' : '', showFileBrowser ? 'with-browser' : '']">
             <!-- 聊天头部 -->
             <div class="flex items-center justify-between px-4 h-14 border-b border-gh-border bg-gh-canvas">
                 <div class="flex items-center gap-3">
