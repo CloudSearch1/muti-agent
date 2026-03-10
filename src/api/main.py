@@ -41,7 +41,11 @@ async def lifespan(app: FastAPI):
 
     # 初始化 Redis
     memory = ShortTermMemory(redis_url=settings.redis_url)
-    await memory.connect()
+    try:
+        await memory.connect()
+    except Exception as e:
+        logger.warning(f"Redis connection failed, using in-memory storage: {e}")
+        # 继续使用内存存储
     _resources["memory"] = memory
 
     # 初始化会话管理器
