@@ -1626,56 +1626,7 @@
         <!-- AI 综合面板 (聊天 + 文件浏览器) -->
         <div :class="showChatPanel ? 'open' : ''" class="chat-panel-backdrop" @click="toggleChatPanel"></div>
         <div :class="['chat-panel', 'unified-panel', showChatPanel ? 'open' : '']">
-            <!-- 左侧：文件浏览器侧边栏 -->
-            <div class="unified-sidebar">
-                <div class="unified-sidebar-header">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-folder text-yellow-400"></i>
-                        <span class="text-sm font-medium text-white">项目文件</span>
-                    </div>
-                    <button @click="refreshFileTree" class="text-gh-text hover:text-white transition p-1" title="刷新">
-                        <i class="fas fa-sync-alt text-xs" :class="fileTreeLoading ? 'fa-spin' : ''"></i>
-                    </button>
-                </div>
-                <div class="unified-sidebar-content">
-                    <div v-if="fileTreeLoading" class="text-center py-8 text-gh-text text-xs">
-                        <i class="fas fa-spinner fa-spin mr-2"></i>加载中...
-                    </div>
-                    <div v-else-if="fileTree.length === 0" class="text-center py-8 text-gh-text text-xs">
-                        <i class="fas fa-folder-open text-xl mb-2 block"></i>
-                        暂无文件
-                    </div>
-                    <div v-else class="file-tree">
-                        <template v-for="item in fileTree" :key="item.path">
-                            <div v-if="item.type === 'directory'" class="file-tree-item directory" @click="toggleFolder(item)">
-                                <i :class="item.expanded ? 'fas fa-chevron-down' : 'fas fa-chevron-right'" class="text-xs text-gh-text mr-1"></i>
-                                <i class="fas fa-folder text-yellow-400 mr-2"></i>
-                                <span>{{ item.name }}</span>
-                            </div>
-                            <div v-if="item.type === 'file'" class="file-tree-item file" @click="openFile(item)" :title="item.path">
-                                <i class="fas fa-file-code mr-2" :class="getFileIcon(item.name)"></i>
-                                <span>{{ item.name }}</span>
-                            </div>
-                            <!-- 子目录 -->
-                            <div v-if="item.expanded && item.children" class="file-tree-children">
-                                <template v-for="child in item.children" :key="child.path">
-                                    <div v-if="child.type === 'directory'" class="file-tree-item directory" @click="toggleFolder(child)">
-                                        <i :class="child.expanded ? 'fas fa-chevron-down' : 'fas fa-chevron-right'" class="text-xs text-gh-text mr-1"></i>
-                                        <i class="fas fa-folder text-yellow-400 mr-2"></i>
-                                        <span>{{ child.name }}</span>
-                                    </div>
-                                    <div v-if="child.type === 'file'" class="file-tree-item file" @click="openFile(child)" :title="child.path">
-                                        <i class="fas fa-file-code mr-2" :class="getFileIcon(child.name)"></i>
-                                        <span>{{ child.name }}</span>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 右侧：聊天区域 -->
+            <!-- 聊天区域 -->
             <div class="unified-chat-area">
                 <!-- 聊天头部 -->
                 <div class="flex items-center justify-between px-4 h-14 border-b border-gh-border bg-gh-canvas">
