@@ -72,7 +72,7 @@
         }, true);
     </script>
 
-    <!-- Tailwind 配置 - 严格 RGB 规范 -->
+    <!-- Tailwind 配置 - GitHub 设计规范 -->
     <script>
         window.tailwind = window.tailwind || {};
         window.tailwind.config = {
@@ -80,30 +80,31 @@
             theme: {
                 extend: {
                     colors: {
-                        // 严格 RGB 颜色规范
+                        // GitHub 设计规范配色
                         gh: {
-                            bg: '#0d1117',        // 背景 RGB(13,17,23)
+                            bg: '#0d1117',        // 背景色
                             canvas: '#161b22',    // 画布/卡片背景
                             elevated: '#21262d',  // 提升元素
                             border: '#30363d',    // 边框
-                            text: '#9198a1',      // 次要文字 RGB(145,152,161)
-                            light: '#f0f6fc',     // 正文标题 RGB(240,246,252)
+                            text: '#6A737D',      // 次要文字/边框灰色
+                            light: '#e6edf3',     // 正文文字浅灰色
                             white: '#ffffff',     // 强调文字
-                            blue: '#1f6feb',      // 按钮颜色 RGB(31,111,235)
-                            green: '#1f6feb',     // 统一按钮色
-                            yellow: '#1f6feb',    // 统一按钮色
-                            red: '#1f6feb',       // 统一按钮色
-                            purple: '#1f6feb',    // 统一按钮色
+                            blue: '#0366D6',      // 主色调蓝色
+                            green: '#33BB22',     // 成功色绿色
+                            yellow: '#F0C744',    // 警告色黄色
+                            red: '#DA3633',       // 危险色红色
+                            purple: '#8957e5',    // 紫色
+                            link: '#0366D6',      // 链接蓝色
                         },
                         primary: {
                             50: '#f0f6fc',
                             100: '#e5e5e5',
                             200: '#d4d4d4',
-                            300: '#9198a1',       // 次要文字色
+                            300: '#6A737D',       // 次要文字色
                             400: '#737373',
-                            500: '#1f6feb',       // 按钮色
-                            600: '#1f6feb',
-                            700: '#1f6feb',
+                            500: '#0366D6',       // 主色调
+                            600: '#0366D6',
+                            700: '#0366D6',
                             800: '#171717',
                             900: '#0a0a0a'
                         },
@@ -120,14 +121,14 @@
     </script>
 
     <style>
-        /* 严格 RGB 规范样式 */
+        /* GitHub 设计规范样式 */
         .gradient-bg { background: linear-gradient(180deg, #0d1117 0%, #161b22 100%); }
         .gradient-dark { background: #0d1117; }
         .card-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); border-color: #1f6feb; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); border-color: #0366D6; }
 
-        /* 按钮发光效果 */
-        .gh-glow { box-shadow: 0 0 0 1px rgba(31, 111, 235, 0.4); }
+        /* 按钮发光效果 - GitHub 蓝色 */
+        .gh-glow { box-shadow: 0 0 0 1px rgba(3, 102, 214, 0.4); }
         .gh-shadow { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24); }
 
         /* 加载动画 */
@@ -148,50 +149,95 @@
         /* 深色模式过渡 */
         html { transition: background-color 0.2s ease, color 0.2s ease; }
 
-        /* 快捷键提示 */
+        /* 快捷键提示 - GitHub 风格 */
         .kbd {
             display: inline-block;
             padding: 2px 6px;
             font-size: 11px;
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-            background: rgba(31, 111, 235, 0.1);
+            background: rgba(3, 102, 214, 0.1);
             border-radius: 6px;
-            border: 1px solid rgba(31, 111, 235, 0.3);
-            color: #1f6feb;
+            border: 1px solid rgba(3, 102, 214, 0.3);
+            color: #0366D6;
         }
 
-        /* 滚动条美化 */
+        /* 滚动条美化 - GitHub 风格 */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0d1117; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+        ::-webkit-scrollbar-thumb:hover { background: #6A737D; }
 
         /* 触摸优化 */
         @media (hover: none) {
             .card-hover:hover { transform: none; }
         }
 
-        /* 输入框聚焦效果 */
+        /* 输入框聚焦效果 - GitHub 蓝色 */
         input:focus, textarea:focus, select:focus {
-            border-color: #1f6feb !important;
-            box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.3) !important;
+            border-color: #0366D6 !important;
+            box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.3) !important;
         }
 
-        /* 按钮样式 - 严格 RGB(31,111,235) */
+        /* 按钮样式 - GitHub 设计规范 */
         .btn-primary {
-            background-color: #1f6feb;
-            color: #f0f6fc;
-            border: 1px solid rgba(31, 111, 235, 0.5);
+            background-color: #33BB22;
+            color: #ffffff;
+            border: 1px solid rgba(51, 187, 34, 0.5);
+            border-radius: 6px;
         }
         .btn-primary:hover {
-            background-color: #388bfd;
-            border-color: #1f6feb;
+            background-color: #2ea91f;
+            border-color: #33BB22;
         }
 
-        /* 状态指示器 - 使用按钮色 */
-        .status-online { color: #1f6feb; }
-        .status-idle { color: #9198a1; }
+        .btn-secondary {
+            background-color: #21262d;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+        }
+        .btn-secondary:hover {
+            background-color: #30363d;
+            border-color: #6A737D;
+        }
+
+        .btn-danger {
+            background-color: #DA3633;
+            color: #ffffff;
+            border: 1px solid rgba(218, 54, 51, 0.5);
+            border-radius: 6px;
+        }
+        .btn-danger:hover {
+            background-color: #b62324;
+            border-color: #DA3633;
+        }
+
+        /* 状态指示器 - GitHub 设计规范 */
+        .status-online { color: #33BB22; }
+        .status-idle { color: #6A737D; }
         .status-offline { color: #525252; }
+
+        /* GitHub 标签徽章样式 */
+        .badge-success {
+            background: rgba(51, 187, 34, 0.2);
+            color: #33BB22;
+            border: 1px solid rgba(51, 187, 34, 0.3);
+        }
+        .badge-error {
+            background: rgba(218, 54, 51, 0.2);
+            color: #DA3633;
+            border: 1px solid rgba(218, 54, 51, 0.3);
+        }
+        .badge-warning {
+            background: rgba(240, 199, 68, 0.2);
+            color: #F0C744;
+            border: 1px solid rgba(240, 199, 68, 0.3);
+        }
+        .badge-info {
+            background: rgba(3, 102, 214, 0.2);
+            color: #0366D6;
+            border: 1px solid rgba(3, 102, 214, 0.3);
+        }
     </style>
 </head>
 <body class="bg-gh-bg text-gh-light transition-colors">
@@ -455,7 +501,7 @@
                                 <button @click="batchUpdateStatus('pending')" class="bg-gh-elevated hover:bg-gh-border text-gh-light px-4 py-2 rounded-lg transition flex items-center border border-gh-border">
                                     <i class="fas fa-clock mr-2"></i>设为待处理
                                 </button>
-                                <button @click="batchUpdateStatus('in_progress')" class="bg-gh-blue hover:bg-blue-400 text-gh-bg px-4 py-2 rounded-lg transition flex items-center">
+                                <button @click="batchUpdateStatus('in_progress')" class="bg-gh-green hover:bg-green-500 text-white px-4 py-2 rounded-lg transition flex items-center">
                                     <i class="fas fa-spinner mr-2"></i>设为进行中
                                 </button>
                                 <button @click="batchUpdateStatus('completed')" class="bg-gh-elevated hover:bg-gh-border text-gh-light px-4 py-2 rounded-lg transition flex items-center border border-gh-border">
@@ -473,7 +519,7 @@
                                 <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="搜索任务..." class="w-40 pl-8 pr-3 py-2 rounded-lg border border-gh-border bg-gh-elevated focus:outline-none focus:border-gh-light text-white">
                                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gh-text"></i>
                             </div>
-                            <button @click="showCreateTask = true" class="bg-gh-blue hover:bg-blue-400 text-gh-bg px-4 py-2 rounded-lg transition flex items-center">
+                            <button @click="showCreateTask = true" class="bg-gh-green hover:bg-green-500 text-white px-4 py-2 rounded-lg transition flex items-center">
                                 <i class="fas fa-plus mr-2"></i>新建任务
                             </button>
                         </div>
@@ -696,7 +742,7 @@
                             </h2>
                             <p class="text-sm text-gh-text mt-1">{{ skills.length }} 个技能可用</p>
                         </div>
-                        <button @click="showCreateSkill = true" class="bg-gh-blue hover:bg-blue-400 text-gh-bg px-4 py-2 rounded-lg transition flex items-center">
+                        <button @click="showCreateSkill = true" class="bg-gh-green hover:bg-green-500 text-white px-4 py-2 rounded-lg transition flex items-center">
                             <i class="fas fa-plus mr-2"></i>新建技能
                         </button>
                     </div>
@@ -820,8 +866,8 @@
                     </div>
                 </div>
                 <div class="flex space-x-3 p-6 border-t border-gh-border bg-gh-elevated rounded-b-2xl">
-                    <button @click="createTask" class="flex-1 bg-gh-blue hover:bg-blue-400 text-gh-bg py-2.5 rounded-lg transition font-medium">创建任务</button>
-                    <button @click="showCreateTask = false" class="flex-1 bg-gh-border hover:bg-blue-400/20 text-gh-text py-2.5 rounded-lg transition font-medium">取消</button>
+                    <button @click="createTask" class="flex-1 bg-gh-green hover:bg-green-500 text-white py-2.5 rounded-lg transition font-medium">创建任务</button>
+                    <button @click="showCreateTask = false" class="flex-1 bg-gh-elevated hover:bg-gh-border text-gh-light py-2.5 rounded-lg transition font-medium border border-gh-border">取消</button>
                 </div>
             </div>
         </div>
@@ -881,8 +927,8 @@
                     </div>
                 </div>
                 <div class="flex space-x-3 p-6 border-t border-gh-border bg-gh-elevated rounded-b-2xl">
-                    <button @click="updateTask" class="flex-1 bg-gh-blue hover:bg-blue-400 text-gh-bg py-2.5 rounded-lg transition font-medium">保存修改</button>
-                    <button @click="showEditTask = false" class="flex-1 bg-gh-border hover:bg-blue-400/20 text-gh-text py-2.5 rounded-lg transition font-medium">取消</button>
+                    <button @click="updateTask" class="flex-1 bg-gh-green hover:bg-green-500 text-white py-2.5 rounded-lg transition font-medium">保存修改</button>
+                    <button @click="showEditTask = false" class="flex-1 bg-gh-elevated hover:bg-gh-border text-gh-light py-2.5 rounded-lg transition font-medium border border-gh-border">取消</button>
                 </div>
             </div>
         </div>
@@ -1062,7 +1108,7 @@
                     <button @click="showAgentDetailModal = false" class="flex-1 bg-gh-elevated hover:bg-gh-border text-gh-text py-2.5 rounded-lg transition text-sm font-medium border border-gh-border">
                         关闭
                     </button>
-                    <button class="flex-1 bg-gh-blue hover:bg-blue-400 text-gh-bg py-2.5 rounded-lg transition text-sm font-medium flex items-center justify-center">
+                    <button class="flex-1 bg-gh-green hover:bg-green-500 text-white py-2.5 rounded-lg transition text-sm font-medium flex items-center justify-center">
                         <i class="fas fa-paper-plane mr-2"></i>分配任务
                     </button>
                 </div>
@@ -1110,8 +1156,8 @@
                     </div>
                 </div>
                 <div class="flex space-x-3 p-6 border-t border-gh-border bg-gh-elevated rounded-b-2xl">
-                    <button @click="createSkill" class="flex-1 bg-gh-blue hover:bg-blue-400 text-gh-bg py-2.5 rounded-lg transition font-medium">创建技能</button>
-                    <button @click="showCreateSkill = false" class="flex-1 bg-gh-border hover:bg-blue-400/20 text-gh-text py-2.5 rounded-lg transition font-medium">取消</button>
+                    <button @click="createSkill" class="flex-1 bg-gh-green hover:bg-green-500 text-white py-2.5 rounded-lg transition font-medium">创建技能</button>
+                    <button @click="showCreateSkill = false" class="flex-1 bg-gh-elevated hover:bg-gh-border text-gh-light py-2.5 rounded-lg transition font-medium border border-gh-border">取消</button>
                 </div>
             </div>
         </div>
@@ -1157,8 +1203,8 @@
                     </div>
                 </div>
                 <div class="flex space-x-3 p-6 border-t border-gh-border bg-gh-elevated rounded-b-2xl">
-                    <button @click="updateSkill" class="flex-1 bg-gh-blue hover:bg-blue-400 text-gh-bg py-2.5 rounded-lg transition font-medium">保存修改</button>
-                    <button @click="showEditSkill = false" class="flex-1 bg-gh-border hover:bg-blue-400/20 text-gh-text py-2.5 rounded-lg transition font-medium">取消</button>
+                    <button @click="updateSkill" class="flex-1 bg-gh-green hover:bg-green-500 text-white py-2.5 rounded-lg transition font-medium">保存修改</button>
+                    <button @click="showEditSkill = false" class="flex-1 bg-gh-elevated hover:bg-gh-border text-gh-light py-2.5 rounded-lg transition font-medium border border-gh-border">取消</button>
                 </div>
             </div>
         </div>
