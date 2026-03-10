@@ -345,9 +345,19 @@ async def get_skills(category: str = None, enabled: bool = None):
 @app.post("/api/v1/skills/")
 async def create_skill(skill: dict):
     """创建新技能"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"create_skill: 收到请求, data={skill}")
+
     # 检查名称是否已存在
     name = skill.get("name", "")
+    if not name or not name.strip():
+        logger.warning("create_skill: 名称为空")
+        raise HTTPException(status_code=400, detail="技能名称不能为空")
+
     if any(s["name"] == name for s in SKILLS_DATA):
+        logger.warning(f"create_skill: 技能名称已存在: {name}")
         raise HTTPException(status_code=400, detail=f"Skill with name '{name}' already exists")
 
     new_skill = {
@@ -361,18 +371,30 @@ async def create_skill(skill: dict):
         "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M")
     }
     SKILLS_DATA.append(new_skill)
+    logger.info(f"create_skill: 技能创建成功, id={new_skill['id']}, name={name}")
     return {"status": "success", "message": "技能创建成功", "skill": new_skill}
 
 
 @app.put("/api/v1/skills/{skill_id}")
 async def update_skill(skill_id: int, skill_update: dict):
     """更新技能"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"update_skill: 收到请求, skill_id={skill_id}, data={skill_update}")
+
+    # 参数验证
+    if skill_id is None or skill_id < 1:
+        logger.warning(f"update_skill: 无效的 skill_id: {skill_id}")
+        raise HTTPException(status_code=422, detail=f"无效的技能ID: {skill_id}")
+
     for skill in SKILLS_DATA:
         if skill["id"] == skill_id:
             # 检查名称冲突
             new_name = skill_update.get("name")
             if new_name and new_name != skill["name"]:
                 if any(s["name"] == new_name for s in SKILLS_DATA):
+                    logger.warning(f"update_skill: 技能名称已存在: {new_name}")
                     raise HTTPException(status_code=400, detail=f"Skill with name '{new_name}' already exists")
 
             # 更新允许的字段
@@ -381,34 +403,61 @@ async def update_skill(skill_id: int, skill_update: dict):
                     skill[field] = skill_update[field]
 
             skill["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            logger.info(f"update_skill: 技能 {skill_id} 更新成功")
             return {"status": "success", "message": "技能已更新", "skill": skill}
 
-    raise HTTPException(status_code=404, detail="技能不存在")
+    logger.warning(f"update_skill: 技能 {skill_id} 不存在")
+    raise HTTPException(status_code=404, detail=f"技能不存在 (ID: {skill_id})")
 
 
 @app.delete("/api/v1/skills/{skill_id}")
 async def delete_skill(skill_id: int):
     """删除技能"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"delete_skill: 收到请求, skill_id={skill_id}")
+
+    # 参数验证
+    if skill_id is None or skill_id < 1:
+        logger.warning(f"delete_skill: 无效的 skill_id: {skill_id}")
+        raise HTTPException(status_code=422, detail=f"无效的技能ID: {skill_id}")
+
     global SKILLS_DATA
     for i, skill in enumerate(SKILLS_DATA):
         if skill["id"] == skill_id:
+            deleted_name = skill["name"]
             SKILLS_DATA.pop(i)
+            logger.info(f"delete_skill: 技能 {skill_id} ({deleted_name}) 已删除")
             return {"status": "success", "message": "技能已删除"}
 
-    raise HTTPException(status_code=404, detail="技能不存在")
+    logger.warning(f"delete_skill: 技能 {skill_id} 不存在")
+    raise HTTPException(status_code=404, detail=f"技能不存在 (ID: {skill_id})")
 
 
 @app.post("/api/v1/skills/{skill_id}/toggle")
 @app.patch("/api/v1/skills/{skill_id}/toggle")
 async def toggle_skill(skill_id: int):
     """切换技能状态"""
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"toggle_skill: 收到请求, skill_id={skill_id}")
+
+    # 参数验证
+    if skill_id is None or skill_id < 1:
+        logger.warning(f"toggle_skill: 无效的 skill_id: {skill_id}")
+        raise HTTPException(status_code=422, detail=f"无效的技能ID: {skill_id}")
+
     for skill in SKILLS_DATA:
         if skill["id"] == skill_id:
             skill["enabled"] = not skill["enabled"]
             skill["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            logger.info(f"toggle_skill: 技能 {skill_id} 状态已切换为 {skill['enabled']}")
             return {"status": "success", "message": f"技能已{'启用' if skill['enabled'] else '禁用'}", "skill": skill}
 
-    raise HTTPException(status_code=404, detail="技能不存在")
+    logger.warning(f"toggle_skill: 技能 {skill_id} 不存在")
+    raise HTTPException(status_code=404, detail=f"技能不存在 (ID: {skill_id})")
 
 
 # ============ AI 聊天 API ============

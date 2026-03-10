@@ -2282,6 +2282,8 @@
                         return;
                     }
 
+                    console.log('createSkill: 创建技能', { name: name });
+
                     try {
                         const response = await fetch('/api/v1/skills/', {
                             method: 'POST',
@@ -2293,13 +2295,18 @@
                         });
 
                         if (response.ok) {
-                            const skill = await response.json();
-                            this.skills.push(skill);
+                            const data = await response.json();
+                            console.log('createSkill: API 响应', data);
+
+                            // 后端返回格式: {"status": "success", "message": "...", "skill": {...}}
+                            const newSkill = data.skill || data;
+                            this.skills.push(newSkill);
                             this.showCreateSkill = false;
                             this.newSkill = { name: '', description: '', category: 'general', version: '1.0.0', enabled: true };
                             this.showToast('技能创建成功', 'success');
                         } else {
                             const error = await response.json();
+                            console.error('createSkill: API 错误', error);
                             this.showToast(error.detail || '创建失败', 'error');
                         }
                     } catch (error) {
@@ -2316,6 +2323,13 @@
 
                 // 更新技能 - 带前端验证
                 async updateSkill() {
+                    // 验证 editingSkill 存在
+                    if (!this.editingSkill || this.editingSkill.id === undefined) {
+                        console.error('updateSkill: 无效的 editingSkill', this.editingSkill);
+                        this.showToast('无效的技能数据', 'error');
+                        return;
+                    }
+
                     const name = this.editingSkill.name.trim();
                     if (!name) {
                         this.showToast('请输入技能名称', 'error');
@@ -2328,6 +2342,8 @@
                         this.showToast('名称必须以字母开头，只能包含字母、数字、下划线和连字符', 'error');
                         return;
                     }
+
+                    console.log('updateSkill: 更新技能', { id: this.editingSkill.id, name: name });
 
                     try {
                         const response = await fetch(`/api/v1/skills/${this.editingSkill.id}`, {
@@ -2343,16 +2359,22 @@
                         });
 
                         if (response.ok) {
-                            const updated = await response.json();
-                            const index = this.skills.findIndex(s => s.id === updated.id);
+                            const data = await response.json();
+                            console.log('updateSkill: API 响应', data);
+
+                            // 后端返回格式: {"status": "success", "message": "...", "skill": {...}}
+                            const updatedSkill = data.skill || data;
+
+                            const index = this.skills.findIndex(s => s.id === updatedSkill.id);
                             if (index !== -1) {
-                                this.skills[index] = updated;
+                                this.skills[index] = updatedSkill;
                             }
                             this.showEditSkill = false;
                             this.editingSkill = null;
                             this.showToast('技能更新成功', 'success');
                         } else {
                             const error = await response.json();
+                            console.error('updateSkill: API 错误', error);
                             this.showToast(error.detail || '更新失败', 'error');
                         }
                     } catch (error) {
@@ -2363,21 +2385,36 @@
 
                 // 切换技能状态 - 使用专用的 toggle 端点
                 async toggleSkillStatus(skill) {
+                    // 参数验证
+                    if (!skill || skill.id === undefined || skill.id === null) {
+                        console.error('toggleSkillStatus: 无效的 skill 参数', skill);
+                        this.showToast('无效的技能数据', 'error');
+                        return;
+                    }
+
+                    console.log('toggleSkillStatus: 切换技能状态', { id: skill.id, name: skill.name });
+
                     try {
                         const response = await fetch(`/api/v1/skills/${skill.id}/toggle`, {
                             method: 'PATCH'
                         });
 
                         if (response.ok) {
-                            const updated = await response.json();
+                            const data = await response.json();
+                            console.log('toggleSkillStatus: API 响应', data);
+
+                            // 后端返回格式: {"status": "success", "message": "...", "skill": {...}}
+                            const updatedSkill = data.skill || data;
+
                             // 更新本地状态
                             const index = this.skills.findIndex(s => s.id === skill.id);
                             if (index !== -1) {
-                                this.skills[index] = updated;
+                                this.skills[index] = updatedSkill;
                             }
-                            this.showToast(updated.enabled ? '技能已启用' : '技能已禁用', 'success');
+                            this.showToast(updatedSkill.enabled ? '技能已启用' : '技能已禁用', 'success');
                         } else {
                             const error = await response.json();
+                            console.error('toggleSkillStatus: API 错误', error);
                             this.showToast(error.detail || '操作失败', 'error');
                         }
                     } catch (error) {
