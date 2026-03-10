@@ -229,6 +229,9 @@
                         <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-star-blue text-white star-glow' : 'hover:bg-white/10 text-star-text'" class="px-4 py-2 rounded-lg transition flex items-center">
                             <i class="fas fa-chart-line mr-2"></i><span class="hide-mobile">分析</span>
                         </button>
+                        <button @click="currentTab = 'skills'" :class="currentTab === 'skills' ? 'bg-star-blue text-white star-glow' : 'hover:bg-white/10 text-star-text'" class="px-4 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-puzzle-piece mr-2"></i><span class="hide-mobile">技能</span>
+                        </button>
                     </div>
 
                     <!-- 右侧工具 -->
@@ -279,6 +282,9 @@
                     </button>
                     <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-star-blue text-white' : 'text-star-text'" class="px-3 py-2 rounded-lg transition text-sm">
                         <i class="fas fa-chart-line"></i>
+                    </button>
+                    <button @click="currentTab = 'skills'" :class="currentTab === 'skills' ? 'bg-star-blue text-white' : 'text-star-text'" class="px-3 py-2 rounded-lg transition text-sm">
+                        <i class="fas fa-puzzle-piece"></i>
                     </button>
                 </div>
             </div>
@@ -672,6 +678,79 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 技能管理 -->
+            <div v-if="currentTab === 'skills'" class="space-y-6">
+                <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-white">
+                                <i class="fas fa-puzzle-piece mr-2 text-star-blue"></i>技能管理
+                            </h2>
+                            <p class="text-sm text-star-text mt-1">{{ skills.length }} 个技能可用</p>
+                        </div>
+                        <button @click="showCreateSkill = true" class="bg-star-blue hover:bg-star-blue/80 text-white px-4 py-2 rounded-lg transition flex items-center">
+                            <i class="fas fa-plus mr-2"></i>新建技能
+                        </button>
+                    </div>
+
+                    <!-- 搜索和过滤 -->
+                    <div class="flex flex-wrap gap-4 mb-6">
+                        <input v-model="skillSearchQuery" type="text" placeholder="搜索技能..." class="flex-1 min-w-[200px] px-4 py-2 rounded-lg bg-star-elevated border border-star-border text-white placeholder-star-text focus:outline-none focus:border-star-blue">
+                        <select v-model="skillCategoryFilter" class="px-4 py-2 rounded-lg bg-star-elevated border border-star-border text-white focus:outline-none focus:border-star-blue">
+                            <option value="">全部分类</option>
+                            <option v-for="cat in skillCategories" :key="cat" :value="cat">{{ cat }}</option>
+                        </select>
+                        <select v-model="skillStatusFilter" class="px-4 py-2 rounded-lg bg-star-elevated border border-star-border text-white focus:outline-none focus:border-star-blue">
+                            <option value="">全部状态</option>
+                            <option value="enabled">已启用</option>
+                            <option value="disabled">已禁用</option>
+                        </select>
+                    </div>
+
+                    <!-- 技能列表 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div v-for="skill in filteredSkills" :key="skill.id" class="border border-star-border rounded-xl p-5 hover:border-star-blue transition bg-star-elevated">
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-star-blue/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-cube text-star-blue"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-white">{{ skill.name }}</h3>
+                                        <p class="text-xs text-star-text">v{{ skill.version }}</p>
+                                    </div>
+                                </div>
+                                <span :class="skill.enabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'" class="px-2 py-1 rounded text-xs font-medium">
+                                    {{ skill.enabled ? '启用' : '禁用' }}
+                                </span>
+                            </div>
+                            <p class="text-sm text-star-text mb-3 line-clamp-2">{{ skill.description }}</p>
+                            <div class="flex items-center justify-between text-xs text-star-text mb-3">
+                                <span class="bg-star-border/50 px-2 py-1 rounded">{{ skill.category }}</span>
+                            </div>
+                            <div class="flex space-x-2 pt-3 border-t border-star-border">
+                                <button @click="editSkill(skill)" class="flex-1 text-star-blue hover:bg-star-blue/20 py-2 rounded-lg transition text-sm">
+                                    <i class="fas fa-edit mr-1"></i>编辑
+                                </button>
+                                <button @click="toggleSkillStatus(skill)" :class="skill.enabled ? 'text-yellow-400 hover:bg-yellow-500/20' : 'text-green-400 hover:bg-green-500/20'" class="flex-1 py-2 rounded-lg transition text-sm">
+                                    <i :class="skill.enabled ? 'fas fa-pause' : 'fas fa-play'" class="mr-1"></i>{{ skill.enabled ? '禁用' : '启用' }}
+                                </button>
+                                <button @click="deleteSkill(skill.id)" class="text-red-400 hover:bg-red-500/20 px-3 py-2 rounded-lg transition text-sm">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 空状态 -->
+                    <div v-if="filteredSkills.length === 0" class="text-center py-12">
+                        <i class="fas fa-puzzle-piece text-6xl text-star-border mb-4"></i>
+                        <p class="text-star-text">暂无技能</p>
+                        <button @click="showCreateSkill = true" class="mt-4 text-star-blue hover:text-star-gold font-medium">创建第一个技能 →</button>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- 底部状态栏 -->
@@ -918,6 +997,100 @@
             </div>
         </div>
 
+        <!-- 创建技能模态框 -->
+        <div v-if="showCreateSkill" class="fixed inset-0 bg-star-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showCreateSkill = false">
+            <div class="bg-star-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-star-border">
+                <div class="flex justify-between items-center p-6 border-b border-star-border">
+                    <h3 class="text-xl font-bold text-white">创建新技能</h3>
+                    <button @click="showCreateSkill = false" class="text-star-text hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-star-text mb-2">技能名称 <span class="text-red-400">*</span></label>
+                        <input v-model="newSkill.name" type="text" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="输入技能名称">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-star-text mb-2">描述</label>
+                        <textarea v-model="newSkill.description" rows="3" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="输入技能描述"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-star-text mb-2">分类</label>
+                            <select v-model="newSkill.category" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
+                                <option value="general">通用</option>
+                                <option value="code_review">代码审查</option>
+                                <option value="api">API</option>
+                                <option value="generation">生成</option>
+                                <option value="docs">文档</option>
+                                <option value="testing">测试</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-star-text mb-2">版本</label>
+                            <input v-model="newSkill.version" type="text" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="1.0.0">
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" v-model="newSkill.enabled" id="skillEnabled" class="w-4 h-4 rounded border-star-border bg-star-elevated text-star-blue focus:ring-star-blue">
+                        <label for="skillEnabled" class="text-sm text-star-text">启用此技能</label>
+                    </div>
+                </div>
+                <div class="flex space-x-3 p-6 border-t border-star-border bg-star-elevated rounded-b-2xl">
+                    <button @click="createSkill" class="flex-1 bg-star-blue hover:bg-star-blue/80 text-white py-2.5 rounded-lg transition font-medium">创建技能</button>
+                    <button @click="showCreateSkill = false" class="flex-1 bg-star-border hover:bg-star-text/20 text-star-text py-2.5 rounded-lg transition font-medium">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 编辑技能模态框 -->
+        <div v-if="showEditSkill" class="fixed inset-0 bg-star-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showEditSkill = false">
+            <div class="bg-star-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-star-border">
+                <div class="flex justify-between items-center p-6 border-b border-star-border">
+                    <h3 class="text-xl font-bold text-white">编辑技能</h3>
+                    <button @click="showEditSkill = false" class="text-star-text hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-star-text mb-2">技能名称 <span class="text-red-400">*</span></label>
+                        <input v-model="editingSkill.name" type="text" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="输入技能名称">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-star-text mb-2">描述</label>
+                        <textarea v-model="editingSkill.description" rows="3" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="输入技能描述"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-star-text mb-2">分类</label>
+                            <select v-model="editingSkill.category" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
+                                <option value="general">通用</option>
+                                <option value="code_review">代码审查</option>
+                                <option value="api">API</option>
+                                <option value="generation">生成</option>
+                                <option value="docs">文档</option>
+                                <option value="testing">测试</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-star-text mb-2">版本</label>
+                            <input v-model="editingSkill.version" type="text" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white" placeholder="1.0.0">
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" v-model="editingSkill.enabled" id="editSkillEnabled" class="w-4 h-4 rounded border-star-border bg-star-elevated text-star-blue focus:ring-star-blue">
+                        <label for="editSkillEnabled" class="text-sm text-star-text">启用此技能</label>
+                    </div>
+                </div>
+                <div class="flex space-x-3 p-6 border-t border-star-border bg-star-elevated rounded-b-2xl">
+                    <button @click="updateSkill" class="flex-1 bg-star-blue hover:bg-star-blue/80 text-white py-2.5 rounded-lg transition font-medium">保存修改</button>
+                    <button @click="showEditSkill = false" class="flex-1 bg-star-border hover:bg-star-text/20 text-star-text py-2.5 rounded-lg transition font-medium">取消</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Toast 通知 -->
         <transition-group name="toast">
             <div v-for="toast in toasts" :key="toast.id" :class="toast.type === 'success' ? 'bg-green-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-star-blue'" class="fixed bottom-20 right-4 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 z-50">
@@ -986,6 +1159,19 @@
                     showShortcuts: false,
                     showAgentDetailModal: false,
                     selectedAgent: null,
+                    selectAll: false,
+
+                    // Skills 相关
+                    skills: [],
+                    skillCategories: ['general', 'code_review', 'api', 'generation', 'docs', 'testing'],
+                    skillSearchQuery: '',
+                    skillCategoryFilter: '',
+                    skillStatusFilter: '',
+                    showCreateSkill: false,
+                    showEditSkill: false,
+                    editingSkill: null,
+                    newSkill: { name: '', description: '', category: 'general', version: '1.0.0', enabled: true },
+
                     selectAll: false,
                     selectedTasks: [],
                     wsConnected: false,
@@ -1061,6 +1247,25 @@
 
                 activeAgentsCount() {
                     return this.agents.filter(a => a.status === 'busy').length;
+                },
+
+                filteredSkills() {
+                    let result = this.skills;
+                    if (this.skillCategoryFilter) {
+                        result = result.filter(s => s.category === this.skillCategoryFilter);
+                    }
+                    if (this.skillStatusFilter) {
+                        const enabled = this.skillStatusFilter === 'enabled';
+                        result = result.filter(s => s.enabled === enabled);
+                    }
+                    if (this.skillSearchQuery) {
+                        const query = this.skillSearchQuery.toLowerCase();
+                        result = result.filter(s =>
+                            s.name.toLowerCase().includes(query) ||
+                            s.description.toLowerCase().includes(query)
+                        );
+                    }
+                    return result;
                 }
             },
 
@@ -1074,6 +1279,8 @@
                 }
                 // 页面加载时调用 loadData
                 this.loadData();
+                // 加载技能数据
+                this.loadSkills();
             },
 
             methods: {
@@ -1183,6 +1390,179 @@
                     if (confirm('确定要删除这个任务吗？')) {
                         this.tasks = this.tasks.filter(t => t.id !== taskId);
                         this.showToast('任务已删除', 'success');
+                    }
+                },
+
+                // ============ 技能管理方法 ============
+
+                // 加载技能
+                async loadSkills() {
+                    try {
+                        const response = await fetch('/api/v1/skills/');
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.skills = data.items;
+                            // 更新分类列表
+                            const cats = new Set(this.skills.map(s => s.category));
+                            this.skillCategories = ['general', ...Array.from(cats).filter(c => c !== 'general')];
+                        }
+                    } catch (error) {
+                        console.error('加载技能失败:', error);
+                        // 使用模拟数据
+                        this.skills = [
+                            { id: 1, name: 'simplify', description: 'Review changed code for reuse, quality, and efficiency', category: 'code_review', version: '1.0.0', enabled: true },
+                            { id: 2, name: 'claude-api', description: 'Build apps with the Claude API or Anthropic SDK', category: 'api', version: '1.0.0', enabled: true },
+                            { id: 3, name: 'code-generation', description: 'Generate code from natural language descriptions', category: 'generation', version: '1.2.0', enabled: true },
+                            { id: 4, name: 'documentation', description: 'Generate documentation for code files', category: 'docs', version: '1.0.0', enabled: true },
+                            { id: 5, name: 'testing', description: 'Generate and run tests for code', category: 'testing', version: '1.1.0', enabled: false }
+                        ];
+                    }
+                },
+
+                // 创建技能 - 带前端验证
+                async createSkill() {
+                    // 验证名称
+                    const name = this.newSkill.name.trim();
+                    if (!name) {
+                        this.showToast('请输入技能名称', 'error');
+                        return;
+                    }
+
+                    // 验证名称格式（必须以字母开头，只能包含字母、数字、下划线和连字符）
+                    const namePattern = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+                    if (!namePattern.test(name)) {
+                        this.showToast('名称必须以字母开头，只能包含字母、数字、下划线和连字符', 'error');
+                        return;
+                    }
+
+                    if (name.length > 100) {
+                        this.showToast('名称长度不能超过 100 个字符', 'error');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/api/v1/skills/', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...this.newSkill,
+                                name: name
+                            })
+                        });
+
+                        if (response.ok) {
+                            const skill = await response.json();
+                            this.skills.push(skill);
+                            this.showCreateSkill = false;
+                            this.newSkill = { name: '', description: '', category: 'general', version: '1.0.0', enabled: true };
+                            this.showToast('技能创建成功', 'success');
+                        } else {
+                            const error = await response.json();
+                            this.showToast(error.detail || '创建失败', 'error');
+                        }
+                    } catch (error) {
+                        console.error('创建技能失败:', error);
+                        this.showToast('网络错误，请重试', 'error');
+                    }
+                },
+
+                // 编辑技能
+                editSkill(skill) {
+                    this.editingSkill = { ...skill };
+                    this.showEditSkill = true;
+                },
+
+                // 更新技能 - 带前端验证
+                async updateSkill() {
+                    const name = this.editingSkill.name.trim();
+                    if (!name) {
+                        this.showToast('请输入技能名称', 'error');
+                        return;
+                    }
+
+                    // 验证名称格式
+                    const namePattern = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+                    if (!namePattern.test(name)) {
+                        this.showToast('名称必须以字母开头，只能包含字母、数字、下划线和连字符', 'error');
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(`/api/v1/skills/${this.editingSkill.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: name,
+                                description: this.editingSkill.description,
+                                category: this.editingSkill.category,
+                                version: this.editingSkill.version,
+                                enabled: this.editingSkill.enabled
+                            })
+                        });
+
+                        if (response.ok) {
+                            const updated = await response.json();
+                            const index = this.skills.findIndex(s => s.id === updated.id);
+                            if (index !== -1) {
+                                this.skills[index] = updated;
+                            }
+                            this.showEditSkill = false;
+                            this.editingSkill = null;
+                            this.showToast('技能更新成功', 'success');
+                        } else {
+                            const error = await response.json();
+                            this.showToast(error.detail || '更新失败', 'error');
+                        }
+                    } catch (error) {
+                        console.error('更新技能失败:', error);
+                        this.showToast('网络错误，请重试', 'error');
+                    }
+                },
+
+                // 切换技能状态 - 使用专用的 toggle 端点
+                async toggleSkillStatus(skill) {
+                    try {
+                        const response = await fetch(`/api/v1/skills/${skill.id}/toggle`, {
+                            method: 'PATCH'
+                        });
+
+                        if (response.ok) {
+                            const updated = await response.json();
+                            // 更新本地状态
+                            const index = this.skills.findIndex(s => s.id === skill.id);
+                            if (index !== -1) {
+                                this.skills[index] = updated;
+                            }
+                            this.showToast(updated.enabled ? '技能已启用' : '技能已禁用', 'success');
+                        } else {
+                            const error = await response.json();
+                            this.showToast(error.detail || '操作失败', 'error');
+                        }
+                    } catch (error) {
+                        console.error('切换技能状态失败:', error);
+                        this.showToast('网络错误，请重试', 'error');
+                    }
+                },
+
+                // 删除技能 - 改进错误处理
+                async deleteSkill(skillId) {
+                    if (!confirm('确定要删除这个技能吗？此操作不可恢复！')) return;
+
+                    try {
+                        const response = await fetch(`/api/v1/skills/${skillId}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (response.ok || response.status === 204) {
+                            this.skills = this.skills.filter(s => s.id !== skillId);
+                            this.showToast('技能已删除', 'success');
+                        } else {
+                            const error = await response.json();
+                            this.showToast(error.detail || '删除失败', 'error');
+                        }
+                    } catch (error) {
+                        console.error('删除技能失败:', error);
+                        this.showToast('网络错误，请重试', 'error');
                     }
                 },
 

@@ -1,0 +1,66 @@
+{
+  "providers": [
+    {
+      "name": "zhipu",
+      "display_name": "智谱 AI",
+      "type": "openai-compatible",
+      "baseUrl": "https://open.bigmodel.cn/api/paas/v4",
+      "models": ["glm-4", "glm-4-flash", "glm-4-plus", "glm-4-air"],
+      "default_model": "glm-4-flash",
+      "env_key": "ZHIPU_API_KEY"
+    },
+    {
+      "name": "aliyun",
+      "display_name": "阿里云 CodePlan",
+      "type": "openai-compatible",
+      "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "models": ["qwen-turbo", "qwen-plus", "qwen-max", "qwen-max-longcontext"],
+      "default_model": "qwen-turbo",
+      "env_key": "DASHSCOPE_API_KEY"
+    },
+    {
+      "name": "openai",
+      "display_name": "OpenAI",
+      "type": "openai",
+      "baseUrl": "https://api.openai.com/v1",
+      "models": ["gpt-4o", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
+      "default_model": "gpt-4o",
+      "env_key": "OPENAI_API_KEY"
+    },
+    {
+      "name": "ollama",
+      "display_name": "Ollama (本地)",
+      "type": "openai-compatible",
+      "baseUrl": "http://localhost:11434/v1",
+      "models": ["llama3", "llama3:70b", "codellama", "mistral", "qwen2"],
+      "default_model": "llama3",
+      "env_key": null
+    },
+    {
+      "name": "vllm",
+      "display_name": "vLLM (本地)",
+      "type": "openai-compatible",
+      "baseUrl": "http://localhost:8000/v1",
+      "models": ["auto"],
+      "default_model": "auto",
+      "env_key": null
+    },
+    {
+      "name": "deepseek",
+      "display_name": "DeepSeek",
+      "type": "openai-compatible",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "models": ["deepseek-chat", "deepseek-coder"],
+      "default_model": "deepseek-chat",
+      "env_key": "DEEPSEEK_API_KEY"
+    }
+  ],
+  "default": "openai/gpt-4o",
+  "fallback": "zhipu/glm-4-flash",
+  "settings": {
+    "timeout": 60,
+    "max_retries": 3,
+    "temperature": 0.7,
+    "max_tokens": 4096
+  }
+}

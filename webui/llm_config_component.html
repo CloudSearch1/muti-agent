@@ -1,0 +1,443 @@
+<!--
+  LLM 配置页面组件
+
+  将此代码添加到 index_v5.html 中：
+  1. 在导航栏按钮中添加 "LLM 配置" 按钮
+  2. 在主内容区添加此 LLM 配置内容块
+  3. 在 Vue data() 中添加 llmProviders 等数据
+  4. 在 methods 中添加 LLM 相关方法
+-->
+
+<!-- 导航栏按钮 - 添加到现有导航按钮后 -->
+<button @click="currentTab = 'llm'" :class="currentTab === 'llm' ? 'bg-star-blue text-white star-glow' : 'hover:bg-white/10 text-star-text'" class="px-4 py-2 rounded-lg transition flex items-center">
+    <i class="fas fa-brain mr-2"></i><span class="hide-mobile">LLM配置</span>
+</button>
+
+<!-- LLM 配置页面 - 添加到主内容区 -->
+<div v-if="currentTab === 'llm'" class="space-y-6">
+    <!-- 页面标题 -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-white">
+                <i class="fas fa-brain mr-2 text-star-blue"></i>LLM 模型配置
+            </h2>
+            <p class="text-sm text-star-text mt-1">配置和管理多模型 API 支持</p>
+        </div>
+        <div class="flex gap-2">
+            <button @click="refreshProviders" class="bg-star-elevated hover:bg-star-border text-star-text px-4 py-2 rounded-lg transition flex items-center">
+                <i class="fas fa-sync-alt mr-2" :class="llmLoading ? 'loading-spin' : ''"></i>刷新
+            </button>
+        </div>
+    </div>
+
+    <!-- 当前配置概览 -->
+    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+        <h3 class="text-lg font-bold text-white mb-4">
+            <i class="fas fa-cog mr-2 text-star-blue"></i>当前配置
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-star-elevated rounded-lg p-4">
+                <p class="text-star-text text-sm">默认模型</p>
+                <p class="text-white font-semibold mt-1">{{ llmDefaultModel || '未设置' }}</p>
+            </div>
+            <div class="bg-star-elevated rounded-lg p-4">
+                <p class="text-star-text text-sm">已配置服务商</p>
+                <p class="text-white font-semibold mt-1">{{ llmProviders.filter(p => p.configured).length }} / {{ llmProviders.length }}</p>
+            </div>
+            <div class="bg-star-elevated rounded-lg p-4">
+                <p class="text-star-text text-sm">启用服务商</p>
+                <p class="text-white font-semibold mt-1">{{ llmProviders.filter(p => p.enabled).length }} / {{ llmProviders.length }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 服务商列表 -->
+    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+        <h3 class="text-lg font-bold text-white mb-4">
+            <i class="fas fa-server mr-2 text-star-blue"></i>服务商列表
+        </h3>
+
+        <div v-if="llmLoading" class="text-center py-12">
+            <i class="fas fa-circle-notch text-4xl text-star-blue loading-spin mb-4"></i>
+            <p class="text-star-text">加载中...</p>
+        </div>
+
+        <div v-else-if="llmProviders.length === 0" class="text-center py-12">
+            <i class="fas fa-exclamation-circle text-4xl text-star-border mb-4"></i>
+            <p class="text-star-text">未找到服务商配置</p>
+        </div>
+
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="provider in llmProviders" :key="provider.name"
+                :class="provider.enabled ? 'border-star-border' : 'border-star-border opacity-60'"
+                class="border rounded-xl p-5 hover:border-star-blue transition bg-star-elevated">
+
+                <!-- 服务商头部 -->
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-star-blue/20 rounded-lg flex items-center justify-center">
+                            <i :class="getProviderIcon(provider.name)" class="text-star-blue"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-white">{{ provider.display_name }}</h4>
+                            <p class="text-xs text-star-text">{{ provider.type }}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span v-if="provider.configured" class="bg-green-500/20 text-green-400 px-2 py-0.5 rounded text-xs">已配置</span>
+                        <span v-else class="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded text-xs">未配置</span>
+                    </div>
+                </div>
+
+                <!-- 模型列表 -->
+                <div class="mb-3">
+                    <p class="text-xs text-star-text mb-2">支持模型:</p>
+                    <div class="flex flex-wrap gap-1">
+                        <span v-for="model in provider.models.slice(0, 4)" :key="model"
+                            :class="model === provider.default_model ? 'bg-star-blue/20 text-star-blue' : 'bg-star-border/50 text-star-text'"
+                            class="px-2 py-0.5 rounded text-xs">
+                            {{ model }}
+                        </span>
+                        <span v-if="provider.models.length > 4" class="text-xs text-star-text">+{{ provider.models.length - 4 }}</span>
+                    </div>
+                </div>
+
+                <!-- 默认模型 -->
+                <div class="mb-3 p-2 bg-star-card rounded">
+                    <p class="text-xs text-star-text">默认模型:</p>
+                    <p class="text-sm text-white">{{ provider.default_model }}</p>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="flex space-x-2 pt-3 border-t border-star-border">
+                    <button @click="openLlmConfig(provider)" class="flex-1 text-star-blue hover:bg-star-blue/20 py-2 rounded-lg transition text-sm">
+                        <i class="fas fa-cog mr-1"></i>配置
+                    </button>
+                    <button @click="testLlmConnection(provider)"
+                        :disabled="llmTesting === provider.name"
+                        class="flex-1 py-2 rounded-lg transition text-sm"
+                        :class="llmTesting === provider.name ? 'bg-star-border text-star-text cursor-wait' : 'text-green-400 hover:bg-green-500/20'">
+                        <i :class="llmTesting === provider.name ? 'fas fa-spinner loading-spin' : 'fas fa-plug'" class="mr-1"></i>
+                        {{ llmTesting === provider.name ? '测试中' : '测试' }}
+                    </button>
+                    <button @click="toggleProvider(provider)"
+                        :class="provider.enabled ? 'text-yellow-400 hover:bg-yellow-500/20' : 'text-green-400 hover:bg-green-500/20'"
+                        class="px-3 py-2 rounded-lg transition text-sm">
+                        <i :class="provider.enabled ? 'fas fa-pause' : 'fas fa-play'"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 聊天测试 -->
+    <div class="bg-star-card rounded-xl shadow-lg p-6 border border-star-border">
+        <h3 class="text-lg font-bold text-white mb-4">
+            <i class="fas fa-comments mr-2 text-star-blue"></i>聊天测试
+        </h3>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- 模型选择 -->
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-star-text mb-2">选择模型</label>
+                    <select v-model="chatModel" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
+                        <option value="">使用默认模型</option>
+                        <optgroup v-for="provider in llmProviders.filter(p => p.enabled && p.configured)" :key="provider.name" :label="provider.display_name">
+                            <option v-for="model in provider.models" :key="model" :value="provider.name + '/' + model">{{ model }}</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-star-text mb-2">消息内容</label>
+                    <textarea v-model="chatMessage" rows="4"
+                        class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white"
+                        placeholder="输入测试消息..."></textarea>
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-star-text mb-2">Temperature</label>
+                        <input type="range" v-model="chatTemperature" min="0" max="2" step="0.1" class="w-full">
+                        <p class="text-xs text-star-text text-center">{{ chatTemperature }}</p>
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm font-medium text-star-text mb-2">Max Tokens</label>
+                        <input type="number" v-model="chatMaxTokens" min="100" max="8192" step="100"
+                            class="w-full px-4 py-2 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
+                    </div>
+                </div>
+
+                <button @click="sendChatTest"
+                    :disabled="chatSending || !chatMessage"
+                    class="w-full bg-star-blue hover:bg-star-blue/80 text-white py-2.5 rounded-lg transition font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i :class="chatSending ? 'fas fa-spinner loading-spin' : 'fas fa-paper-plane'" class="mr-2"></i>
+                    {{ chatSending ? '发送中...' : '发送测试' }}
+                </button>
+            </div>
+
+            <!-- 响应区域 -->
+            <div>
+                <label class="block text-sm font-medium text-star-text mb-2">响应</label>
+                <div class="h-80 bg-star-elevated rounded-lg border border-star-border p-4 overflow-y-auto">
+                    <div v-if="chatResponse" class="space-y-3">
+                        <div class="flex items-center gap-2 text-sm text-star-text">
+                            <span class="bg-star-blue/20 text-star-blue px-2 py-0.5 rounded">{{ chatResponse.provider }}</span>
+                            <span class="bg-star-border/50 px-2 py-0.5 rounded">{{ chatResponse.model }}</span>
+                            <span v-if="chatResponse.latency_ms" class="text-xs">{{ chatResponse.latency_ms.toFixed(0) }}ms</span>
+                        </div>
+                        <p class="text-white whitespace-pre-wrap">{{ chatResponse.content }}</p>
+                        <div v-if="chatResponse.usage" class="text-xs text-star-text border-t border-star-border pt-2 mt-2">
+                            Tokens: {{ chatResponse.usage.prompt_tokens }} prompt + {{ chatResponse.usage.completion_tokens }} completion = {{ chatResponse.usage.total_tokens }} total
+                        </div>
+                    </div>
+                    <div v-else-if="chatError" class="text-red-400">
+                        <i class="fas fa-exclamation-circle mr-2"></i>{{ chatError }}
+                    </div>
+                    <div v-else class="text-star-text text-center py-12">
+                        <i class="fas fa-comment-dots text-4xl mb-3 opacity-50"></i>
+                        <p>发送消息进行测试</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- LLM 配置弹窗 -->
+<div v-if="showLlmConfig" class="fixed inset-0 bg-star-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showLlmConfig = false">
+    <div class="bg-star-card rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-star-border">
+        <div class="flex justify-between items-center p-6 border-b border-star-border">
+            <h3 class="text-xl font-bold text-white">配置 {{ editingLlmProvider?.display_name }}</h3>
+            <button @click="showLlmConfig = false" class="text-star-text hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-star-text mb-2">API Key</label>
+                <input v-model="llmConfigForm.api_key" type="password"
+                    class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white"
+                    placeholder="输入 API Key">
+                <p v-if="editingLlmProvider?.env_key" class="text-xs text-star-text mt-1">
+                    环境变量: {{ editingLlmProvider.env_key }}
+                </p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-star-text mb-2">Base URL</label>
+                <input v-model="llmConfigForm.base_url" type="text"
+                    class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white"
+                    placeholder="自定义 Base URL">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-star-text mb-2">默认模型</label>
+                <select v-model="llmConfigForm.default_model" class="w-full px-4 py-2.5 border border-star-border rounded-lg bg-star-elevated focus:outline-none focus:border-star-blue text-white">
+                    <option v-for="model in editingLlmProvider?.models" :key="model" :value="model">{{ model }}</option>
+                </select>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" v-model="llmConfigForm.enabled" id="providerEnabled" class="w-4 h-4 rounded border-star-border bg-star-elevated text-star-blue focus:ring-star-blue">
+                <label for="providerEnabled" class="text-sm text-star-text">启用此服务商</label>
+            </div>
+        </div>
+        <div class="flex space-x-3 p-6 border-t border-star-border bg-star-elevated rounded-b-2xl">
+            <button @click="saveLlmConfig" class="flex-1 bg-star-blue hover:bg-star-blue/80 text-white py-2.5 rounded-lg transition font-medium">保存配置</button>
+            <button @click="showLlmConfig = false" class="flex-1 bg-star-border hover:bg-star-text/20 text-star-text py-2.5 rounded-lg transition font-medium">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================
+     Vue 数据和方法 - 添加到现有 Vue 组件中
+     ============================================ -->
+
+<script>
+// 添加到 data() 中:
+/*
+llmProviders: [],
+llmDefaultModel: '',
+llmLoading: false,
+llmTesting: null,
+showLlmConfig: false,
+editingLlmProvider: null,
+llmConfigForm: {
+    api_key: '',
+    base_url: '',
+    default_model: '',
+    enabled: true
+},
+// 聊天测试
+chatModel: '',
+chatMessage: '',
+chatTemperature: 0.7,
+chatMaxTokens: 1000,
+chatSending: false,
+chatResponse: null,
+chatError: null,
+*/
+
+// 添加到 methods 中:
+/*
+// LLM 相关方法
+async loadLlmProviders() {
+    this.llmLoading = true;
+    try {
+        const response = await fetch('/api/v1/llm/providers');
+        if (response.ok) {
+            this.llmProviders = await response.json();
+        }
+
+        // 加载默认模型
+        const configResponse = await fetch('/api/v1/llm/config');
+        if (configResponse.ok) {
+            const config = await configResponse.json();
+            this.llmDefaultModel = config.default;
+        }
+    } catch (error) {
+        console.error('加载 LLM 配置失败:', error);
+        this.showToast('加载 LLM 配置失败', 'error');
+    } finally {
+        this.llmLoading = false;
+    }
+},
+
+async refreshProviders() {
+    await this.loadLlmProviders();
+    this.showToast('配置已刷新', 'success');
+},
+
+getProviderIcon(name) {
+    const icons = {
+        'openai': 'fas fa-robot',
+        'zhipu': 'fas fa-brain',
+        'aliyun': 'fas fa-cloud',
+        'ollama': 'fas fa-microchip',
+        'vllm': 'fas fa-server',
+        'deepseek': 'fas fa-search',
+        'claude': 'fas fa-brain',
+    };
+    return icons[name] || 'fas fa-cube';
+},
+
+openLlmConfig(provider) {
+    this.editingLlmProvider = provider;
+    this.llmConfigForm = {
+        api_key: '',
+        base_url: provider.base_url,
+        default_model: provider.default_model,
+        enabled: provider.enabled
+    };
+    this.showLlmConfig = true;
+},
+
+async saveLlmConfig() {
+    try {
+        const response = await fetch('/api/v1/llm/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider: this.editingLlmProvider.name,
+                ...this.llmConfigForm
+            })
+        });
+
+        if (response.ok) {
+            this.showToast('配置已保存', 'success');
+            this.showLlmConfig = false;
+            await this.loadLlmProviders();
+        } else {
+            const error = await response.json();
+            this.showToast(error.detail || '保存失败', 'error');
+        }
+    } catch (error) {
+        console.error('保存配置失败:', error);
+        this.showToast('保存配置失败', 'error');
+    }
+},
+
+async testLlmConnection(provider) {
+    this.llmTesting = provider.name;
+    try {
+        const response = await fetch('/api/v1/llm/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider: provider.name,
+                default_model: provider.default_model
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            this.showToast(`${provider.display_name} 连接成功 (${result.latency_ms.toFixed(0)}ms)`, 'success');
+        } else {
+            this.showToast(`${provider.display_name} 连接失败: ${result.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('测试连接失败:', error);
+        this.showToast('测试连接失败', 'error');
+    } finally {
+        this.llmTesting = null;
+    }
+},
+
+async toggleProvider(provider) {
+    try {
+        const response = await fetch('/api/v1/llm/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider: provider.name,
+                enabled: !provider.enabled
+            })
+        });
+
+        if (response.ok) {
+            provider.enabled = !provider.enabled;
+            this.showToast(provider.enabled ? '已启用' : '已禁用', 'success');
+        }
+    } catch (error) {
+        console.error('切换状态失败:', error);
+        this.showToast('操作失败', 'error');
+    }
+},
+
+async sendChatTest() {
+    if (!this.chatMessage) return;
+
+    this.chatSending = true;
+    this.chatResponse = null;
+    this.chatError = null;
+
+    try {
+        const response = await fetch('/api/v1/llm/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [{ role: 'user', content: this.chatMessage }],
+                model: this.chatModel || undefined,
+                temperature: parseFloat(this.chatTemperature),
+                max_tokens: parseInt(this.chatMaxTokens)
+            })
+        });
+
+        if (response.ok) {
+            this.chatResponse = await response.json();
+        } else {
+            const error = await response.json();
+            this.chatError = error.detail || '请求失败';
+        }
+    } catch (error) {
+        console.error('聊天请求失败:', error);
+        this.chatError = error.message;
+    } finally {
+        this.chatSending = false;
+    }
+},
+*/
+
+// 添加到 mounted() 中:
+// this.loadLlmProviders();
+</script>

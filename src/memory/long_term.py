@@ -8,14 +8,26 @@
 - 历史记忆检索
 - 记忆重要性排序
 - 记忆衰减和清理
+- 批量操作优化
 """
 
-import json
+import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any
+from functools import lru_cache
+from typing import Any, Iterator, Optional
 
 import structlog
+
+from .exceptions import (
+    MemoryConnectionError,
+    MemoryDecayError,
+    MemoryNotFoundError,
+    MemoryRetrievalError,
+    MemoryStorageError,
+    MemoryValidationError,
+)
+from .types import MemoryImportance, MemoryType
 
 try:
     from sqlalchemy import (
@@ -24,46 +36,44 @@ try:
         Column,
         DateTime,
         Float,
+        Index,
         Integer,
         String,
         Text,
         create_engine,
         desc,
+        event,
         select,
     )
+    from sqlalchemy.exc import SQLAlchemyError
     from sqlalchemy.orm import Session, declarative_base, sessionmaker
+    from sqlalchemy.pool import StaticPool
 
     SQLALCHEMY_AVAILABLE = True
     Base = declarative_base()
 except ImportError:
     SQLALCHEMY_AVAILABLE = False
-    Base = None
-    Session = None
-    sessionmaker = None
+    Base = None  # type: ignore
+    Session = None  # type: ignore
+    sessionmaker = None  # type: ignore
+    SQLAlchemyError = Exception  # type: ignore
+
 
 logger = structlog.get_logger(__name__)
 
-
-class MemoryType(str, Enum):
-    """记忆类型"""
-    EPISODIC = "episodic"  # 情节记忆（具体事件）
-    SEMANTIC = "semantic"  # 语义记忆（事实知识）
-    PROCEDURAL = "procedural"  # 程序记忆（技能方法）
-    CONVERSATION = "conversation"  # 对话记忆
-    TASK_RESULT = "task_result"  # 任务结果
-
-
-class MemoryImportance(str, Enum):
-    """记忆重要性"""
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+# 默认配置
+DEFAULT_DB_URL = "sqlite:///./data/memory/long_term.db"
+MAX_MEMORIES_PER_QUERY = 100
+DECAY_THRESHOLD = 0.1  # 衰减阈值，低于此值的记忆会被清理
+MAX_CONTENT_LENGTH = 100000  # 最大内容长度
+MAX_SUMMARY_LENGTH = 1000  # 最大摘要长度
+MAX_TAGS_COUNT = 20  # 最大标签数量
 
 
 if SQLALCHEMY_AVAILABLE:
     class LongTermMemoryModel(Base):
         """长期记忆数据库模型"""
+
         __tablename__ = "long_term_memories"
 
         id = Column(Integer, primary_key=True, autoincrement=True)
@@ -73,7 +83,7 @@ if SQLALCHEMY_AVAILABLE:
         summary = Column(Text, nullable=True)
 
         # 元数据
-        importance = Column(String(16), default=MemoryImportance.MEDIUM.value)
+        importance = Column(String(16), default=MemoryImportance.MEDIUM.value, index=True)
         tags = Column(JSON, default=list)
         extra_data = Column(JSON, default=dict)  # 避免使用 metadata (SQLAlchemy 保留字)
 
@@ -96,7 +106,15 @@ if SQLALCHEMY_AVAILABLE:
         # 向量 ID（关联 RAG 存储）
         vector_id = Column(String(64), nullable=True)
 
+        # 复合索引
+        __table_args__ = (
+            Index("idx_importance_access", "importance", "access_count"),
+            Index("idx_agent_created", "agent_id", "created_at"),
+            Index("idx_session_created", "session_id", "created_at"),
+        )
+
         def to_dict(self) -> dict[str, Any]:
+            """转换为字典"""
             return {
                 "id": self.id,
                 "memory_id": self.memory_id,
@@ -105,7 +123,7 @@ if SQLALCHEMY_AVAILABLE:
                 "summary": self.summary,
                 "importance": self.importance,
                 "tags": self.tags or [],
-                "metadata": self.extra_data or {},  # 映射回 metadata
+                "metadata": self.extra_data or {},
                 "agent_id": self.agent_id,
                 "session_id": self.session_id,
                 "task_id": self.task_id,
@@ -116,7 +134,7 @@ if SQLALCHEMY_AVAILABLE:
                 "decay_factor": self.decay_factor,
             }
 else:
-    LongTermMemoryModel = None
+    LongTermMemoryModel = None  # type: ignore
 
 
 class LongTermMemory:
@@ -124,20 +142,27 @@ class LongTermMemory:
     长期记忆系统
 
     提供记忆的持久化存储、检索和管理功能。
-    """
 
-    # 默认配置
-    DEFAULT_DB_URL = "sqlite:///./data/memory/long_term.db"
-    MAX_MEMORIES_PER_QUERY = 100
-    DECAY_THRESHOLD = 0.1  # 衰减阈值，低于此值的记忆会被清理
+    Attributes:
+        db_url: 数据库连接 URL
+        rag_store: RAG 存储实例（可选）
+        engine: SQLAlchemy 引擎
+        SessionLocal: 会话工厂
+
+    Example:
+        >>> ltm = LongTermMemory(db_url="sqlite:///memory.db")
+        >>> memory_id = await ltm.store("重要记忆内容", importance=MemoryImportance.HIGH)
+        >>> memory = await ltm.retrieve(memory_id)
+    """
 
     def __init__(
         self,
         db_url: str = DEFAULT_DB_URL,
         auto_create_tables: bool = True,
-        rag_store=None,
-        **kwargs,
-    ):
+        rag_store: Optional[Any] = None,
+        pool_size: int = 5,
+        **kwargs: Any,
+    ) -> None:
         """
         初始化长期记忆系统
 
@@ -145,18 +170,34 @@ class LongTermMemory:
             db_url: 数据库连接 URL
             auto_create_tables: 是否自动创建表
             rag_store: RAG 存储实例（用于语义检索）
+            pool_size: 连接池大小
             **kwargs: 其他配置参数
+
+        Raises:
+            MemoryConnectionError: SQLAlchemy 不可用时
         """
         if not SQLALCHEMY_AVAILABLE:
-            raise ImportError(
-                "SQLAlchemy is required. Install with: pip install sqlalchemy"
+            raise MemoryConnectionError(
+                message="SQLAlchemy is required. Install with: pip install sqlalchemy",
+                backend="database",
             )
 
         self.db_url = db_url
         self.rag_store = rag_store
+        self.pool_size = pool_size
 
-        # 初始化数据库
-        self.engine = create_engine(db_url, echo=False)
+        # 初始化数据库引擎
+        engine_kwargs = {
+            "echo": False,
+            "pool_pre_ping": True,
+        }
+
+        # SQLite 特殊配置
+        if db_url.startswith("sqlite"):
+            engine_kwargs["poolclass"] = StaticPool
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+        self.engine = create_engine(db_url, **engine_kwargs)
         self.SessionLocal = sessionmaker(bind=self.engine)
 
         if auto_create_tables:
@@ -171,31 +212,85 @@ class LongTermMemory:
             MemoryImportance.CRITICAL.value: 3.0,
         })
 
-        self.logger = logger.bind(
-            component="long_term_memory",
-            db_url=db_url,
-        )
+        self.logger = logger.bind(component="long_term_memory")
 
         self.logger.info(
             "LongTermMemory initialized",
             db_url=db_url,
+            rag_enabled=rag_store is not None,
         )
 
-    def _get_session(self) -> Session:
-        """获取数据库会话"""
-        return self.SessionLocal()
+    @contextmanager
+    def _get_session(self) -> Iterator[Session]:
+        """
+        获取数据库会话
+
+        Yields:
+            数据库会话
+
+        Note:
+            使用上下文管理器确保会话正确关闭
+        """
+        session = self.SessionLocal()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def _validate_content(self, content: str) -> str:
+        """验证并清理内容"""
+        if not content or not content.strip():
+            raise MemoryValidationError(
+                message="Content cannot be empty",
+                field="content",
+            )
+
+        content = content.strip()
+        if len(content) > MAX_CONTENT_LENGTH:
+            self.logger.warning(
+                "Content truncated",
+                original_length=len(content),
+                max_length=MAX_CONTENT_LENGTH,
+            )
+            content = content[:MAX_CONTENT_LENGTH]
+
+        return content
+
+    def _validate_tags(self, tags: Optional[list[str]]) -> list[str]:
+        """验证并清理标签"""
+        if not tags:
+            return []
+
+        if len(tags) > MAX_TAGS_COUNT:
+            raise MemoryValidationError(
+                message=f"Too many tags: {len(tags)} > {MAX_TAGS_COUNT}",
+                field="tags",
+            )
+
+        # 清理和去重
+        cleaned = list(set(
+            tag.strip().lower()
+            for tag in tags
+            if tag and tag.strip()
+        ))
+
+        return cleaned[:MAX_TAGS_COUNT]
 
     async def store(
         self,
         content: str,
         memory_type: MemoryType = MemoryType.EPISODIC,
         importance: MemoryImportance = MemoryImportance.MEDIUM,
-        summary: str | None = None,
-        tags: list[str] | None = None,
-        metadata: dict[str, Any] | None = None,
-        agent_id: str | None = None,
-        session_id: str | None = None,
-        task_id: str | None = None,
+        summary: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
+        agent_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        task_id: Optional[str] = None,
     ) -> str:
         """
         存储长期记忆
@@ -213,64 +308,88 @@ class LongTermMemory:
 
         Returns:
             记忆 ID
+
+        Raises:
+            MemoryStorageError: 存储失败时
+            MemoryValidationError: 参数验证失败时
         """
-        import uuid
+        # 验证参数
+        content = self._validate_content(content)
+        tags = self._validate_tags(tags)
+
+        if summary and len(summary) > MAX_SUMMARY_LENGTH:
+            summary = summary[:MAX_SUMMARY_LENGTH]
 
         memory_id = str(uuid.uuid4())
 
-        with self._get_session() as session:
-            memory = LongTermMemoryModel(
+        try:
+            with self._get_session() as session:
+                memory = LongTermMemoryModel(
+                    memory_id=memory_id,
+                    memory_type=memory_type.value,
+                    content=content,
+                    summary=summary,
+                    importance=importance.value,
+                    tags=tags,
+                    extra_data=metadata or {},
+                    agent_id=agent_id,
+                    session_id=session_id,
+                    task_id=task_id,
+                    decay_factor=self.importance_boost.get(importance.value, 1.0),
+                )
+
+                session.add(memory)
+
+                # 同步到 RAG 存储
+                if self.rag_store:
+                    try:
+                        vector_id = await self.rag_store.add_memory(
+                            content=content,
+                            metadata={
+                                "memory_id": memory_id,
+                                "memory_type": memory_type.value,
+                                "importance": importance.value,
+                                "tags": tags,
+                            },
+                        )
+                        memory.vector_id = vector_id
+                    except Exception as e:
+                        self.logger.warning(
+                            "Failed to sync to RAG store",
+                            memory_id=memory_id,
+                            error=str(e),
+                        )
+
+            self.logger.info(
+                "Memory stored",
                 memory_id=memory_id,
                 memory_type=memory_type.value,
-                content=content,
-                summary=summary,
                 importance=importance.value,
-                tags=tags or [],
-                extra_data=metadata or {},  # 参数名 metadata 映射到 extra_data 列
-                agent_id=agent_id,
-                session_id=session_id,
-                task_id=task_id,
-                decay_factor=self.importance_boost.get(importance.value, 1.0),
             )
 
-            session.add(memory)
-            session.commit()
+            return memory_id
 
-            # 同步到 RAG 存储
-            if self.rag_store:
-                try:
-                    vector_id = await self.rag_store.add_memory(
-                        content=content,
-                        metadata={
-                            "memory_id": memory_id,
-                            "memory_type": memory_type.value,
-                            "importance": importance.value,
-                            "tags": tags or [],
-                        },
-                    )
-                    memory.vector_id = vector_id
-                    session.commit()
-                except Exception as e:
-                    self.logger.warning(
-                        "Failed to sync to RAG store",
-                        memory_id=memory_id,
-                        error=str(e),
-                    )
-
-        self.logger.info(
-            "Memory stored",
-            memory_id=memory_id,
-            memory_type=memory_type.value,
-            importance=importance.value,
-        )
-
-        return memory_id
+        except MemoryValidationError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error("Database error during store", error=str(e))
+            raise MemoryStorageError(
+                message=f"Failed to store memory: {e}",
+                memory_id=memory_id,
+                storage_type="long_term",
+            ) from e
+        except Exception as e:
+            self.logger.error("Unexpected error during store", error=str(e))
+            raise MemoryStorageError(
+                message=f"Unexpected error: {e}",
+                storage_type="long_term",
+            ) from e
 
     async def retrieve(
         self,
         memory_id: str,
         update_access: bool = True,
-    ) -> dict[str, Any] | None:
+    ) -> dict[str, Any]:
         """
         检索记忆
 
@@ -279,34 +398,50 @@ class LongTermMemory:
             update_access: 是否更新访问时间
 
         Returns:
-            记忆数据，不存在则返回 None
+            记忆数据
+
+        Raises:
+            MemoryNotFoundError: 记忆不存在时
+            MemoryRetrievalError: 检索失败时
         """
-        with self._get_session() as session:
-            memory = session.query(LongTermMemoryModel).filter(
-                LongTermMemoryModel.memory_id == memory_id
-            ).first()
+        try:
+            with self._get_session() as session:
+                memory = session.query(LongTermMemoryModel).filter(
+                    LongTermMemoryModel.memory_id == memory_id
+                ).first()
 
-            if not memory:
-                return None
+                if not memory:
+                    raise MemoryNotFoundError(
+                        memory_id=memory_id,
+                        storage_type="long_term",
+                    )
 
-            if update_access:
-                memory.last_accessed_at = datetime.utcnow()
-                memory.access_count += 1
-                session.commit()
+                if update_access:
+                    memory.last_accessed_at = datetime.utcnow()
+                    memory.access_count += 1
 
-            return memory.to_dict()
+                return memory.to_dict()
+
+        except MemoryNotFoundError:
+            raise
+        except SQLAlchemyError as e:
+            self.logger.error("Database error during retrieve", error=str(e))
+            raise MemoryRetrievalError(
+                message=f"Failed to retrieve memory: {e}",
+                memory_id=memory_id,
+            ) from e
 
     async def search(
         self,
-        query: str | None = None,
-        memory_type: MemoryType | None = None,
-        importance: MemoryImportance | None = None,
-        tags: list[str] | None = None,
-        agent_id: str | None = None,
-        session_id: str | None = None,
-        task_id: str | None = None,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
+        query: Optional[str] = None,
+        memory_type: Optional[MemoryType] = None,
+        importance: Optional[MemoryImportance] = None,
+        tags: Optional[list[str]] = None,
+        agent_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
         limit: int = MAX_MEMORIES_PER_QUERY,
         offset: int = 0,
         order_by: str = "created_at",
@@ -333,7 +468,7 @@ class LongTermMemory:
         Returns:
             记忆列表
         """
-        # 如果有语义搜索需求且有 RAG 存储
+        # 语义搜索优先
         if query and self.rag_store:
             return await self._semantic_search(
                 query=query,
@@ -341,53 +476,70 @@ class LongTermMemory:
                 limit=limit,
             )
 
-        with self._get_session() as session:
-            q = session.query(LongTermMemoryModel)
+        try:
+            with self._get_session() as session:
+                q = session.query(LongTermMemoryModel)
 
-            # 应用过滤条件
-            if memory_type:
-                q = q.filter(LongTermMemoryModel.memory_type == memory_type.value)
-            if importance:
-                q = q.filter(LongTermMemoryModel.importance == importance.value)
-            if agent_id:
-                q = q.filter(LongTermMemoryModel.agent_id == agent_id)
-            if session_id:
-                q = q.filter(LongTermMemoryModel.session_id == session_id)
-            if task_id:
-                q = q.filter(LongTermMemoryModel.task_id == task_id)
-            if start_date:
-                q = q.filter(LongTermMemoryModel.created_at >= start_date)
-            if end_date:
-                q = q.filter(LongTermMemoryModel.created_at <= end_date)
-            if tags:
-                # JSON 标签过滤（SQLite 不完全支持）
-                for tag in tags:
-                    q = q.filter(LongTermMemoryModel.tags.contains(tag))
-            if query:
-                # 简单的全文搜索
-                q = q.filter(LongTermMemoryModel.content.contains(query))
+                # 应用过滤条件
+                if memory_type:
+                    q = q.filter(LongTermMemoryModel.memory_type == memory_type.value)
+                if importance:
+                    q = q.filter(LongTermMemoryModel.importance == importance.value)
+                if agent_id:
+                    q = q.filter(LongTermMemoryModel.agent_id == agent_id)
+                if session_id:
+                    q = q.filter(LongTermMemoryModel.session_id == session_id)
+                if task_id:
+                    q = q.filter(LongTermMemoryModel.task_id == task_id)
+                if start_date:
+                    q = q.filter(LongTermMemoryModel.created_at >= start_date)
+                if end_date:
+                    q = q.filter(LongTermMemoryModel.created_at <= end_date)
+                if tags:
+                    for tag in tags:
+                        q = q.filter(LongTermMemoryModel.tags.contains(tag))
+                if query:
+                    # 全文搜索（简单实现）
+                    search_pattern = f"%{query}%"
+                    q = q.filter(
+                        LongTermMemoryModel.content.ilike(search_pattern) |
+                        LongTermMemoryModel.summary.ilike(search_pattern)
+                    )
 
-            # 排序
-            order_column = getattr(LongTermMemoryModel, order_by, LongTermMemoryModel.created_at)
-            if descending:
-                q = q.order_by(desc(order_column))
-            else:
-                q = q.order_by(order_column)
+                # 排序
+                order_column = getattr(LongTermMemoryModel, order_by, LongTermMemoryModel.created_at)
+                if descending:
+                    q = q.order_by(desc(order_column))
+                else:
+                    q = q.order_by(order_column)
 
-            # 分页
-            q = q.offset(offset).limit(limit)
+                # 分页
+                q = q.offset(offset).limit(min(limit, MAX_MEMORIES_PER_QUERY))
 
-            memories = q.all()
+                memories = q.all()
+                return [m.to_dict() for m in memories]
 
-            return [m.to_dict() for m in memories]
+        except Exception as e:
+            self.logger.error("Search failed", error=str(e))
+            return []
 
     async def _semantic_search(
         self,
         query: str,
-        memory_type: MemoryType | None = None,
+        memory_type: Optional[MemoryType] = None,
         limit: int = 10,
     ) -> list[dict[str, Any]]:
-        """语义搜索（通过 RAG 存储）"""
+        """
+        语义搜索（通过 RAG 存储）
+
+        Args:
+            query: 查询文本
+            memory_type: 记忆类型过滤
+            limit: 返回数量限制
+
+        Returns:
+            记忆列表（带相似度分数）
+        """
         if not self.rag_store:
             return []
 
@@ -402,32 +554,32 @@ class LongTermMemory:
                 filter_metadata=filter_metadata if filter_metadata else None,
             )
 
-            # 获取完整记忆
+            # 获取完整记忆并添加相似度分数
             memories = []
             for result in results:
                 memory_id = result.get("metadata", {}).get("memory_id")
                 if memory_id:
-                    memory = await self.retrieve(memory_id)
-                    if memory:
+                    try:
+                        memory = await self.retrieve(memory_id)
                         memory["similarity_score"] = result.get("distance", 0)
                         memories.append(memory)
+                    except MemoryNotFoundError:
+                        continue
 
             return memories
+
         except Exception as e:
-            self.logger.error(
-                "Semantic search failed",
-                error=str(e),
-            )
+            self.logger.error("Semantic search failed", error=str(e))
             return []
 
     async def update(
         self,
         memory_id: str,
-        content: str | None = None,
-        summary: str | None = None,
-        importance: MemoryImportance | None = None,
-        tags: list[str] | None = None,
-        metadata: dict[str, Any] | None = None,
+        content: Optional[str] = None,
+        summary: Optional[str] = None,
+        importance: Optional[MemoryImportance] = None,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> bool:
         """
         更新记忆
@@ -443,31 +595,38 @@ class LongTermMemory:
         Returns:
             是否成功
         """
-        with self._get_session() as session:
-            memory = session.query(LongTermMemoryModel).filter(
-                LongTermMemoryModel.memory_id == memory_id
-            ).first()
+        try:
+            with self._get_session() as session:
+                memory = session.query(LongTermMemoryModel).filter(
+                    LongTermMemoryModel.memory_id == memory_id
+                ).first()
 
-            if not memory:
-                return False
+                if not memory:
+                    return False
 
-            if content is not None:
-                memory.content = content
-            if summary is not None:
-                memory.summary = summary
-            if importance is not None:
-                memory.importance = importance.value
-                memory.decay_factor = self.importance_boost.get(importance.value, memory.decay_factor)
-            if tags is not None:
-                memory.tags = tags
-            if metadata is not None:
-                memory.extra_data = {**(memory.extra_data or {}), **metadata}
+                # 更新字段
+                if content is not None:
+                    memory.content = self._validate_content(content)
+                if summary is not None:
+                    memory.summary = summary[:MAX_SUMMARY_LENGTH] if summary else None
+                if importance is not None:
+                    memory.importance = importance.value
+                    memory.decay_factor = self.importance_boost.get(
+                        importance.value, memory.decay_factor
+                    )
+                if tags is not None:
+                    memory.tags = self._validate_tags(tags)
+                if metadata is not None:
+                    memory.extra_data = {**(memory.extra_data or {}), **metadata}
 
-            memory.updated_at = datetime.utcnow()
-            session.commit()
+                memory.updated_at = datetime.utcnow()
 
-            self.logger.debug("Memory updated", memory_id=memory_id)
-            return True
+                self.logger.debug("Memory updated", memory_id=memory_id)
+                return True
+
+        except Exception as e:
+            self.logger.error("Update failed", memory_id=memory_id, error=str(e))
+            return False
 
     async def delete(self, memory_id: str) -> bool:
         """
@@ -479,73 +638,116 @@ class LongTermMemory:
         Returns:
             是否成功
         """
-        with self._get_session() as session:
-            memory = session.query(LongTermMemoryModel).filter(
-                LongTermMemoryModel.memory_id == memory_id
-            ).first()
+        try:
+            with self._get_session() as session:
+                memory = session.query(LongTermMemoryModel).filter(
+                    LongTermMemoryModel.memory_id == memory_id
+                ).first()
 
-            if not memory:
-                return False
+                if not memory:
+                    return False
 
-            # 从 RAG 存储删除
-            if self.rag_store and memory.vector_id:
-                try:
-                    await self.rag_store.delete_memory(memory.vector_id)
-                except Exception as e:
-                    self.logger.warning(
-                        "Failed to delete from RAG store",
-                        memory_id=memory_id,
-                        error=str(e),
-                    )
+                # 从 RAG 存储删除
+                if self.rag_store and memory.vector_id:
+                    try:
+                        await self.rag_store.delete_memory(memory.vector_id)
+                    except Exception as e:
+                        self.logger.warning(
+                            "Failed to delete from RAG store",
+                            memory_id=memory_id,
+                            error=str(e),
+                        )
 
-            session.delete(memory)
-            session.commit()
+                session.delete(memory)
 
-            self.logger.info("Memory deleted", memory_id=memory_id)
-            return True
+                self.logger.info("Memory deleted", memory_id=memory_id)
+                return True
+
+        except Exception as e:
+            self.logger.error("Delete failed", memory_id=memory_id, error=str(e))
+            return False
+
+    async def batch_delete(self, memory_ids: list[str]) -> int:
+        """
+        批量删除记忆
+
+        Args:
+            memory_ids: 记忆 ID 列表
+
+        Returns:
+            成功删除的数量
+        """
+        if not memory_ids:
+            return 0
+
+        deleted_count = 0
+        for memory_id in memory_ids:
+            if await self.delete(memory_id):
+                deleted_count += 1
+
+        return deleted_count
 
     async def apply_decay(self, days: int = 1) -> int:
         """
         应用记忆衰减
+
+        根据记忆重要性和访问频率衰减记忆，清理低于阈值的记忆。
 
         Args:
             days: 衰减天数
 
         Returns:
             清理的记忆数量
+
+        Raises:
+            MemoryDecayError: 衰减操作失败时
         """
         decay_amount = self.decay_rate * days
         cleaned_count = 0
 
-        with self._get_session() as session:
-            # 更新所有记忆的衰减因子
-            memories = session.query(LongTermMemoryModel).all()
+        try:
+            with self._get_session() as session:
+                memories = session.query(LongTermMemoryModel).all()
 
-            for memory in memories:
-                memory.decay_factor *= (1 - decay_amount)
+                for memory in memories:
+                    memory.decay_factor *= (1 - decay_amount)
 
-                # 检查是否需要清理
-                if memory.decay_factor < self.DECAY_THRESHOLD:
-                    session.delete(memory)
-                    cleaned_count += 1
+                    # 检查是否需要清理
+                    if memory.decay_factor < DECAY_THRESHOLD:
+                        # 从 RAG 存储删除
+                        if self.rag_store and memory.vector_id:
+                            try:
+                                await self.rag_store.delete_memory(memory.vector_id)
+                            except Exception:
+                                pass
 
-            session.commit()
+                        session.delete(memory)
+                        cleaned_count += 1
 
-        self.logger.info(
-            "Decay applied",
-            days=days,
-            cleaned_count=cleaned_count,
-        )
+            self.logger.info(
+                "Decay applied",
+                days=days,
+                cleaned_count=cleaned_count,
+            )
 
-        return cleaned_count
+            return cleaned_count
+
+        except Exception as e:
+            self.logger.error("Decay operation failed", error=str(e))
+            raise MemoryDecayError(
+                message=f"Failed to apply decay: {e}",
+                affected_count=cleaned_count,
+            ) from e
 
     async def get_important_memories(
         self,
         limit: int = 10,
-        agent_id: str | None = None,
+        agent_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """
         获取重要记忆
+
+        获取高重要性和关键性的记忆，按访问次数排序。
 
         Args:
             limit: 返回数量
@@ -554,34 +756,33 @@ class LongTermMemory:
         Returns:
             重要记忆列表
         """
-        with self._get_session() as session:
-            q = session.query(LongTermMemoryModel).filter(
-                LongTermMemoryModel.importance.in_([
-                    MemoryImportance.HIGH.value,
-                    MemoryImportance.CRITICAL.value,
-                ])
-            )
+        try:
+            with self._get_session() as session:
+                q = session.query(LongTermMemoryModel).filter(
+                    LongTermMemoryModel.importance.in_([
+                        MemoryImportance.HIGH.value,
+                        MemoryImportance.CRITICAL.value,
+                    ])
+                )
 
-            if agent_id:
-                q = q.filter(LongTermMemoryModel.agent_id == agent_id)
+                if agent_id:
+                    q = q.filter(LongTermMemoryModel.agent_id == agent_id)
 
-            # 按重要性和访问次数排序
-            importance_order = {
-                MemoryImportance.CRITICAL.value: 0,
-                MemoryImportance.HIGH.value: 1,
-            }
+                memories = q.order_by(
+                    desc(LongTermMemoryModel.access_count)
+                ).limit(limit).all()
 
-            memories = q.order_by(
-                desc(LongTermMemoryModel.access_count)
-            ).limit(limit).all()
+                return [m.to_dict() for m in memories]
 
-            return [m.to_dict() for m in memories]
+        except Exception as e:
+            self.logger.error("Failed to get important memories", error=str(e))
+            return []
 
     async def get_recent_memories(
         self,
         hours: int = 24,
         limit: int = 50,
-        agent_id: str | None = None,
+        agent_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """
         获取最近的记忆
@@ -596,64 +797,110 @@ class LongTermMemory:
         """
         start_time = datetime.utcnow() - timedelta(hours=hours)
 
-        with self._get_session() as session:
-            q = session.query(LongTermMemoryModel).filter(
-                LongTermMemoryModel.created_at >= start_time
-            )
+        try:
+            with self._get_session() as session:
+                q = session.query(LongTermMemoryModel).filter(
+                    LongTermMemoryModel.created_at >= start_time
+                )
 
-            if agent_id:
-                q = q.filter(LongTermMemoryModel.agent_id == agent_id)
+                if agent_id:
+                    q = q.filter(LongTermMemoryModel.agent_id == agent_id)
 
-            memories = q.order_by(
-                desc(LongTermMemoryModel.created_at)
-            ).limit(limit).all()
+                memories = q.order_by(
+                    desc(LongTermMemoryModel.created_at)
+                ).limit(limit).all()
 
-            return [m.to_dict() for m in memories]
+                return [m.to_dict() for m in memories]
+
+        except Exception as e:
+            self.logger.error("Failed to get recent memories", error=str(e))
+            return []
 
     async def get_stats(self) -> dict[str, Any]:
         """
         获取记忆统计信息
 
         Returns:
-            统计信息
+            统计信息字典
         """
-        with self._get_session() as session:
-            total_count = session.query(LongTermMemoryModel).count()
+        try:
+            with self._get_session() as session:
+                total_count = session.query(LongTermMemoryModel).count()
 
-            # 按类型统计
-            type_counts = {}
-            for mt in MemoryType:
-                count = session.query(LongTermMemoryModel).filter(
-                    LongTermMemoryModel.memory_type == mt.value
+                # 按类型统计
+                type_counts = {}
+                for mt in MemoryType:
+                    count = session.query(LongTermMemoryModel).filter(
+                        LongTermMemoryModel.memory_type == mt.value
+                    ).count()
+                    type_counts[mt.value] = count
+
+                # 按重要性统计
+                importance_counts = {}
+                for imp in MemoryImportance:
+                    count = session.query(LongTermMemoryModel).filter(
+                        LongTermMemoryModel.importance == imp.value
+                    ).count()
+                    importance_counts[imp.value] = count
+
+                # 最近活跃
+                recent_count = session.query(LongTermMemoryModel).filter(
+                    LongTermMemoryModel.last_accessed_at >= datetime.utcnow() - timedelta(hours=24)
                 ).count()
-                type_counts[mt.value] = count
 
-            # 按重要性统计
-            importance_counts = {}
-            for imp in MemoryImportance:
-                count = session.query(LongTermMemoryModel).filter(
-                    LongTermMemoryModel.importance == imp.value
-                ).count()
-                importance_counts[imp.value] = count
+                return {
+                    "total_count": total_count,
+                    "by_type": type_counts,
+                    "by_importance": importance_counts,
+                    "recently_accessed_24h": recent_count,
+                    "rag_enabled": self.rag_store is not None,
+                }
 
-            # 最近活跃
-            recent_count = session.query(LongTermMemoryModel).filter(
-                LongTermMemoryModel.last_accessed_at >= datetime.utcnow() - timedelta(hours=24)
-            ).count()
-
+        except Exception as e:
+            self.logger.error("Failed to get stats", error=str(e))
             return {
-                "total_count": total_count,
-                "by_type": type_counts,
-                "by_importance": importance_counts,
-                "recently_accessed_24h": recent_count,
-                "rag_enabled": self.rag_store is not None,
+                "total_count": 0,
+                "error": str(e),
             }
 
+    async def count(
+        self,
+        memory_type: Optional[MemoryType] = None,
+        importance: Optional[MemoryImportance] = None,
+        agent_id: Optional[str] = None,
+    ) -> int:
+        """
+        计数记忆
 
-# 便捷函数
+        Args:
+            memory_type: 记忆类型过滤
+            importance: 重要性过滤
+            agent_id: Agent ID 过滤
+
+        Returns:
+            记忆数量
+        """
+        try:
+            with self._get_session() as session:
+                q = session.query(LongTermMemoryModel)
+
+                if memory_type:
+                    q = q.filter(LongTermMemoryModel.memory_type == memory_type.value)
+                if importance:
+                    q = q.filter(LongTermMemoryModel.importance == importance.value)
+                if agent_id:
+                    q = q.filter(LongTermMemoryModel.agent_id == agent_id)
+
+                return q.count()
+
+        except Exception as e:
+            self.logger.error("Count failed", error=str(e))
+            return 0
+
+
 def create_long_term_memory(
-    db_url: str = LongTermMemory.DEFAULT_DB_URL,
-    **kwargs,
+    db_url: str = DEFAULT_DB_URL,
+    **kwargs: Any,
 ) -> LongTermMemory:
     """
     创建长期记忆系统

@@ -101,6 +101,27 @@ class UserModel(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class SkillModel(Base):
+    """技能模型"""
+
+    __tablename__ = "skills"
+
+    __table_args__ = (
+        Index("ix_skills_category_enabled", "category", "enabled"),
+        Index("ix_skills_created_at", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), unique=True, nullable=False, index=True)
+    description = Column(Text, default="")
+    category = Column(String(50), default="general", index=True)
+    version = Column(String(20), default="1.0.0")
+    config = Column(Text, default="{}")  # JSON 配置
+    enabled = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 # ============ 性能监控 ============
 
 
