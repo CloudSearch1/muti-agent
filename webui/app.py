@@ -399,6 +399,7 @@ async def delete_skill(skill_id: int):
 
 
 @app.post("/api/v1/skills/{skill_id}/toggle")
+@app.patch("/api/v1/skills/{skill_id}/toggle")
 async def toggle_skill(skill_id: int):
     """切换技能状态"""
     for skill in SKILLS_DATA:
