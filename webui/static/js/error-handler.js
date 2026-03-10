@@ -110,9 +110,9 @@ function logError(error, context = {}) {
   if (errorLog.length > 100) {
     errorLog.shift();
   }
-  
-  // 在开发环境下输出到控制台
-  if (process.env.NODE_ENV !== 'production') {
+
+  // 输出到控制台（开发环境可通过 hostname 判断）
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     console.error('[Error Log]', logEntry);
   }
   
