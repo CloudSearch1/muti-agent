@@ -121,122 +121,449 @@
     </script>
 
     <style>
-        /* GitHub 设计规范样式 */
+        /* ================================
+           GitHub 设计规范样式 - 大幅度重构
+           ================================ */
+
+        /* === 基础布局 === */
+        html { font-size: 16px; line-height: 1.5; scroll-behavior: smooth; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; }
+
+        /* === 页面背景渐变 === */
         .gradient-bg { background: linear-gradient(180deg, #0d1117 0%, #161b22 100%); }
         .gradient-dark { background: #0d1117; }
-        .card-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
-        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4); border-color: #0366D6; }
 
-        /* 按钮发光效果 - GitHub 蓝色 */
+        /* === 卡片悬停效果 === */
+        .card-hover {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #30363d;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            border-color: #6A737D;
+        }
+
+        /* === GitHub 阴影效果 === */
         .gh-glow { box-shadow: 0 0 0 1px rgba(3, 102, 214, 0.4); }
         .gh-shadow { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24); }
+        .gh-shadow-lg { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); }
 
-        /* 加载动画 */
+        /* === 加载动画 === */
         .loading-spin { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* 脉冲动画 */
+        /* === 脉冲动画 === */
         .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-        /* 移动端优化 */
+        /* === 响应式隐藏 === */
         @media (max-width: 768px) {
-            .hide-mobile { display: none; }
+            .hide-mobile { display: none !important; }
             .nav-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
             .nav-scroll::-webkit-scrollbar { display: none; }
         }
 
-        /* 深色模式过渡 */
+        /* === 深色模式过渡 === */
         html { transition: background-color 0.2s ease, color 0.2s ease; }
 
-        /* 快捷键提示 - GitHub 风格 */
+        /* === 快捷键提示 - GitHub 风格 === */
         .kbd {
             display: inline-block;
-            padding: 2px 6px;
+            padding: 3px 7px;
             font-size: 11px;
             font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-            background: rgba(3, 102, 214, 0.1);
+            line-height: 1;
+            background: rgba(110, 118, 129, 0.1);
             border-radius: 6px;
-            border: 1px solid rgba(3, 102, 214, 0.3);
-            color: #0366D6;
+            border: 1px solid rgba(110, 118, 129, 0.3);
+            color: #e6edf3;
+            box-shadow: inset 0 -1px 0 rgba(110, 118, 129, 0.2);
         }
 
-        /* 滚动条美化 - GitHub 风格 */
+        /* === 滚动条美化 - GitHub 风格 === */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-track { background: #0d1117; border-radius: 4px; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #6A737D; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
 
-        /* 触摸优化 */
+        /* === 触摸优化 === */
         @media (hover: none) {
             .card-hover:hover { transform: none; }
         }
 
-        /* 输入框聚焦效果 - GitHub 蓝色 */
+        /* === 输入框聚焦效果 - GitHub 蓝色 === */
         input:focus, textarea:focus, select:focus {
             border-color: #0366D6 !important;
             box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.3) !important;
+            outline: none;
         }
 
-        /* 按钮样式 - GitHub 设计规范 */
+        /* ================================
+           按钮样式 - GitHub 设计规范
+           ================================ */
+
+        /* 主按钮 - 绿色 */
         .btn-primary {
             background-color: #33BB22;
             color: #ffffff;
             border: 1px solid rgba(51, 187, 34, 0.5);
             border-radius: 6px;
+            padding: 5px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            cursor: pointer;
         }
         .btn-primary:hover {
             background-color: #2ea91f;
             border-color: #33BB22;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        .btn-primary:active {
+            background-color: #268a1b;
         }
 
+        /* 次要按钮 - 灰色边框 */
         .btn-secondary {
             background-color: #21262d;
             color: #e6edf3;
             border: 1px solid #30363d;
             border-radius: 6px;
+            padding: 5px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            cursor: pointer;
         }
         .btn-secondary:hover {
             background-color: #30363d;
             border-color: #6A737D;
         }
 
+        /* 危险按钮 - 红色 */
         .btn-danger {
             background-color: #DA3633;
             color: #ffffff;
             border: 1px solid rgba(218, 54, 51, 0.5);
             border-radius: 6px;
+            padding: 5px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            cursor: pointer;
         }
         .btn-danger:hover {
             background-color: #b62324;
             border-color: #DA3633;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
-        /* 状态指示器 - GitHub 设计规范 */
+        /* 小型按钮 */
+        .btn-sm {
+            padding: 3px 12px;
+            font-size: 12px;
+        }
+
+        /* 按钮组 */
+        .btn-group {
+            display: inline-flex;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .btn-group > .btn-primary,
+        .btn-group > .btn-secondary,
+        .btn-group > .btn-danger {
+            border-radius: 0;
+            margin-left: -1px;
+        }
+        .btn-group > .btn-primary:first-child,
+        .btn-group > .btn-secondary:first-child,
+        .btn-group > .btn-danger:first-child {
+            border-radius: 6px 0 0 6px;
+            margin-left: 0;
+        }
+        .btn-group > .btn-primary:last-child,
+        .btn-group > .btn-secondary:last-child,
+        .btn-group > .btn-danger:last-child {
+            border-radius: 0 6px 6px 0;
+        }
+
+        /* ================================
+           标题样式 - GitHub 设计规范
+           ================================ */
+        h1, .h1 { font-size: 32px; font-weight: 600; line-height: 1.25; color: #e6edf3; margin: 0 0 16px 0; }
+        h2, .h2 { font-size: 24px; font-weight: 600; line-height: 1.25; color: #e6edf3; margin: 0 0 16px 0; }
+        h3, .h3 { font-size: 20px; font-weight: 600; line-height: 1.25; color: #e6edf3; margin: 0 0 16px 0; }
+        h4, .h4 { font-size: 16px; font-weight: 600; line-height: 1.25; color: #e6edf3; margin: 0 0 16px 0; }
+
+        /* ================================
+           工具栏样式 - GitHub 设计规范
+           ================================ */
+        .gh-toolbar {
+            height: 64px;
+            background-color: #161b22;
+            border-bottom: 1px solid #30363d;
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+        }
+
+        /* ================================
+           表格样式 - GitHub 设计规范
+           ================================ */
+        .gh-table {
+            width: 100%;
+            border-collapse: collapse;
+            border-spacing: 0;
+        }
+        .gh-table th {
+            text-align: left;
+            padding: 12px 16px;
+            background-color: #161b22;
+            border-bottom: 1px solid #30363d;
+            font-weight: 600;
+            color: #e6edf3;
+            font-size: 14px;
+        }
+        .gh-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #30363d;
+            color: #e6edf3;
+            font-size: 14px;
+        }
+        .gh-table tbody tr:nth-child(even) {
+            background-color: rgba(22, 27, 34, 0.5);
+        }
+        .gh-table tbody tr:hover {
+            background-color: rgba(48, 54, 61, 0.5);
+        }
+        .gh-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* ================================
+           卡片样式 - GitHub 设计规范
+           ================================ */
+        .gh-card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 16px;
+        }
+        .gh-card-header {
+            padding: 16px;
+            border-bottom: 1px solid #30363d;
+            font-weight: 600;
+            color: #e6edf3;
+        }
+        .gh-card-body {
+            padding: 16px;
+        }
+        .gh-card-footer {
+            padding: 16px;
+            border-top: 1px solid #30363d;
+            background-color: #21262d;
+            border-radius: 0 0 6px 6px;
+        }
+
+        /* ================================
+           状态指示器 - GitHub 设计规范
+           ================================ */
         .status-online { color: #33BB22; }
         .status-idle { color: #6A737D; }
         .status-offline { color: #525252; }
 
         /* GitHub 标签徽章样式 */
         .badge-success {
-            background: rgba(51, 187, 34, 0.2);
-            color: #33BB22;
-            border: 1px solid rgba(51, 187, 34, 0.3);
+            background: rgba(51, 187, 34, 0.15);
+            color: #3fb950;
+            border: 1px solid rgba(51, 187, 34, 0.4);
+            padding: 2px 8px;
+            border-radius: 2em;
+            font-size: 12px;
+            font-weight: 500;
         }
         .badge-error {
-            background: rgba(218, 54, 51, 0.2);
-            color: #DA3633;
-            border: 1px solid rgba(218, 54, 51, 0.3);
+            background: rgba(218, 54, 51, 0.15);
+            color: #f85149;
+            border: 1px solid rgba(218, 54, 51, 0.4);
+            padding: 2px 8px;
+            border-radius: 2em;
+            font-size: 12px;
+            font-weight: 500;
         }
         .badge-warning {
-            background: rgba(240, 199, 68, 0.2);
-            color: #F0C744;
-            border: 1px solid rgba(240, 199, 68, 0.3);
+            background: rgba(240, 199, 68, 0.15);
+            color: #d29922;
+            border: 1px solid rgba(240, 199, 68, 0.4);
+            padding: 2px 8px;
+            border-radius: 2em;
+            font-size: 12px;
+            font-weight: 500;
         }
         .badge-info {
-            background: rgba(3, 102, 214, 0.2);
-            color: #0366D6;
-            border: 1px solid rgba(3, 102, 214, 0.3);
+            background: rgba(3, 102, 214, 0.15);
+            color: #58a6ff;
+            border: 1px solid rgba(3, 102, 214, 0.4);
+            padding: 2px 8px;
+            border-radius: 2em;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-neutral {
+            background: rgba(110, 118, 129, 0.15);
+            color: #8b949e;
+            border: 1px solid rgba(110, 118, 129, 0.4);
+            padding: 2px 8px;
+            border-radius: 2em;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* ================================
+           链接样式 - GitHub 设计规范
+           ================================ */
+        a, .gh-link {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+        a:hover, .gh-link:hover {
+            text-decoration: underline;
+        }
+
+        /* ================================
+           侧边栏样式 - GitHub 设计规范
+           ================================ */
+        .gh-sidebar {
+            width: 280px;
+            background-color: #161b22;
+            border-right: 1px solid #30363d;
+            min-height: calc(100vh - 64px);
+        }
+        .gh-sidebar-item {
+            padding: 8px 16px;
+            color: #e6edf3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 6px;
+            margin: 2px 8px;
+            transition: background-color 0.15s ease;
+        }
+        .gh-sidebar-item:hover {
+            background-color: #21262d;
+        }
+        .gh-sidebar-item.active {
+            background-color: #21262d;
+            border-left: 2px solid #f78166;
+        }
+
+        /* ================================
+           排版优化
+           ================================ */
+        p { margin-bottom: 16px; line-height: 1.5; }
+        ul, ol { padding-left: 24px; margin-bottom: 16px; }
+        li { margin-bottom: 4px; }
+
+        /* ================================
+           表单样式 - GitHub 设计规范
+           ================================ */
+        .gh-input {
+            width: 100%;
+            padding: 5px 12px;
+            font-size: 14px;
+            line-height: 20px;
+            color: #e6edf3;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            transition: all 0.15s ease;
+        }
+        .gh-input:focus {
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+            outline: none;
+        }
+        .gh-input::placeholder {
+            color: #6A737D;
+        }
+
+        .gh-select {
+            width: 100%;
+            padding: 5px 12px;
+            font-size: 14px;
+            line-height: 20px;
+            color: #e6edf3;
+            background-color: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .gh-select:focus {
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+            outline: none;
+        }
+
+        .gh-textarea {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #e6edf3;
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            resize: vertical;
+            min-height: 80px;
+        }
+        .gh-textarea:focus {
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+            outline: none;
+        }
+
+        /* ================================
+           分隔线样式
+           ================================ */
+        .gh-divider {
+            height: 1px;
+            background-color: #30363d;
+            margin: 16px 0;
+        }
+
+        /* ================================
+           工具提示样式
+           ================================ */
+        .gh-tooltip {
+            position: relative;
+        }
+        .gh-tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 8px;
+            background-color: #21262d;
+            color: #e6edf3;
+            font-size: 12px;
+            border-radius: 6px;
+            border: 1px solid #30363d;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.15s ease;
+        }
+        .gh-tooltip:hover::after {
+            opacity: 1;
+            visibility: visible;
         }
     </style>
 </head>
@@ -250,96 +577,108 @@
             </div>
         </div>
 
-        <!-- 顶部导航栏 -->
-        <nav class="bg-gh-canvas text-white shadow-lg sticky top-0 z-40 border-b border-gh-border">
-            <div class="container mx-auto px-4 py-3">
-                <div class="flex justify-between items-center">
+        <!-- GitHub 风格顶部导航栏 (64px 高度) -->
+        <nav class="gh-toolbar px-4 py-0">
+            <div class="flex items-center justify-between w-full h-full">
+                <!-- 左侧：Logo + 主导航 -->
+                <div class="flex items-center h-full">
                     <!-- Logo -->
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gh-elevated rounded-xl flex items-center justify-center border border-gh-border">
-                            <i class="fas fa-robot text-xl text-gh-light"></i>
+                    <a href="#" class="flex items-center h-full px-3 hover:bg-white/5 transition">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
+                                <i class="fas fa-robot text-lg text-white"></i>
+                            </div>
+                            <span class="text-lg font-semibold text-white tracking-tight">IntelliTeam</span>
                         </div>
-                        <div>
-                            <h1 class="text-xl font-bold text-white">IntelliTeam</h1>
-                            <p class="text-xs text-gh-text hide-mobile">智能研发协作平台</p>
-                        </div>
-                    </div>
+                    </a>
 
-                    <!-- 主导航 (桌面端) -->
-                    <div class="hidden md:flex items-center space-x-2 nav-scroll">
-                        <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-gh-blue text-white' : 'hover:bg-white/10 text-gh-text'" class="px-4 py-2 rounded-lg transition flex items-center">
-                            <i class="fas fa-home mr-2"></i><span class="hide-mobile">仪表盘</span>
+                    <!-- 分隔线 -->
+                    <div class="h-6 w-px bg-gh-border mx-2"></div>
+
+                    <!-- 主导航链接 -->
+                    <div class="hidden md:flex items-center h-full">
+                        <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'border-white text-white' : 'border-transparent text-gh-text hover:text-gh-light hover:border-gh-border'" class="h-full px-4 border-b-2 font-medium text-sm transition flex items-center">
+                            <i class="fas fa-home mr-2 text-xs"></i>仪表盘
                         </button>
-                        <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-gh-blue text-white' : 'hover:bg-white/10 text-gh-text'" class="px-4 py-2 rounded-lg transition flex items-center">
-                            <i class="fas fa-tasks mr-2"></i><span class="hide-mobile">任务</span>
+                        <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'border-white text-white' : 'border-transparent text-gh-text hover:text-gh-light hover:border-gh-border'" class="h-full px-4 border-b-2 font-medium text-sm transition flex items-center">
+                            <i class="fas fa-tasks mr-2 text-xs"></i>任务
                         </button>
-                        <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-gh-blue text-white' : 'hover:bg-white/10 text-gh-text'" class="px-4 py-2 rounded-lg transition flex items-center">
-                            <i class="fas fa-users mr-2"></i><span class="hide-mobile">Agent</span>
+                        <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'border-white text-white' : 'border-transparent text-gh-text hover:text-gh-light hover:border-gh-border'" class="h-full px-4 border-b-2 font-medium text-sm transition flex items-center">
+                            <i class="fas fa-users mr-2 text-xs"></i>Agent
                         </button>
-                        <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-gh-blue text-white' : 'hover:bg-white/10 text-gh-text'" class="px-4 py-2 rounded-lg transition flex items-center">
-                            <i class="fas fa-project-diagram mr-2"></i><span class="hide-mobile">工作流</span>
+                        <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'border-white text-white' : 'border-transparent text-gh-text hover:text-gh-light hover:border-gh-border'" class="h-full px-4 border-b-2 font-medium text-sm transition flex items-center">
+                            <i class="fas fa-project-diagram mr-2 text-xs"></i>工作流
                         </button>
-                        <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-gh-blue text-white' : 'hover:bg-white/10 text-gh-text'" class="px-4 py-2 rounded-lg transition flex items-center">
-                            <i class="fas fa-chart-line mr-2"></i><span class="hide-mobile">分析</span>
+                        <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'border-white text-white' : 'border-transparent text-gh-text hover:text-gh-light hover:border-gh-border'" class="h-full px-4 border-b-2 font-medium text-sm transition flex items-center">
+                            <i class="fas fa-chart-line mr-2 text-xs"></i>分析
                         </button>
-                        <button @click="currentTab = 'skills'" :class="currentTab === 'skills' ? 'bg-gh-blue text-white' : 'hover:bg-white/10 text-gh-text'" class="px-4 py-2 rounded-lg transition flex items-center">
-                            <i class="fas fa-puzzle-piece mr-2"></i><span class="hide-mobile">技能</span>
+                        <button @click="currentTab = 'skills'" :class="currentTab === 'skills' ? 'border-white text-white' : 'border-transparent text-gh-text hover:text-gh-light hover:border-gh-border'" class="h-full px-4 border-b-2 font-medium text-sm transition flex items-center">
+                            <i class="fas fa-puzzle-piece mr-2 text-xs"></i>技能
                         </button>
                     </div>
+                </div>
 
-                    <!-- 右侧工具 -->
-                    <div class="flex items-center space-x-2">
-                        <!-- 搜索框 (桌面端) -->
-                        <div class="hidden md:block relative">
+                <!-- 右侧：搜索 + 工具 -->
+                <div class="flex items-center h-full gap-2">
+                    <!-- GitHub 风格搜索框 -->
+                    <div class="hidden md:flex items-center">
+                        <div class="relative">
                             <input
                                 v-model="searchQuery"
                                 @input="debouncedSearch"
                                 type="text"
-                                placeholder="搜索... (Ctrl+K)"
-                                class="w-48 pl-10 pr-4 py-2 rounded-lg bg-gh-elevated border border-gh-border text-white placeholder-gh-text focus:outline-none focus:border-gh-light transition"
+                                placeholder="搜索或跳转..."
+                                class="w-72 h-8 pl-8 pr-12 text-sm bg-gh-bg border border-gh-border rounded-md text-white placeholder-gh-text focus:outline-none focus:border-gh-blue focus:ring-1 focus:ring-gh-blue/30 transition"
                             >
-                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gh-text"></i>
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gh-text text-xs"></i>
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                                <span class="kbd">Ctrl</span>
+                                <span class="kbd">K</span>
+                            </span>
                         </div>
-
-                        <!-- 深色模式切换 -->
-                        <button @click="toggleDarkMode" :title="isDark ? '浅色模式' : '深色模式'" class="w-10 h-10 rounded-lg bg-gh-elevated hover:bg-gh-border flex items-center justify-center transition text-gh-text hover:text-gh-light">
-                            <i :class="isDark ? 'fas fa-sun text-gh-light' : 'fas fa-moon'"></i>
-                        </button>
-
-                        <!-- 通知 -->
-                        <button @click="showNotifications = !showNotifications" class="w-10 h-10 rounded-lg bg-gh-elevated hover:bg-gh-border flex items-center justify-center transition relative text-gh-text hover:text-gh-light">
-                            <i class="fas fa-bell"></i>
-                            <span v-if="unreadCount > 0" class="absolute -top-1 -right-1 w-5 h-5 bg-gh-blue rounded-full text-xs flex items-center justify-center text-gh-bg">{{ unreadCount }}</span>
-                        </button>
-
-                        <!-- 快捷键帮助 -->
-                        <button @click="showShortcuts = true" class="w-10 h-10 rounded-lg bg-gh-elevated hover:bg-gh-border flex items-center justify-center transition hide-mobile text-gh-text hover:text-gh-light" title="快捷键 (?">
-                            <i class="fas fa-keyboard"></i>
-                        </button>
                     </div>
-                </div>
 
-                <!-- 移动端导航 -->
-                <div class="md:hidden flex justify-center space-x-1 mt-3 nav-scroll pb-1">
-                    <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-gh-blue text-white' : 'text-gh-text'" class="px-3 py-2 rounded-lg transition text-sm">
-                        <i class="fas fa-home"></i>
+                    <!-- 分隔线 -->
+                    <div class="h-6 w-px bg-gh-border mx-1 hide-mobile"></div>
+
+                    <!-- 深色模式切换 -->
+                    <button @click="toggleDarkMode" :title="isDark ? '浅色模式' : '深色模式'" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition text-gh-text hover:text-white">
+                        <i :class="isDark ? 'fas fa-sun' : 'fas fa-moon'" class="text-sm"></i>
                     </button>
-                    <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-gh-blue text-white' : 'text-gh-text'" class="px-3 py-2 rounded-lg transition text-sm">
-                        <i class="fas fa-tasks"></i>
+
+                    <!-- 通知 -->
+                    <button @click="showNotifications = !showNotifications" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition relative text-gh-text hover:text-white">
+                        <i class="fas fa-bell text-sm"></i>
+                        <span v-if="unreadCount > 0" class="absolute -top-0.5 -right-0.5 w-4 h-4 bg-gh-blue rounded-full text-[10px] flex items-center justify-center text-white font-medium">{{ unreadCount }}</span>
                     </button>
-                    <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-gh-blue text-white' : 'text-gh-text'" class="px-3 py-2 rounded-lg transition text-sm">
-                        <i class="fas fa-users"></i>
-                    </button>
-                    <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-gh-blue text-white' : 'text-gh-text'" class="px-3 py-2 rounded-lg transition text-sm">
-                        <i class="fas fa-project-diagram"></i>
-                    </button>
-                    <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-gh-blue text-white' : 'text-gh-text'" class="px-3 py-2 rounded-lg transition text-sm">
-                        <i class="fas fa-chart-line"></i>
-                    </button>
-                    <button @click="currentTab = 'skills'" :class="currentTab === 'skills' ? 'bg-gh-blue text-white' : 'text-gh-text'" class="px-3 py-2 rounded-lg transition text-sm">
-                        <i class="fas fa-puzzle-piece"></i>
+
+                    <!-- 快捷键帮助 -->
+                    <button @click="showShortcuts = true" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition hide-mobile text-gh-text hover:text-white" title="快捷键 (?">
+                        <i class="fas fa-keyboard text-sm"></i>
                     </button>
                 </div>
+            </div>
+
+            <!-- 移动端导航 -->
+            <div class="md:hidden flex justify-center gap-1 py-2 border-t border-gh-border">
+                <button @click="currentTab = 'dashboard'" :class="currentTab === 'dashboard' ? 'bg-white/10 text-white' : 'text-gh-text hover:text-gh-light'" class="px-3 py-1.5 rounded-md transition text-sm font-medium">
+                    <i class="fas fa-home"></i>
+                </button>
+                <button @click="currentTab = 'tasks'" :class="currentTab === 'tasks' ? 'bg-white/10 text-white' : 'text-gh-text hover:text-gh-light'" class="px-3 py-1.5 rounded-md transition text-sm font-medium">
+                    <i class="fas fa-tasks"></i>
+                </button>
+                <button @click="currentTab = 'agents'" :class="currentTab === 'agents' ? 'bg-white/10 text-white' : 'text-gh-text hover:text-gh-light'" class="px-3 py-1.5 rounded-md transition text-sm font-medium">
+                    <i class="fas fa-users"></i>
+                </button>
+                <button @click="currentTab = 'workflows'" :class="currentTab === 'workflows' ? 'bg-white/10 text-white' : 'text-gh-text hover:text-gh-light'" class="px-3 py-1.5 rounded-md transition text-sm font-medium">
+                    <i class="fas fa-project-diagram"></i>
+                </button>
+                <button @click="currentTab = 'analytics'" :class="currentTab === 'analytics' ? 'bg-white/10 text-white' : 'text-gh-text hover:text-gh-light'" class="px-3 py-1.5 rounded-md transition text-sm font-medium">
+                    <i class="fas fa-chart-line"></i>
+                </button>
+                <button @click="currentTab = 'skills'" :class="currentTab === 'skills' ? 'bg-white/10 text-white' : 'text-gh-text hover:text-gh-light'" class="px-3 py-1.5 rounded-md transition text-sm font-medium">
+                    <i class="fas fa-puzzle-piece"></i>
+                </button>
             </div>
         </nav>
 
@@ -347,56 +686,76 @@
         <main class="flex-1 container mx-auto px-4 py-6">
             <!-- 仪表盘 -->
             <div v-if="currentTab === 'dashboard'" class="space-y-6">
-                <!-- 统计卡片 -->
+                <!-- 页面标题 -->
+                <div class="flex items-center justify-between mb-2">
+                    <h1 class="text-2xl font-semibold text-white">仪表盘</h1>
+                    <span class="text-sm text-gh-text">最后更新: {{ lastUpdateTime }}</span>
+                </div>
+
+                <!-- 统计卡片 - GitHub 风格 -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-gh-canvas rounded-xl shadow-lg p-5 card-hover border border-gh-border">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gh-text text-sm">总任务数</p>
-                                <p class="text-3xl font-bold text-white">{{ stats.totalTasks }}</p>
-                                <p class="text-xs text-gh-light mt-1"><i class="fas fa-arrow-up"></i> +12% 本周</p>
+                    <div class="gh-card card-hover">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <p class="text-sm text-gh-text font-medium">总任务数</p>
+                                <p class="text-3xl font-bold text-white mt-1">{{ stats.totalTasks }}</p>
+                                <p class="text-xs text-gh-text mt-2 flex items-center">
+                                    <span class="inline-flex items-center text-green-400">
+                                        <i class="fas fa-arrow-up mr-1"></i>+12%
+                                    </span>
+                                    <span class="ml-1">本周</span>
+                                </p>
                             </div>
-                            <div class="bg-gh-elevated p-4 rounded-xl border border-gh-border">
-                                <i class="fas fa-tasks text-gh-light text-2xl"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-gh-canvas rounded-xl shadow-lg p-5 card-hover border border-gh-border">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gh-text text-sm">活跃 Agent</p>
-                                <p class="text-3xl font-bold text-white">{{ stats.activeAgents }}</p>
-                                <p class="text-xs text-gh-text mt-1"><i class="fas fa-check"></i> 全部在线</p>
-                            </div>
-                            <div class="bg-gh-elevated p-4 rounded-xl border border-gh-border">
-                                <i class="fas fa-robot text-gh-light text-2xl"></i>
+                            <div class="w-10 h-10 bg-gh-elevated rounded-md flex items-center justify-center border border-gh-border">
+                                <i class="fas fa-tasks text-gh-text"></i>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-gh-canvas rounded-xl shadow-lg p-5 card-hover border border-gh-border">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gh-text text-sm">完成率</p>
-                                <p class="text-3xl font-bold text-white">{{ stats.completionRate }}%</p>
-                                <p class="text-xs text-gh-light mt-1"><i class="fas fa-arrow-up"></i> +3% 上周</p>
+                    <div class="gh-card card-hover">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <p class="text-sm text-gh-text font-medium">活跃 Agent</p>
+                                <p class="text-3xl font-bold text-white mt-1">{{ stats.activeAgents }}</p>
+                                <p class="text-xs text-green-400 mt-2 flex items-center">
+                                    <i class="fas fa-check-circle mr-1"></i>全部在线
+                                </p>
                             </div>
-                            <div class="bg-gh-elevated p-4 rounded-xl border border-gh-border">
-                                <i class="fas fa-chart-line text-gh-light text-2xl"></i>
+                            <div class="w-10 h-10 bg-gh-elevated rounded-md flex items-center justify-center border border-gh-border">
+                                <i class="fas fa-robot text-gh-text"></i>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-gh-canvas rounded-xl shadow-lg p-5 card-hover border border-gh-border">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gh-text text-sm">系统状态</p>
-                                <p class="text-lg font-bold text-gh-light">运行中</p>
-                                <p class="text-xs text-gh-text mt-1">延迟：{{ systemLatency }}ms</p>
+                    <div class="gh-card card-hover">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <p class="text-sm text-gh-text font-medium">完成率</p>
+                                <p class="text-3xl font-bold text-white mt-1">{{ stats.completionRate }}%</p>
+                                <p class="text-xs text-gh-text mt-2 flex items-center">
+                                    <span class="inline-flex items-center text-green-400">
+                                        <i class="fas fa-arrow-up mr-1"></i>+3%
+                                    </span>
+                                    <span class="ml-1">上周</span>
+                                </p>
                             </div>
-                            <div class="bg-gh-elevated p-4 rounded-xl border border-gh-border">
-                                <i class="fas fa-check-circle text-gh-light text-2xl"></i>
+                            <div class="w-10 h-10 bg-gh-elevated rounded-md flex items-center justify-center border border-gh-border">
+                                <i class="fas fa-chart-line text-gh-text"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gh-card card-hover">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <p class="text-sm text-gh-text font-medium">系统状态</p>
+                                <p class="text-lg font-semibold text-green-400 mt-1 flex items-center">
+                                    <i class="fas fa-circle text-xs mr-2"></i>运行中
+                                </p>
+                                <p class="text-xs text-gh-text mt-2">延迟: {{ systemLatency }}ms</p>
+                            </div>
+                            <div class="w-10 h-10 bg-gh-elevated rounded-md flex items-center justify-center border border-gh-border">
+                                <i class="fas fa-server text-gh-text"></i>
                             </div>
                         </div>
                     </div>
@@ -404,79 +763,87 @@
 
                 <!-- 实时图表 -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                        <h3 class="text-lg font-bold text-white mb-4">
-                            <i class="fas fa-chart-area mr-2 text-gh-light"></i>任务趋势
-                        </h3>
-                        <div style="height: 200px; position: relative;">
+                    <div class="gh-card">
+                        <div class="gh-card-header flex items-center justify-between">
+                            <h3 class="text-base font-semibold text-white flex items-center">
+                                <i class="fas fa-chart-area mr-2 text-gh-text"></i>任务趋势
+                            </h3>
+                            <span class="text-xs text-gh-text">最近 7 天</span>
+                        </div>
+                        <div class="gh-card-body" style="height: 200px; position: relative;">
                             <canvas id="taskTrendChart"></canvas>
                         </div>
                     </div>
-                    <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                        <h3 class="text-lg font-bold text-white mb-4">
-                            <i class="fas fa-chart-bar mr-2 text-gh-light"></i>Agent 任务处理统计
-                        </h3>
-                        <div style="height: 200px; position: relative;">
+                    <div class="gh-card">
+                        <div class="gh-card-header flex items-center justify-between">
+                            <h3 class="text-base font-semibold text-white flex items-center">
+                                <i class="fas fa-chart-bar mr-2 text-gh-text"></i>Agent 任务处理统计
+                            </h3>
+                            <span class="text-xs text-gh-text">按 Agent 分类</span>
+                        </div>
+                        <div class="gh-card-body" style="height: 200px; position: relative;">
                             <canvas id="agentEfficiencyChart"></canvas>
                         </div>
                     </div>
                 </div>
 
                 <!-- Agent 状态 -->
-                <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-white">
-                            <i class="fas fa-robot mr-2 text-gh-light"></i>Agent 实时状态
+                <div class="gh-card">
+                    <div class="gh-card-header flex justify-between items-center">
+                        <h3 class="text-base font-semibold text-white flex items-center">
+                            <i class="fas fa-robot mr-2 text-gh-text"></i>Agent 实时状态
                         </h3>
-                        <span class="text-sm text-gh-text">
-                            <i class="fas fa-circle text-gh-light mr-1 pulse-dot"></i>实时更新
+                        <span class="text-sm text-gh-text flex items-center">
+                            <i class="fas fa-circle text-green-400 mr-1.5 text-xs"></i>实时更新
                         </span>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div v-for="agent in agents" :key="agent.name" class="border border-gh-border rounded-xl p-4 hover:border-gh-light transition">
-                            <div class="flex items-center justify-between mb-3">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center border border-gh-border">
-                                        <i :class="agent.icon" class="text-gh-light"></i>
+                    <div class="gh-card-body">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div v-for="agent in agents" :key="agent.name" class="border border-gh-border rounded-md p-4 hover:border-gh-text transition bg-gh-elevated/50">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-gh-bg rounded-md flex items-center justify-center border border-gh-border">
+                                            <i :class="agent.icon" class="text-sm text-gh-text"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-semibold text-white text-sm">{{ agent.name }}</h4>
+                                            <p class="text-xs text-gh-text">{{ agent.role }}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 class="font-semibold text-white">{{ agent.name }}</h4>
-                                        <p class="text-xs text-gh-text">{{ agent.role }}</p>
-                                    </div>
+                                    <span :class="agent.status === 'idle' ? 'badge-success' : 'badge-warning'" class="text-xs font-medium">
+                                        {{ agent.status === 'idle' ? '空闲' : '工作中' }}
+                                    </span>
                                 </div>
-                                <span :class="agent.status === 'idle' ? 'bg-gh-elevated text-gh-light' : 'bg-gh-elevated text-gh-text'" class="px-2 py-1 rounded text-xs font-medium border border-gh-border">
-                                    {{ agent.status === 'idle' ? '空闲' : '工作中' }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between text-xs text-gh-text">
-                                <span><i class="fas fa-check-circle text-gh-light mr-1"></i>{{ agent.tasksCompleted }} 完成</span>
-                                <span><i class="fas fa-clock text-gh-light mr-1"></i>{{ agent.avgTime }}s</span>
-                            </div>
-                            <div class="mt-3 bg-gh-elevated rounded-full h-2 overflow-hidden">
-                                <div :class="agent.status === 'busy' ? 'bg-gh-blue' : 'bg-gh-border'" class="h-full rounded-full transition-all duration-500" :style="{ width: agent.status === 'busy' ? '75%' : '0%' }"></div>
+                                <div class="flex items-center justify-between text-xs text-gh-text mb-3">
+                                    <span><i class="fas fa-check mr-1"></i>{{ agent.tasksCompleted }} 完成</span>
+                                    <span><i class="fas fa-clock mr-1"></i>{{ agent.avgTime }}s</span>
+                                </div>
+                                <div class="h-1.5 bg-gh-bg rounded-full overflow-hidden">
+                                    <div :class="agent.status === 'busy' ? 'bg-green-500' : 'bg-gh-border'" class="h-full rounded-full transition-all duration-500" :style="{ width: agent.status === 'busy' ? '75%' : '0%' }"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 最近任务 -->
-                <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-bold text-white">
-                            <i class="fas fa-list mr-2 text-gh-light"></i>最近任务
+                <div class="gh-card">
+                    <div class="gh-card-header flex justify-between items-center">
+                        <h3 class="text-base font-semibold text-white flex items-center">
+                            <i class="fas fa-list mr-2 text-gh-text"></i>最近任务
                         </h3>
-                        <button @click="currentTab = 'tasks'" class="text-gh-light hover:text-white text-sm font-medium">查看全部 →</button>
+                        <button @click="currentTab = 'tasks'" class="text-sm text-gh-link hover:underline font-medium">查看全部 →</button>
                     </div>
-                    <div class="space-y-3">
-                        <div v-for="task in recentTasks" :key="task.id" class="flex items-center justify-between p-3 bg-gh-elevated rounded-lg hover:border-gh-light border border-transparent transition cursor-pointer" @click="viewTask(task.id)">
+                    <div class="divide-y divide-gh-border">
+                        <div v-for="task in recentTasks" :key="task.id" class="flex items-center justify-between p-4 hover:bg-gh-elevated/50 transition cursor-pointer" @click="viewTask(task.id)">
                             <div class="flex items-center space-x-3 flex-1 min-w-0">
                                 <span :class="statusColor(task.status)" class="w-3 h-3 rounded-full flex-shrink-0"></span>
                                 <div class="flex-1 min-w-0">
-                                    <p class="font-medium text-white truncate">{{ task.title }}</p>
+                                    <p class="font-medium text-white truncate text-sm">{{ task.title }}</p>
                                     <p class="text-xs text-gh-text truncate">{{ task.description }}</p>
                                 </div>
                             </div>
-                            <div class="flex items-center space-x-4 text-sm text-gh-text flex-shrink-0">
+                            <div class="flex items-center space-x-4 text-xs text-gh-text flex-shrink-0">
                                 <span class="hide-mobile"><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
                                 <span><i class="fas fa-clock mr-1"></i>{{ task.time }}</span>
                             </div>
@@ -487,107 +854,113 @@
 
             <!-- 任务管理 -->
             <div v-if="currentTab === 'tasks'" class="space-y-6">
-                <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div class="gh-card">
+                    <div class="gh-card-header flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
-                            <h2 class="text-xl font-bold text-white">
-                                <i class="fas fa-tasks mr-2 text-gh-light"></i>任务管理
+                            <h2 class="text-xl font-semibold text-white flex items-center">
+                                <i class="fas fa-tasks mr-2 text-gh-text"></i>任务管理
                             </h2>
                             <p class="text-sm text-gh-text mt-1">共 {{ filteredTasks.length }} 个任务{{ selectedTasks.length > 0 ? `，已选 ${selectedTasks.length} 个` : '' }}</p>
                         </div>
                         <div class="flex flex-wrap gap-2">
                             <!-- 批量操作按钮 -->
                             <div v-if="selectedTasks.length > 0" class="flex gap-2 mr-2">
-                                <button @click="batchUpdateStatus('pending')" class="bg-gh-elevated hover:bg-gh-border text-gh-light px-4 py-2 rounded-lg transition flex items-center border border-gh-border">
-                                    <i class="fas fa-clock mr-2"></i>设为待处理
+                                <button @click="batchUpdateStatus('pending')" class="btn-secondary btn-sm flex items-center">
+                                    <i class="fas fa-clock mr-1"></i>设为待处理
                                 </button>
-                                <button @click="batchUpdateStatus('in_progress')" class="bg-gh-green hover:bg-green-500 text-white px-4 py-2 rounded-lg transition flex items-center">
-                                    <i class="fas fa-spinner mr-2"></i>设为进行中
+                                <button @click="batchUpdateStatus('in_progress')" class="btn-primary btn-sm flex items-center">
+                                    <i class="fas fa-spinner mr-1"></i>设为进行中
                                 </button>
-                                <button @click="batchUpdateStatus('completed')" class="bg-gh-elevated hover:bg-gh-border text-gh-light px-4 py-2 rounded-lg transition flex items-center border border-gh-border">
-                                    <i class="fas fa-check-circle mr-2"></i>设为完成
+                                <button @click="batchUpdateStatus('completed')" class="btn-secondary btn-sm flex items-center">
+                                    <i class="fas fa-check-circle mr-1"></i>设为完成
                                 </button>
-                                <button @click="batchDelete" class="bg-gh-elevated hover:bg-gh-border text-gh-text px-4 py-2 rounded-lg transition flex items-center border border-gh-border">
-                                    <i class="fas fa-trash mr-2"></i>删除
+                                <button @click="batchDelete" class="btn-danger btn-sm flex items-center">
+                                    <i class="fas fa-trash mr-1"></i>删除
                                 </button>
-                                <button @click="selectAll = false; selectedTasks = []" class="bg-gh-elevated hover:bg-gh-border text-gh-text px-4 py-2 rounded-lg transition">
+                                <button @click="selectAll = false; selectedTasks = []" class="btn-secondary btn-sm">
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
                             <!-- 搜索框 (移动端) -->
                             <div class="relative md:hidden">
-                                <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="搜索任务..." class="w-40 pl-8 pr-3 py-2 rounded-lg border border-gh-border bg-gh-elevated focus:outline-none focus:border-gh-light text-white">
-                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gh-text"></i>
+                                <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="搜索任务..." class="gh-input w-40 pl-8">
+                                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gh-text text-xs"></i>
                             </div>
-                            <button @click="showCreateTask = true" class="bg-gh-green hover:bg-green-500 text-white px-4 py-2 rounded-lg transition flex items-center">
+                            <button @click="showCreateTask = true" class="btn-primary flex items-center">
                                 <i class="fas fa-plus mr-2"></i>新建任务
                             </button>
                         </div>
                     </div>
 
-                    <!-- 过滤器 -->
-                    <div class="flex flex-wrap gap-2 mb-6">
-                        <button @click="taskFilter = 'all'" :class="taskFilter === 'all' ? 'bg-gh-blue text-white' : 'bg-gh-elevated text-gh-text hover:bg-gh-border'" class="px-3 py-1.5 rounded-lg text-sm transition">全部</button>
-                        <button @click="taskFilter = 'pending'" :class="taskFilter === 'pending' ? 'bg-gh-elevated text-gh-light border border-gh-border' : 'bg-gh-elevated text-gh-text hover:bg-gh-border'" class="px-3 py-1.5 rounded-lg text-sm transition">待处理</button>
-                        <button @click="taskFilter = 'in_progress'" :class="taskFilter === 'in_progress' ? 'bg-gh-blue text-white' : 'bg-gh-elevated text-gh-text hover:bg-gh-border'" class="px-3 py-1.5 rounded-lg text-sm transition">进行中</button>
-                        <button @click="taskFilter = 'completed'" :class="taskFilter === 'completed' ? 'bg-gh-elevated text-gh-light border border-gh-border' : 'bg-gh-elevated text-gh-text hover:bg-gh-border'" class="px-3 py-1.5 rounded-lg text-sm transition">已完成</button>
-                    </div>
+                    <div class="gh-card-body">
+                        <!-- 过滤器 - GitHub 风格标签 -->
+                        <div class="flex flex-wrap gap-2 mb-4 pb-4 border-b border-gh-border">
+                            <button @click="taskFilter = 'all'" :class="taskFilter === 'all' ? 'bg-gh-blue text-white' : 'bg-transparent text-gh-text hover:text-white border border-gh-border hover:border-gh-text'" class="px-3 py-1 rounded-md text-sm transition">全部</button>
+                            <button @click="taskFilter = 'pending'" :class="taskFilter === 'pending' ? 'bg-gh-blue text-white' : 'bg-transparent text-gh-text hover:text-white border border-gh-border hover:border-gh-text'" class="px-3 py-1 rounded-md text-sm transition">待处理</button>
+                            <button @click="taskFilter = 'in_progress'" :class="taskFilter === 'in_progress' ? 'bg-gh-blue text-white' : 'bg-transparent text-gh-text hover:text-white border border-gh-border hover:border-gh-text'" class="px-3 py-1 rounded-md text-sm transition">进行中</button>
+                            <button @click="taskFilter = 'completed'" :class="taskFilter === 'completed' ? 'bg-gh-blue text-white' : 'bg-transparent text-gh-text hover:text-white border border-gh-border hover:border-gh-text'" class="px-3 py-1 rounded-md text-sm transition">已完成</button>
+                        </div>
 
-                    <!-- 任务列表 -->
-                    <div class="space-y-3">
-                        <div v-for="task in filteredTasks" :key="task.id" :class="selectedTasks.includes(task.id) ? 'border-gh-light border-2' : 'border border-gh-border'" class="rounded-xl p-4 hover:border-gh-light transition cursor-pointer bg-gh-elevated" @click="viewTask(task.id)">
-                            <div class="flex items-start justify-between gap-4">
-                                <div class="flex items-start space-x-3">
-                                    <!-- 多选框 -->
-                                    <input
-                                        type="checkbox"
-                                        :value="task.id"
-                                        v-model="selectedTasks"
-                                        @click.stop
-                                        class="mt-1 w-4 h-4 text-gh-light rounded focus:ring-gh-light bg-gh-canvas border-gh-border"
-                                    >
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex flex-wrap items-center gap-2 mb-2">
-                                            <h3 class="font-semibold text-white">{{ task.title }}</h3>
-                                            <span :class="priorityClass(task.priority)" class="px-2 py-0.5 rounded text-xs text-white font-medium">{{ task.priorityText }}</span>
-                                            <span :class="statusBadge(task.status)" class="px-2 py-0.5 rounded text-xs font-medium">{{ task.statusText }}</span>
-                                        </div>
-                                        <p class="text-gh-text text-sm mb-3 line-clamp-2">{{ task.description }}</p>
-                                        <div class="flex flex-wrap items-center gap-4 text-sm text-gh-text">
-                                            <span><i class="fas fa-user mr-1"></i>{{ task.assignee }}</span>
-                                            <span><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
-                                            <span><i class="fas fa-clock mr-1"></i>{{ task.createdAt }}</span>
+                        <!-- 任务列表 -->
+                        <div class="divide-y divide-gh-border">
+                            <div v-for="task in filteredTasks" :key="task.id" :class="selectedTasks.includes(task.id) ? 'bg-gh-elevated/50 border-l-2 border-l-gh-blue' : ''" class="py-4 hover:bg-gh-elevated/30 transition cursor-pointer" @click="viewTask(task.id)">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div class="flex items-start space-x-3">
+                                        <!-- 多选框 -->
+                                        <input
+                                            type="checkbox"
+                                            :value="task.id"
+                                            v-model="selectedTasks"
+                                            @click.stop
+                                            class="mt-1 w-4 h-4 text-gh-blue rounded focus:ring-gh-blue bg-gh-bg border-gh-border cursor-pointer"
+                                        >
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2 mb-1">
+                                                <h3 class="font-semibold text-white text-sm">{{ task.title }}</h3>
+                                                <span :class="priorityClass(task.priority)" class="px-2 py-0.5 rounded text-xs text-white font-medium">{{ task.priorityText }}</span>
+                                                <span :class="statusBadge(task.status)" class="px-2 py-0.5 rounded text-xs font-medium">{{ task.statusText }}</span>
+                                            </div>
+                                            <p class="text-gh-text text-sm mb-2 line-clamp-1">{{ task.description }}</p>
+                                            <div class="flex flex-wrap items-center gap-4 text-xs text-gh-text">
+                                                <span><i class="fas fa-user mr-1"></i>{{ task.assignee }}</span>
+                                                <span><i class="fas fa-robot mr-1"></i>{{ task.agent }}</span>
+                                                <span><i class="fas fa-clock mr-1"></i>{{ task.createdAt }}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="flex space-x-2 flex-shrink-0">
-                                    <button @click.stop="editTask(task)" class="p-2 text-gh-light hover:bg-gh-border rounded-lg transition" title="编辑">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                    <button @click.stop="deleteTask(task.id)" class="p-2 text-gh-text hover:bg-gh-border rounded-lg transition" title="删除">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
+                                    <div class="flex space-x-1 flex-shrink-0">
+                                        <button @click.stop="editTask(task)" class="p-2 text-gh-text hover:text-white hover:bg-gh-elevated rounded-md transition" title="编辑">
+                                            <i class="fas fa-edit text-sm"></i>
+                                        </button>
+                                        <button @click.stop="deleteTask(task.id)" class="p-2 text-gh-text hover:text-red-400 hover:bg-gh-elevated rounded-md transition" title="删除">
+                                            <i class="fas fa-trash text-sm"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- 空状态 -->
-                    <div v-if="filteredTasks.length === 0" class="text-center py-12">
-                        <i class="fas fa-inbox text-6xl text-gh-border mb-4"></i>
-                        <p class="text-gh-text">暂无任务</p>
-                        <button @click="showCreateTask = true" class="mt-4 text-gh-light hover:text-white font-medium">创建第一个任务 →</button>
+                        <!-- 空状态 -->
+                        <div v-if="filteredTasks.length === 0" class="text-center py-16">
+                            <div class="w-16 h-16 mx-auto bg-gh-elevated rounded-full flex items-center justify-center mb-4 border border-gh-border">
+                                <i class="fas fa-inbox text-2xl text-gh-text"></i>
+                            </div>
+                            <p class="text-gh-text mb-4">暂无任务</p>
+                            <button @click="showCreateTask = true" class="btn-primary">
+                                <i class="fas fa-plus mr-2"></i>创建第一个任务
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Agent 管理 -->
             <div v-if="currentTab === 'agents'" class="space-y-6">
-                <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                    <div class="flex justify-between items-center mb-6">
+                <div class="gh-card">
+                    <div class="gh-card-header flex justify-between items-center">
                         <div>
-                            <h2 class="text-xl font-bold text-white">
-                                <i class="fas fa-users mr-2 text-gh-light"></i>Agent 团队
+                            <h2 class="text-xl font-semibold text-white flex items-center">
+                                <i class="fas fa-users mr-2 text-gh-text"></i>Agent 团队
                             </h2>
                             <p class="text-sm text-gh-text mt-1">{{ agents.length }} 个智能体</p>
                         </div>
@@ -639,57 +1012,66 @@
 
             <!-- 工作流 -->
             <div v-if="currentTab === 'workflows'" class="space-y-6">
-                <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                    <h2 class="text-xl font-bold text-white mb-6">
-                        <i class="fas fa-project-diagram mr-2 text-gh-light"></i>工作流
-                    </h2>
-
-                    <!-- 标准研发流程 -->
-                    <div class="border border-gh-border rounded-xl p-6 mb-6 bg-gh-elevated">
-                        <h3 class="font-bold text-white mb-6">标准研发流程</h3>
-                        <div class="flex flex-wrap items-center justify-center gap-4">
-                            <div v-for="(step, index) in workflowSteps" :key="step.name" class="flex items-center">
-                                <div class="text-center">
-                                    <div class="w-16 h-16 mx-auto bg-gh-elevated rounded-2xl flex items-center justify-center mb-2 shadow-lg border border-gh-border">
-                                        <i :class="step.icon" class="text-white text-2xl"></i>
-                                    </div>
-                                    <p class="text-sm font-semibold text-white">{{ step.name }}</p>
-                                    <p class="text-xs text-gh-text">{{ step.agent }}</p>
-                                </div>
-                                <div v-if="index < workflowSteps.length - 1" class="mx-2 md:mx-4 text-gh-border">
-                                    <i class="fas fa-chevron-right text-lg"></i>
-                                </div>
-                            </div>
-                        </div>
+                <div class="gh-card">
+                    <div class="gh-card-header">
+                        <h2 class="text-xl font-semibold text-white flex items-center">
+                            <i class="fas fa-project-diagram mr-2 text-gh-text"></i>工作流
+                        </h2>
                     </div>
+                    <div class="gh-card-body space-y-6">
+                        <!-- 标准研发流程 -->
+                        <div class="border border-gh-border rounded-md p-6 bg-gh-elevated/50">
+                            <h3 class="font-semibold text-white mb-6">标准研发流程</h3>
+                            <div class="flex flex-wrap items-center justify-center gap-4">
+                                <div v-for="(step, index) in workflowSteps" :key="step.name" class="flex items-center">
+                                    <div class="text-center">
+                                        <div class="w-14 h-14 mx-auto bg-gh-bg rounded-md flex items-center justify-center mb-2 border border-gh-border">
+                                            <i :class="step.icon" class="text-white text-xl"></i>
+                                        </div>
+                                        <p class="text-sm font-medium text-white">{{ step.name }}</p>
+                                        <p class="text-xs text-gh-text">{{ step.agent }}</p>
+                                    </div>
+                                    <div v-if="index < workflowSteps.length - 1" class="mx-3 text-gh-border">
+                                        <i class="fas fa-arrow-right"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <!-- 工作流统计 -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-gh-elevated rounded-xl p-5 text-white border border-gh-border">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-gh-text text-sm">活跃工作流</p>
-                                    <p class="text-3xl font-bold mt-1">12</p>
+                        <!-- 工作流统计 -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="gh-card">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gh-text">活跃工作流</p>
+                                        <p class="text-2xl font-bold text-white mt-1">12</p>
+                                    </div>
+                                    <div class="w-10 h-10 bg-gh-elevated rounded-md flex items-center justify-center border border-gh-border">
+                                        <i class="fas fa-sync text-gh-text"></i>
+                                    </div>
                                 </div>
-                                <i class="fas fa-sync text-4xl opacity-50"></i>
                             </div>
-                        </div>
-                        <div class="bg-gh-elevated rounded-xl p-5 text-white border border-gh-border">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-gh-text text-sm">已完成</p>
-                                    <p class="text-3xl font-bold mt-1">145</p>
+                            <div class="gh-card">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gh-text">已完成</p>
+                                        <p class="text-2xl font-bold text-white mt-1">145</p>
+                                    </div>
+                                    <div class="w-10 h-10 bg-gh-elevated rounded-md flex items-center justify-center border border-gh-border">
+                                        <i class="fas fa-check-circle text-gh-text"></i>
+                                    </div>
                                 </div>
-                                <i class="fas fa-check-circle text-4xl opacity-50"></i>
                             </div>
-                        </div>
-                        <div class="bg-gh-elevated rounded-xl p-5 text-white border border-gh-border">
-                            <div class="flex items-center justify-between">
-                                <div>
-                                    <p class="text-gh-text text-sm">平均耗时</p>
-                                    <p class="text-3xl font-bold mt-1">4.2h</p>
+                            <div class="gh-card">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm text-gh-text">平均耗时</p>
+                                        <p class="text-2xl font-bold text-white mt-1">4.2h</p>
+                                    </div>
+                                    <div class="w-10 h-10 bg-gh-elevated rounded-md flex items-center justify-center border border-gh-border">
+                                        <i class="fas fa-clock text-gh-text"></i>
+                                    </div>
                                 </div>
-                                <i class="fas fa-clock text-4xl opacity-50"></i>
                             </div>
                         </div>
                     </div>
@@ -698,22 +1080,42 @@
 
             <!-- 数据分析 -->
             <div v-if="currentTab === 'analytics'" class="space-y-6">
-                <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                    <h2 class="text-xl font-bold text-white mb-6">
-                        <i class="fas fa-chart-line mr-2 text-gh-light"></i>数据分析
-                    </h2>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="border border-gh-border rounded-xl p-6 bg-gh-elevated">
-                            <h3 class="font-bold text-white mb-4">任务完成趋势</h3>
-                            <div style="height: 250px; position: relative;">
-                                <canvas id="analyticsTaskTrend"></canvas>
+                <div class="gh-card">
+                    <div class="gh-card-header">
+                        <h2 class="text-xl font-semibold text-white flex items-center">
+                            <i class="fas fa-chart-line mr-2 text-gh-text"></i>数据分析
+                        </h2>
+                    </div>
+                    <div class="gh-card-body">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="gh-card">
+                                <h3 class="font-semibold text-white mb-4 text-sm">任务完成趋势</h3>
+                                <div style="height: 250px; position: relative;">
+                                    <canvas id="analyticsTaskTrend"></canvas>
+                                </div>
+                            </div>
+                            <div class="gh-card">
+                                <h3 class="font-semibold text-white mb-4 text-sm">Agent 效率对比</h3>
+                                <div style="height: 250px; position: relative;">
+                                    <canvas id="analyticsAgentEfficiency"></canvas>
+                                </div>
+                            </div>
+                            <div class="gh-card">
+                                <h3 class="font-semibold text-white mb-4 text-sm">任务类型分布</h3>
+                                <div style="height: 250px; position: relative;">
+                                    <canvas id="analyticsTaskType"></canvas>
+                                </div>
+                            </div>
+                            <div class="gh-card">
+                                <h3 class="font-semibold text-white mb-4 text-sm">每周活跃度</h3>
+                                <div style="height: 250px; position: relative;">
+                                    <canvas id="analyticsWeeklyActivity"></canvas>
+                                </div>
                             </div>
                         </div>
-                        <div class="border border-gh-border rounded-xl p-6 bg-gh-elevated">
-                            <h3 class="font-bold text-white mb-4">Agent 效率对比</h3>
-                            <div style="height: 250px; position: relative;">
-                                <canvas id="analyticsAgentEfficiency"></canvas>
+                    </div>
+                </div>
+            </div>
                             </div>
                         </div>
                         <div class="border border-gh-border rounded-xl p-6 bg-gh-elevated">
@@ -734,88 +1136,96 @@
 
             <!-- 技能管理 -->
             <div v-if="currentTab === 'skills'" class="space-y-6">
-                <div class="bg-gh-canvas rounded-xl shadow-lg p-6 border border-gh-border">
-                    <div class="flex justify-between items-center mb-6">
+                <div class="gh-card">
+                    <div class="gh-card-header flex justify-between items-center">
                         <div>
-                            <h2 class="text-xl font-bold text-white">
-                                <i class="fas fa-puzzle-piece mr-2 text-gh-light"></i>技能管理
+                            <h2 class="text-xl font-semibold text-white flex items-center">
+                                <i class="fas fa-puzzle-piece mr-2 text-gh-text"></i>技能管理
                             </h2>
                             <p class="text-sm text-gh-text mt-1">{{ skills.length }} 个技能可用</p>
                         </div>
-                        <button @click="showCreateSkill = true" class="bg-gh-green hover:bg-green-500 text-white px-4 py-2 rounded-lg transition flex items-center">
+                        <button @click="showCreateSkill = true" class="btn-primary flex items-center">
                             <i class="fas fa-plus mr-2"></i>新建技能
                         </button>
                     </div>
 
-                    <!-- 搜索和过滤 -->
-                    <div class="flex flex-wrap gap-4 mb-6">
-                        <input v-model="skillSearchQuery" type="text" placeholder="搜索技能..." class="flex-1 min-w-[200px] px-4 py-2 rounded-lg bg-gh-elevated border border-gh-border text-white placeholder-gh-text focus:outline-none focus:border-gh-light">
-                        <select v-model="skillCategoryFilter" class="px-4 py-2 rounded-lg bg-gh-elevated border border-gh-border text-white focus:outline-none focus:border-gh-light">
-                            <option value="">全部分类</option>
-                            <option v-for="cat in skillCategories" :key="cat" :value="cat">{{ cat }}</option>
-                        </select>
-                        <select v-model="skillStatusFilter" class="px-4 py-2 rounded-lg bg-gh-elevated border border-gh-border text-white focus:outline-none focus:border-gh-light">
-                            <option value="">全部状态</option>
-                            <option value="enabled">已启用</option>
-                            <option value="disabled">已禁用</option>
-                        </select>
-                    </div>
+                    <div class="gh-card-body">
+                        <!-- 搜索和过滤 -->
+                        <div class="flex flex-wrap gap-4 mb-4 pb-4 border-b border-gh-border">
+                            <input v-model="skillSearchQuery" type="text" placeholder="搜索技能..." class="gh-input flex-1 min-w-[200px]">
+                            <select v-model="skillCategoryFilter" class="gh-select w-40">
+                                <option value="">全部分类</option>
+                                <option v-for="cat in skillCategories" :key="cat" :value="cat">{{ cat }}</option>
+                            </select>
+                            <select v-model="skillStatusFilter" class="gh-select w-32">
+                                <option value="">全部状态</option>
+                                <option value="enabled">已启用</option>
+                                <option value="disabled">已禁用</option>
+                            </select>
+                        </div>
 
-                    <!-- 技能列表 -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div v-for="skill in filteredSkills" :key="skill.id" class="border border-gh-border rounded-xl p-5 hover:border-gh-light transition bg-gh-elevated">
-                            <div class="flex items-start justify-between mb-3">
-                                <div class="flex items-center space-x-3">
-                                    <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center border border-gh-border">
-                                        <i class="fas fa-cube text-gh-light"></i>
+                        <!-- 技能列表 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div v-for="skill in filteredSkills" :key="skill.id" class="gh-card hover:border-gh-text transition">
+                                <div class="flex items-start justify-between mb-3">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="w-8 h-8 bg-gh-bg rounded-md flex items-center justify-center border border-gh-border">
+                                            <i class="fas fa-cube text-sm text-gh-text"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-semibold text-white text-sm">{{ skill.name }}</h3>
+                                            <p class="text-xs text-gh-text">v{{ skill.version }}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 class="font-semibold text-white">{{ skill.name }}</h3>
-                                        <p class="text-xs text-gh-text">v{{ skill.version }}</p>
-                                    </div>
+                                    <span :class="skill.enabled ? 'badge-success' : 'badge-neutral'" class="text-xs font-medium">
+                                        {{ skill.enabled ? '启用' : '禁用' }}
+                                    </span>
                                 </div>
-                                <span :class="skill.enabled ? 'bg-gh-elevated text-gh-light border border-gh-border' : 'bg-gh-elevated text-gh-text border border-gh-border'" class="px-2 py-1 rounded text-xs font-medium">
-                                    {{ skill.enabled ? '启用' : '禁用' }}
-                                </span>
-                            </div>
-                            <p class="text-sm text-gh-text mb-3 line-clamp-2">{{ skill.description }}</p>
-                            <div class="flex items-center justify-between text-xs text-gh-text mb-3">
-                                <span class="bg-gh-border/50 px-2 py-1 rounded">{{ skill.category }}</span>
-                            </div>
-                            <div class="flex space-x-2 pt-3 border-t border-gh-border">
-                                <button @click="editSkill(skill)" class="flex-1 text-gh-light hover:bg-gh-border py-2 rounded-lg transition text-sm">
-                                    <i class="fas fa-edit mr-1"></i>编辑
-                                </button>
-                                <button @click="toggleSkillStatus(skill)" :class="skill.enabled ? 'text-gh-text hover:bg-gh-border' : 'text-gh-light hover:bg-gh-border'" class="flex-1 py-2 rounded-lg transition text-sm">
-                                    <i :class="skill.enabled ? 'fas fa-pause' : 'fas fa-play'" class="mr-1"></i>{{ skill.enabled ? '禁用' : '启用' }}
-                                </button>
-                                <button @click="deleteSkill(skill.id)" class="text-gh-text hover:bg-gh-border px-3 py-2 rounded-lg transition text-sm">
-                                    <i class="fas fa-trash"></i>
-                                </button>
+                                <p class="text-sm text-gh-text mb-3 line-clamp-2">{{ skill.description }}</p>
+                                <div class="flex items-center justify-between text-xs text-gh-text mb-3">
+                                    <span class="bg-gh-elevated px-2 py-1 rounded border border-gh-border">{{ skill.category }}</span>
+                                </div>
+                                <div class="flex gap-2 pt-3 border-t border-gh-border">
+                                    <button @click="editSkill(skill)" class="flex-1 btn-secondary btn-sm">
+                                        <i class="fas fa-edit mr-1"></i>编辑
+                                    </button>
+                                    <button @click="toggleSkillStatus(skill)" :class="skill.enabled ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'" class="flex-1">
+                                        <i :class="skill.enabled ? 'fas fa-pause' : 'fas fa-play'" class="mr-1"></i>{{ skill.enabled ? '禁用' : '启用' }}
+                                    </button>
+                                    <button @click="deleteSkill(skill.id)" class="btn-danger btn-sm px-3">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- 空状态 -->
-                    <div v-if="filteredSkills.length === 0" class="text-center py-12">
-                        <i class="fas fa-puzzle-piece text-6xl text-gh-border mb-4"></i>
-                        <p class="text-gh-text">暂无技能</p>
-                        <button @click="showCreateSkill = true" class="mt-4 text-gh-blue hover:text-gh-purple font-medium">创建第一个技能 →</button>
+                        <!-- 空状态 -->
+                        <div v-if="filteredSkills.length === 0" class="text-center py-16">
+                            <div class="w-16 h-16 mx-auto bg-gh-elevated rounded-full flex items-center justify-center mb-4 border border-gh-border">
+                                <i class="fas fa-puzzle-piece text-2xl text-gh-text"></i>
+                            </div>
+                            <p class="text-gh-text mb-4">暂无技能</p>
+                            <button @click="showCreateSkill = true" class="btn-primary">
+                                <i class="fas fa-plus mr-2"></i>创建第一个技能
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </main>
 
-        <!-- 底部状态栏 -->
-        <footer class="bg-gh-canvas border-t border-gh-border py-3 px-4">
-            <div class="container mx-auto flex justify-between items-center text-sm text-gh-text">
-                <div class="flex items-center space-x-4">
-                    <span><i class="fas fa-circle text-gh-light mr-1"></i>系统正常</span>
-                    <span class="hide-mobile">WebSocket: <span :class="wsConnected ? 'text-gh-light' : 'text-gh-text'">{{ wsConnected ? '已连接' : '重连中...' }}</span></span>
+        <!-- 底部状态栏 - GitHub 风格 -->
+        <footer class="bg-gh-canvas border-t border-gh-border h-8 flex items-center px-4">
+            <div class="container mx-auto flex justify-between items-center text-xs text-gh-text">
+                <div class="flex items-center gap-4">
+                    <span class="flex items-center gap-1.5">
+                        <i class="fas fa-circle text-green-400 text-[6px]"></i>系统正常
+                    </span>
+                    <span class="hide-mobile">WebSocket: <span :class="wsConnected ? 'text-green-400' : 'text-gh-text'">{{ wsConnected ? '已连接' : '重连中...' }}</span></span>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <span class="hide-mobile">最后更新：{{ lastUpdateTime }}</span>
-                    <span class="text-gh-light">IntelliTeam v2.0</span>
+                <div class="flex items-center gap-4">
+                    <span class="hide-mobile">最后更新: {{ lastUpdateTime }}</span>
+                    <span class="text-gh-light font-medium">IntelliTeam v2.0</span>
                 </div>
             </div>
         </footer>
