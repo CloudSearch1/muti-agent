@@ -2830,14 +2830,34 @@
 
                 // 切换聊天面板
                 toggleChatPanel() {
+                    console.log('[AI Chat] toggleChatPanel called, current showChatPanel:', this.showChatPanel);
                     this.showChatPanel = !this.showChatPanel;
-                    if (this.showChatPanel) {
-                        this.chatUnread = 0;
-                        this.$nextTick(() => {
+                    console.log('[AI Chat] showChatPanel toggled to:', this.showChatPanel);
+
+                    // 强制触发 DOM 更新
+                    this.$forceUpdate();
+
+                    this.$nextTick(() => {
+                        console.log('[AI Chat] DOM updated, showChatPanel is:', this.showChatPanel);
+                        const panel = document.querySelector('.chat-panel');
+                        const backdrop = document.querySelector('.chat-panel-backdrop');
+                        console.log('[AI Chat] Panel element:', panel);
+                        console.log('[AI Chat] Panel classes:', panel ? panel.className : 'not found');
+                        console.log('[AI Chat] Backdrop classes:', backdrop ? backdrop.className : 'not found');
+
+                        // 检查计算样式
+                        if (panel) {
+                            const computedStyle = window.getComputedStyle(panel);
+                            console.log('[AI Chat] Panel right:', computedStyle.right);
+                            console.log('[AI Chat] Panel display:', computedStyle.display);
+                        }
+
+                        if (this.showChatPanel) {
+                            this.chatUnread = 0;
                             this.$refs.chatInputTextarea?.focus();
                             this.scrollToBottom();
-                        });
-                    }
+                        }
+                    });
                 },
 
                 // 发送消息
@@ -3506,6 +3526,7 @@
         }
         @media (max-width: 480px) {
             .chat-panel { width: 100%; right: -100%; }
+            .chat-panel.open { right: 0 !important; }
         }
 
         /* ================================
