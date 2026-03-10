@@ -14,30 +14,30 @@
             theme: {
                 extend: {
                     colors: {
-                        // 黑白主题配色
+                        // 严格 RGB 颜色规范
                         gh: {
-                            bg: '#0d1117',        // 背景
+                            bg: '#0d1117',        // 背景 RGB(13,17,23)
                             canvas: '#161b22',    // 画布/卡片背景
                             elevated: '#21262d',  // 提升元素
                             border: '#30363d',    // 边框
-                            text: '#8b949e',      // 次要文字
-                            light: '#c9d1d9',     // 主要文字
+                            text: '#9198a1',      // 次要文字 RGB(145,152,161)
+                            light: '#f0f6fc',     // 正文标题 RGB(240,246,252)
                             white: '#ffffff',     // 强调文字
-                            blue: '#c9d1d9',      // 改为浅灰（原蓝色）
-                            green: '#a3a3a3',     // 改为灰色（原绿色）
-                            yellow: '#737373',    // 改为深灰（原黄色）
-                            red: '#525252',       // 改为暗灰（原红色）
-                            purple: '#a3a3a3',    // 改为灰色（原紫色）
+                            blue: '#1f6feb',      // 按钮颜色 RGB(31,111,235)
+                            green: '#1f6feb',     // 统一按钮色
+                            yellow: '#1f6feb',    // 统一按钮色
+                            red: '#1f6feb',       // 统一按钮色
+                            purple: '#1f6feb',    // 统一按钮色
                         },
                         primary: {
-                            50: '#f5f5f5',
+                            50: '#f0f6fc',
                             100: '#e5e5e5',
                             200: '#d4d4d4',
-                            300: '#a3a3a3',       // 灰色
+                            300: '#9198a1',       // 次要文字色
                             400: '#737373',
-                            500: '#525252',
-                            600: '#404040',
-                            700: '#262626',
+                            500: '#1f6feb',       // 按钮色
+                            600: '#1f6feb',
+                            700: '#1f6feb',
                             800: '#171717',
                             900: '#0a0a0a'
                         },
@@ -51,19 +51,19 @@
         .loading-spin { animation: spin 1s linear infinite; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* 黑白主题样式 */
-        .gh-glow { box-shadow: 0 0 0 1px rgba(163, 163, 163, 0.4); }
+        /* 严格 RGB 规范样式 */
+        .gh-glow { box-shadow: 0 0 0 1px rgba(31, 111, 235, 0.4); }
 
         /* 滚动条美化 */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0d1117; }
         ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+        ::-webkit-scrollbar-thumb:hover { background: #9198a1; }
 
         /* 输入框聚焦效果 */
         input:focus, textarea:focus, select:focus {
-            border-color: #a3a3a3 !important;
-            box-shadow: 0 0 0 3px rgba(163, 163, 163, 0.3) !important;
+            border-color: #1f6feb !important;
+            box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.3) !important;
         }
     </style>
 <!-- Storage Service -->
@@ -151,7 +151,7 @@
                         <button @click="cancelStatusChange" class="flex-1 px-4 py-3 bg-gh-elevated text-gh-text rounded-xl font-medium hover:bg-gh-border transition border border-gh-border">
                             取消
                         </button>
-                        <button @click="confirmStatusChange" class="flex-1 px-4 py-3 bg-gh-light text-gh-bg rounded-xl font-medium hover:bg-gh-text transition">
+                        <button @click="confirmStatusChange" class="flex-1 px-4 py-3 bg-gh-blue text-white rounded-xl font-medium hover:bg-blue-400 transition">
                             确认变更
                         </button>
                     </div>
@@ -212,7 +212,7 @@
                         </h3>
                         <div class="space-y-4">
                             <div v-for="(event, index) in taskHistory" :key="index" class="flex items-start space-x-3">
-                                <div class="w-2 h-2 rounded-full bg-gh-light mt-2 flex-shrink-0"></div>
+                                <div class="w-2 h-2 rounded-full bg-gh-blue mt-2 flex-shrink-0"></div>
                                 <div class="flex-1">
                                     <p class="text-white">{{ event.action }}</p>
                                     <p class="text-xs text-gh-text">{{ event.time }}</p>
@@ -237,7 +237,7 @@
                                 class="w-full border border-gh-border rounded-lg px-4 py-2 bg-gh-elevated focus:outline-none focus:border-gh-light text-white placeholder-gh-text"
                             ></textarea>
                             <div class="flex justify-end mt-2">
-                                <button @click="addComment" class="bg-gh-light hover:bg-gh-text text-gh-bg px-6 py-2 rounded-lg transition">
+                                <button @click="addComment" class="bg-gh-blue hover:bg-blue-400 text-gh-bg px-6 py-2 rounded-lg transition">
                                     <i class="fas fa-paper-plane mr-2"></i>发表
                                 </button>
                             </div>
@@ -276,21 +276,21 @@
                         <div class="space-y-3">
                             <button
                                 @click="updateStatus('pending')"
-                                :class="task.status === 'pending' ? 'bg-gh-light text-gh-bg' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
+                                :class="task.status === 'pending' ? 'bg-gh-blue text-white' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-clock mr-2"></i>待处理
                             </button>
                             <button
                                 @click="updateStatus('in_progress')"
-                                :class="task.status === 'in_progress' ? 'bg-gh-light text-gh-bg' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
+                                :class="task.status === 'in_progress' ? 'bg-gh-blue text-white' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-spinner mr-2"></i>进行中
                             </button>
                             <button
                                 @click="updateStatus('completed')"
-                                :class="task.status === 'completed' ? 'bg-gh-light text-gh-bg' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
+                                :class="task.status === 'completed' ? 'bg-gh-blue text-white' : 'bg-gh-elevated hover:bg-gh-border text-gh-text'"
                                 class="w-full py-2 rounded-lg transition font-medium"
                             >
                                 <i class="fas fa-check-circle mr-2"></i>已完成
