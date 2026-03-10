@@ -7,7 +7,7 @@ IntelliTeam API 响应优化模块
 from math import ceil
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 T = TypeVar("T")
 
@@ -20,10 +20,11 @@ class PaginationParams(BaseModel):
     sort: str = "created_at"
     order: str = "desc"
 
-    class Config:
-        schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {"page": 1, "page_size": 20, "sort": "created_at", "order": "desc"}
         }
+    )
 
 
 class PaginationResponse(BaseModel, Generic[T]):

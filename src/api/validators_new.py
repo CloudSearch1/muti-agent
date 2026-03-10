@@ -11,7 +11,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 # ============ 基础验证模型 ============
@@ -19,10 +19,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 class BaseRequestModel(BaseModel):
     """基础请求模型"""
-
-    class Config:
-        extra = "forbid"
-        str_strip_whitespace = True
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
 class PaginationRequest(BaseRequestModel):

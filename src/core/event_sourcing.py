@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +55,11 @@ class Event(BaseModel):
     version: int = 1  # 版本号
     data: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat(),
-        }
-    
+
+    @field_serializer('timestamp')
+    def serialize_timestamp(self, dt: datetime, _info) -> str:
+        return dt.isoformat()
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,

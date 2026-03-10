@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 import structlog
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_serializer
 
 from .exceptions import MemoryNotFoundError, SessionError
 from .short_term import ShortTermMemory
@@ -47,10 +47,9 @@ class SessionInfo(BaseModel):
     # 元数据
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat() if v else None,
-        }
+    @field_serializer('created_at', 'last_active_at')
+    def serialize_datetime(self, dt: datetime | None, _info) -> str | None:
+        return dt.isoformat() if dt else None
 
 
 class SessionManager:
