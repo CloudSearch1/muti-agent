@@ -118,7 +118,7 @@ class SkillModel(Base):
     version = Column(String(20), default="1.0.0")
     config = Column(Text, default="{}")  # JSON 配置
     enabled = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, default=datetime.now, index=True)
+    created_at = Column(DateTime, default=datetime.now)  # 索引在 __table_args__ 中定义
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 

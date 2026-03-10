@@ -829,10 +829,11 @@ class TestShortTermMemory:
     @pytest.mark.asyncio
     async def test_set_and_get(self, mock_short_term_memory: MagicMock) -> None:
         """测试设置和获取"""
-        await mock_short_term_memory.set("key", {"data": "value"})
+        await mock_short_term_memory.set("key", {"content": "test content"})
         result = await mock_short_term_memory.get("key")
 
-        assert result["data"] == "value"
+        assert result["content"] == "test content"
+        assert result["memory_type"] == "episodic"
 
     @pytest.mark.asyncio
     async def test_delete(self, mock_short_term_memory: MagicMock) -> None:
