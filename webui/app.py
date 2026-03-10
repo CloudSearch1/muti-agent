@@ -10,13 +10,16 @@ import csv
 import io
 import logging
 import random
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Optional, List, AsyncGenerator
+import json
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 # 配置结构化日志
 logging.basicConfig(
@@ -75,7 +78,7 @@ class ResponseCache:
     def get(self, key: str) -> dict | None:
         if key in self._cache:
             entry = self._cache[key]
-            if datetime.now(UTC).astimezone() < entry['expires']:
+            if datetime.now(timezone.utc).astimezone() < entry['expires']:
                 self._hits += 1
                 logger.debug(f"缓存命中：{key} (hits={self._hits}, misses={self._misses})")
                 return entry['data']
@@ -88,7 +91,7 @@ class ResponseCache:
     def set(self, key: str, data: dict):
         self._cache[key] = {
             'data': data,
-            'expires': datetime.now(UTC).astimezone() + self._ttl
+            'expires': datetime.now(timezone.utc).astimezone() + self._ttl
         }
         logger.debug(f"缓存设置：{key}, 过期时间={self._ttl}")
 
@@ -312,6 +315,137 @@ async def get_workflows():
     return WORKFLOWS_DATA
 
 
+# ============ AI 聊天 API ============
+
+class ChatMessage(BaseModel):
+    """聊天消息模型"""
+    role: str  # user, assistant, system
+    content: str
+
+class ChatRequest(BaseModel):
+    """聊天请求模型"""
+    messages: List[ChatMessage]
+    stream: bool = True
+    temperature: float = 0.7
+    max_tokens: int = 2048
+
+# 聊天历史存储（内存中，实际应用应使用数据库）
+CHAT_HISTORY: dict[str, list] = {}
+
+async def generate_chat_response(messages: List[ChatMessage], temperature: float = 0.7, max_tokens: int = 2048) -> AsyncGenerator[str, None]:
+    """
+    生成聊天响应（流式）
+    集成项目的 LLM 服务
+    """
+    try:
+        # 尝试导入 LLM 服务
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        from src.llm.llm_provider import LLMFactory, init_llm_providers, LLMConfigError
+
+        # 初始化 LLM 提供商
+        if not LLMFactory._providers:
+            init_llm_providers()
+
+        # 构建提示
+        prompt_parts = []
+        for msg in messages:
+            if msg.role == "system":
+                prompt_parts.append(f"[System]: {msg.content}")
+            elif msg.role == "user":
+                prompt_parts.append(f"[User]: {msg.content}")
+            elif msg.role == "assistant":
+                prompt_parts.append(f"[Assistant]: {msg.content}")
+
+        full_prompt = "\n".join(prompt_parts)
+
+        # 获取 LLM 提供商
+        llm = LLMFactory.get_default()
+
+        # 流式生成
+        async for chunk in llm.generate_stream(full_prompt, temperature=temperature, max_tokens=max_tokens):
+            yield f"data: {json.dumps({'content': chunk})}\n\n"
+
+        yield "data: [DONE]\n\n"
+
+    except LLMConfigError:
+        # LLM 未配置，使用模拟响应
+        msg1 = '⚠️ LLM 服务未配置。请在环境变量中设置 API Key（如 OPENAI_API_KEY、ANTHROPIC_API_KEY 等）。\n\n'
+        msg2 = '您可以继续与我聊天，但我只能提供模拟响应。'
+        yield f"data: {json.dumps({'content': msg1})}\n\n"
+        yield f"data: {json.dumps({'content': msg2})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    except Exception as e:
+        logger.error(f"AI 聊天错误: {e}", exc_info=True)
+        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        yield "data: [DONE]\n\n"
+
+
+@app.post("/api/v1/chat")
+async def chat(request: ChatRequest):
+    """
+    AI 聊天端点
+
+    支持流式响应（SSE）和非流式响应
+    """
+    if request.stream:
+        # 流式响应
+        return StreamingResponse(
+            generate_chat_response(
+                request.messages,
+                temperature=request.temperature,
+                max_tokens=request.max_tokens
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",  # 禁用 nginx 缓冲
+            }
+        )
+    else:
+        # 非流式响应
+        response_content = ""
+        async for chunk in generate_chat_response(
+            request.messages,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens
+        ):
+            if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
+                try:
+                    data = json.loads(chunk[6:].strip())
+                    if "content" in data:
+                        response_content += data["content"]
+                except json.JSONDecodeError:
+                    continue
+
+        return {
+            "content": response_content,
+            "model": "intelliteam-ai",
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+@app.get("/api/v1/chat/history/{session_id}")
+async def get_chat_history(session_id: str):
+    """获取聊天历史"""
+    return {
+        "session_id": session_id,
+        "messages": CHAT_HISTORY.get(session_id, [])
+    }
+
+
+@app.delete("/api/v1/chat/history/{session_id}")
+async def clear_chat_history(session_id: str):
+    """清除聊天历史"""
+    if session_id in CHAT_HISTORY:
+        del CHAT_HISTORY[session_id]
+    return {"status": "success", "message": "聊天历史已清除"}
+
+
 @app.get("/api/v1/health")
 async def health_check():
     """健康检查"""
@@ -459,11 +593,11 @@ async def websocket_endpoint(websocket: WebSocket):
     client_id = id(websocket)
     await websocket_manager.connect(websocket, client_id)
 
-    last_heartbeat = datetime.now(UTC).astimezone()
+    last_heartbeat = datetime.now(timezone.utc).astimezone()
 
     try:
         while True:
-            now = datetime.now(UTC).astimezone()
+            now = datetime.now(timezone.utc).astimezone()
 
             # 推送系统状态
             await websocket.send_json({
