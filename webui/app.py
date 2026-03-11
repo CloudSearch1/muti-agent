@@ -734,27 +734,14 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
             # 百炼API使用OpenAI兼容格式
             if provider == "bailian":
                 # 百炼 API endpoint
-                # 根据模型类型选择端点：
-                # - Qwen 模型：可使用 coding 端点
-                # - 其他模型（GLM, Kimi等）：必须使用 compatible-mode 端点
-                model_lower = model.lower() if model else ""
-                
-                # 判断是否是 Qwen 模型
-                is_qwen = model_lower.startswith("qwen")
-                
-                if is_qwen:
-                    # Qwen 系列模型可以使用 coding 端点或用户自定义端点
-                    if endpoint:
-                        base_url = endpoint.rstrip('/')
-                        logger.info(f"[百炼API] Qwen模型使用自定义端点: {base_url}")
-                    else:
-                        base_url = "https://coding.dashscope.aliyuncs.com/v1"
-                        logger.info(f"[百炼API] Qwen模型使用默认 coding 端点: {model}")
+                # 所有模型统一使用相同端点处理方式
+                # 优先使用用户设置的端点，否则使用默认 coding 端点
+                if endpoint:
+                    base_url = endpoint.rstrip('/')
+                    logger.info(f"[百炼API] 使用自定义端点: {base_url}")
                 else:
-                    # GLM、Kimi、MiniMax 等非 Qwen 模型必须使用 compatible-mode 端点
-                    # 忽略用户可能设置的 coding 端点
-                    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-                    logger.info(f"[百炼API] 非Qwen模型强制使用 compatible-mode 端点: {model}")
+                    base_url = "https://coding.dashscope.aliyuncs.com/v1"
+                    logger.info(f"[百炼API] 使用默认 coding 端点: {model}")
 
                 api_url = f"{base_url}/chat/completions"
                 headers = {
