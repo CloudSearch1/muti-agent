@@ -505,8 +505,8 @@ async def toggle_skill(skill_id: int):
 
 # 设置存储（内存中，实际应用应使用数据库或加密文件）
 SETTINGS_STORE: dict = {
-    "aiProvider": "anthropic",
-    "model": "claude-sonnet-4-6",
+    "aiProvider": "bailian",
+    "model": "qwen3.5-plus",
     "temperature": 0.7,
     "maxTokens": 4096,
     "autoSave": True,
@@ -561,10 +561,14 @@ async def get_available_models():
             {"id": "deepseek-coder", "name": "DeepSeek Coder", "description": "代码专用模型"}
         ],
         "bailian": [
-            {"id": "qwen-max", "name": "Qwen Max", "description": "通义千问最强模型，适合复杂任务"},
-            {"id": "qwen-plus", "name": "Qwen Plus", "description": "平衡性能与速度，推荐使用"},
-            {"id": "qwen-turbo", "name": "Qwen Turbo", "description": "快速响应，经济实惠"},
-            {"id": "qwen-long", "name": "Qwen Long", "description": "支持超长上下文"}
+            {"id": "qwen3.5-plus", "name": "Qwen3.5 Plus", "description": "通义千问3.5增强版，性价比最优", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "qwen3-max-2026-01-23", "name": "Qwen3 Max", "description": "通义千问3最强版，适合复杂任务", "reasoning": True, "input": "¥0.002/千tokens", "cost": "¥0.006/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "qwen3-coder-next", "name": "Qwen3 Coder Next", "description": "代码专用模型，最新版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "qwen3-coder-plus", "name": "Qwen3 Coder Plus", "description": "代码专用模型，增强版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "MiniMax-M2.5", "name": "MiniMax M2.5", "description": "MiniMax通用模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 24576, "maxTokens": 4096},
+            {"id": "glm-5", "name": "GLM-5", "description": "智谱GLM-5，深度推理", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "glm-4.7", "name": "GLM-4.7", "description": "智谱GLM-4.7，通用对话", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "kimi-k2.5", "name": "Kimi K2.5", "description": "Moonshot Kimi模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192}
         ]
     }
     return JSONResponse({
