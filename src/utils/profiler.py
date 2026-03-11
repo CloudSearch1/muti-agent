@@ -13,6 +13,8 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
 
+from fastapi import APIRouter
+
 logger = logging.getLogger(__name__)
 
 
@@ -147,7 +149,7 @@ class RequestProfiler:
                 f"Slow request: {endpoint} took {duration:.3f}s"
             )
 
-    def get_stats(self, endpoint: Optional[str] = None) -> dict:
+    def get_stats(self, endpoint: str | None = None) -> dict:
         """获取统计信息"""
         if endpoint:
             stats = self._stats.get(endpoint, {})
@@ -217,8 +219,6 @@ class QueryProfiler:
 
 
 # ============ API 端点 ============
-
-from fastapi import APIRouter
 
 router = APIRouter(prefix="/profiler", tags=["性能分析"])
 

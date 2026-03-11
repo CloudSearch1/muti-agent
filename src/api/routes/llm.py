@@ -890,7 +890,7 @@ async def chat(request: ChatRequest) -> ChatResponse:
         raise HTTPException(
             status_code=status.HTTP_504_GATEWAY_TIMEOUT,
             detail={"code": ErrorCode.CONNECTION_TIMEOUT.value, "message": "请求超时"},
-        )
+        ) from None
 
     except HTTPException:
         raise
@@ -900,14 +900,14 @@ async def chat(request: ChatRequest) -> ChatResponse:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={"code": ErrorCode.PROXY_ERROR.value, "message": f"代理配置错误: {str(e)}"},
-        )
+        ) from None
 
     except Exception as e:
         logger.error("聊天请求失败", provider=provider_name, model=model_name, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={"code": ErrorCode.INTERNAL_ERROR.value, "message": f"内部服务错误: {type(e).__name__}"},
-        )
+        ) from None
 
 
 @router.get(

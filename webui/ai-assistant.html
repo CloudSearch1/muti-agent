@@ -628,11 +628,19 @@
                         { name: 'requirements.txt', type: 'file', path: 'requirements.txt' },
                         { name: 'pyproject.toml', type: 'file', path: 'pyproject.toml' }
                     ],
-                    sessionId: 'session-' + Date.now()
+                    sessionId: 'session-' + Date.now(),
+                    // AI 设置
+                    aiSettings: {
+                        provider: 'bailian',
+                        model: 'qwen3.5-plus',
+                        apiKey: '',
+                        endpoint: ''
+                    }
                 }
             },
-            mounted() {
+            async mounted() {
                 this.loadChatHistory();
+                await this.loadAISettings(); // 加载 AI 设置
                 marked.setOptions({
                     highlight: function(code, lang) {
                         if (lang && hljs.getLanguage(lang)) {
@@ -661,18 +669,37 @@
                     // 发送给 AI
                     this.isLoading = true;
                     try {
+                        // 构建请求体，包含 AI 设置
+                        const requestBody = {
+                            messages: this.messages.map(m => ({
+                                role: m.role,
+                                content: m.content
+                            })),
+                            stream: false,
+                            temperature: 0.7,
+                            max_tokens: 4096
+                        };
+
+                        // 如果有 AI 设置，添加到请求中
+                        if (this.aiSettings.provider) {
+                            requestBody.provider = this.aiSettings.provider;
+                        }
+                        if (this.aiSettings.model) {
+                            requestBody.model = this.aiSettings.model;
+                        }
+                        if (this.aiSettings.apiKey) {
+                            requestBody.apiKey = this.aiSettings.apiKey;
+                        }
+                        if (this.aiSettings.endpoint) {
+                            requestBody.endpoint = this.aiSettings.endpoint;
+                        }
+
                         const response = await fetch('/api/v1/chat', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
                             },
-                            body: JSON.stringify({
-                                messages: this.messages.map(m => ({
-                                    role: m.role,
-                                    content: m.content
-                                })),
-                                stream: false
-                            })
+                            body: JSON.stringify(requestBody)
                         });
 
                         if (response.ok) {
@@ -764,6 +791,83 @@
                     const history = localStorage.getItem('chatHistory');
                     if (history) {
                         this.messages = JSON.parse(history);
+                    }
+                },
+
+                decryptApiKey(encrypted) {
+                    if (!encrypted) return '';
+                    if (!encrypted.startsWith('enc:')) {
+                        return encrypted;
+                    }
+                    try {
+                        const encoded = encrypted.substring(4);
+                        const decoded = atob(encoded);
+                        return decoded.split('').reverse().join('');
+                    } catch (e) {
+                        console.warn('API Key 解密失败:', e);
+                        return '';
+                    }
+                },
+
+                async loadAISettings() {
+                    try {
+                        const response = await fetch('/api/v1/settings');
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success && data.settings) {
+                                // 处理加密的 API Key
+                                let apiKey = data.settings.apiKey || '';
+                                if (!apiKey && data.settings.apiKeyEncrypted) {
+                                    apiKey = this.decryptApiKey(data.settings.apiKeyEncrypted);
+                                }
+
+                                // 也尝试从本地存储加载
+                                if (!apiKey) {
+                                    const saved = localStorage.getItem('intelliteam_settings');
+                                    if (saved) {
+                                        try {
+                                            const parsed = JSON.parse(saved);
+                                            if (parsed.apiKey) {
+                                                apiKey = parsed.apiKey;
+                                            } else if (parsed.apiKeyEncrypted) {
+                                                apiKey = this.decryptApiKey(parsed.apiKeyEncrypted);
+                                            }
+                                        } catch (e) {}
+                                    }
+                                }
+
+                                // 加载 AI 设置
+                                this.aiSettings = {
+                                    provider: data.settings.aiProvider || 'bailian',
+                                    model: data.settings.model || 'qwen3.5-plus',
+                                    apiKey: apiKey,
+                                    endpoint: data.settings.apiEndpoint || data.settings.endpoint || ''
+                                };
+                                console.log('AI 设置已加载:', this.aiSettings.provider, this.aiSettings.model, this.aiSettings.apiKey ? '(API Key 已设置)' : '(API Key 未设置)');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('加载 AI 设置失败:', error);
+                        // 尝试从本地存储加载
+                        const saved = localStorage.getItem('intelliteam_settings');
+                        if (saved) {
+                            try {
+                                const parsed = JSON.parse(saved);
+                                let apiKey = parsed.apiKey || '';
+                                if (!apiKey && parsed.apiKeyEncrypted) {
+                                    apiKey = this.decryptApiKey(parsed.apiKeyEncrypted);
+                                }
+                                this.aiSettings = {
+                                    provider: parsed.aiProvider || 'bailian',
+                                    model: parsed.model || 'qwen3.5-plus',
+                                    apiKey: apiKey,
+                                    endpoint: parsed.apiEndpoint || ''
+                                };
+                                console.log('AI 设置已从本地存储加载');
+                            } catch (e) {
+                                console.error('加载本地设置失败:', e);
+                            }
+                        }
                     }
                 }
             }

@@ -6,6 +6,7 @@
 
 import logging
 from collections.abc import Callable
+from contextlib import contextmanager
 from functools import wraps
 from typing import Any
 
@@ -145,7 +146,7 @@ def http_error_handler(func: Callable):
                     "error": e.code,
                     "message": e.message,
                 },
-            )
+            ) from None
 
     return wrapper
 
@@ -211,8 +212,6 @@ def raise_forbidden_error(message: str = "禁止访问"):
 
 # ============ 异常上下文管理器 ============
 
-from contextlib import contextmanager
-
 
 @contextmanager
 def handle_exception(error_class: type[AppError], message: str):
@@ -228,4 +227,4 @@ def handle_exception(error_class: type[AppError], message: str):
         yield
     except Exception as e:
         logger.error(f"{message}: {e}", exc_info=True)
-        raise error_class(f"{message}: {str(e)}")
+        raise error_class(f"{message}: {str(e)}") from e

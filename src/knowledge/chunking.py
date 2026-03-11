@@ -467,7 +467,7 @@ class ChunkerFactory:
                 raise ChunkingError(
                     f"Unknown chunking strategy: {strategy}",
                     strategy=strategy,
-                )
+                ) from None
 
         chunker_class = cls._chunkers.get(strategy)
         if not chunker_class:

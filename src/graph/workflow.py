@@ -268,7 +268,7 @@ class AgentWorkflow:
         except TimeoutError:
             raise WorkflowTimeoutError(
                 f"Node '{node_name}' timed out after {timeout} seconds"
-            )
+            ) from None
 
     async def _execute_with_recovery(
         self,

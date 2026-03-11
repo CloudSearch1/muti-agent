@@ -18,6 +18,7 @@ from typing import Any, Protocol
 import structlog
 
 from src.utils.compat import StrEnum
+
 from .exceptions import CompressionError
 
 logger = structlog.get_logger(__name__)

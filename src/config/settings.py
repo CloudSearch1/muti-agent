@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Dict
+from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -314,7 +314,7 @@ class AppSettings(BaseSettings):
         """是否生产环境"""
         return self.environment == "production"
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """获取配置摘要"""
         return {
             "name": self.name,
@@ -448,7 +448,7 @@ class ConfigLoader:
     """配置加载器"""
 
     @staticmethod
-    def load_from_file(file_path: str) -> Dict[str, Any]:
+    def load_from_file(file_path: str) -> dict[str, Any]:
         """
         从文件加载配置
 
@@ -479,7 +479,7 @@ class ConfigLoader:
             raise ValueError(f"Unsupported config file format: {path.suffix}")
 
     @staticmethod
-    def save_to_file(config: Dict[str, Any], file_path: str, format: str = "yaml"):
+    def save_to_file(config: dict[str, Any], file_path: str, format: str = "yaml"):
         """
         保存配置到文件
 

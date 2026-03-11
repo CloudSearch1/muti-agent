@@ -236,7 +236,7 @@ def validate_memory_type(value: str) -> MemoryType:
         valid_types = [t.value for t in MemoryType]
         raise ValueError(
             f"Invalid memory type: {value}. Valid types: {valid_types}"
-        )
+        ) from None
 
 
 def validate_importance(value: str) -> MemoryImportance:
@@ -247,7 +247,7 @@ def validate_importance(value: str) -> MemoryImportance:
         valid_values = [v.value for v in MemoryImportance]
         raise ValueError(
             f"Invalid importance: {value}. Valid values: {valid_values}"
-        )
+        ) from None
 
 
 def validate_storage_type(value: str) -> StorageType:
@@ -258,7 +258,7 @@ def validate_storage_type(value: str) -> StorageType:
         valid_types = [t.value for t in StorageType]
         raise ValueError(
             f"Invalid storage type: {value}. Valid types: {valid_types}"
-        )
+        ) from None
 
 
 def validate_content(content: str, max_length: int = 100000) -> str:

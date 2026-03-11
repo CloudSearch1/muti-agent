@@ -32,7 +32,6 @@ from .types import MemoryImportance, MemoryType
 try:
     from sqlalchemy import (
         JSON,
-        Boolean,
         Column,
         DateTime,
         Float,
@@ -42,8 +41,6 @@ try:
         Text,
         create_engine,
         desc,
-        event,
-        select,
     )
     from sqlalchemy.exc import SQLAlchemyError
     from sqlalchemy.orm import Session, declarative_base, sessionmaker

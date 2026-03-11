@@ -134,7 +134,7 @@ class ToolSecurity:
         except ValueError:
             raise SecurityError(
                 f"Path '{path}' is outside root directory '{self.root_dir}'"
-            )
+            ) from None
 
         # 检查路径中是否包含危险字符
         path_str = str(full_path)

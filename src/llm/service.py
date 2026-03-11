@@ -145,7 +145,7 @@ class LLMService:
                 f"LLM generate failed: {e}",
                 provider=self._provider.NAME if self._provider else None,
                 original_error=e,
-            )
+            ) from e
 
     async def generate_stream(
         self,
@@ -225,7 +225,7 @@ class LLMService:
                 f"LLM chat failed: {e}",
                 provider=self._provider.NAME if self._provider else None,
                 original_error=e,
-            )
+            ) from e
 
 
 # 全局单例

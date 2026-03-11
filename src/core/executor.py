@@ -241,7 +241,7 @@ class AgentExecutor:
             )
             return result
         except TimeoutError:
-            raise TimeoutError(f"Task timeout: {task.agent_name} ({task.timeout_seconds}s)")
+            raise TimeoutError(f"Task timeout: {task.agent_name} ({task.timeout_seconds}s)") from None
 
     def create_standard_workflow(self, workflow_name: str) -> Workflow:
         """

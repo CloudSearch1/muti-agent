@@ -304,7 +304,7 @@ class OpenAIProvider(BaseProvider):
                         f"OpenAI API 调用失败: {e}",
                         provider=self.NAME,
                         original_error=e,
-                    )
+                    ) from e
 
                 data = response.json()
                 content = data["choices"][0]["message"]["content"]
@@ -332,7 +332,7 @@ class OpenAIProvider(BaseProvider):
                 f"JSON 解析失败: {e}",
                 provider=self.NAME,
                 original_error=e,
-            )
+            ) from e
 
     async def generate_stream(
         self,
@@ -484,7 +484,7 @@ class ClaudeProvider(BaseProvider):
                         f"Claude API 调用失败: {e}",
                         provider=self.NAME,
                         original_error=e,
-                    )
+                    ) from e
 
                 data = response.json()
                 content = data["content"][0]["text"]
@@ -512,7 +512,7 @@ class ClaudeProvider(BaseProvider):
                 f"JSON 解析失败: {e}",
                 provider=self.NAME,
                 original_error=e,
-            )
+            ) from e
 
     async def generate_stream(
         self,
@@ -677,7 +677,7 @@ class AzureOpenAIProvider(BaseProvider):
                         f"Azure OpenAI API 调用失败: {e}",
                         provider=self.NAME,
                         original_error=e,
-                    )
+                    ) from e
 
                 data = response.json()
                 content = data["choices"][0]["message"]["content"]
@@ -705,7 +705,7 @@ class AzureOpenAIProvider(BaseProvider):
                 f"JSON 解析失败: {e}",
                 provider=self.NAME,
                 original_error=e,
-            )
+            ) from e
 
     async def generate_stream(
         self,
@@ -859,7 +859,7 @@ class BailianProvider(BaseProvider):
                         f"百炼 API 调用失败: {e}",
                         provider=self.NAME,
                         original_error=e,
-                    )
+                    ) from e
 
                 data = response.json()
                 content = data["output"]["text"]
@@ -887,7 +887,7 @@ class BailianProvider(BaseProvider):
                 f"JSON 解析失败: {e}",
                 provider=self.NAME,
                 original_error=e,
-            )
+            ) from e
 
     async def generate_stream(
         self,

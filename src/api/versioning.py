@@ -6,7 +6,7 @@ API 版本管理模块
 
 from functools import wraps
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, FastAPI, Header, HTTPException, Request
 
 # 版本路由器
 v1_router = APIRouter(prefix="/api/v1", tags=["v1"])
@@ -213,8 +213,6 @@ class VersionMigrator:
 
 
 # ============ 版本信息端点 ============
-
-from fastapi import FastAPI
 
 
 def add_version_endpoints(app: FastAPI):

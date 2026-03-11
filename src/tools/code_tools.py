@@ -231,14 +231,14 @@ class CodeTools(BaseTool):
                     import json
                     try:
                         issues = json.loads(stdout.decode())
-                    except:
+                    except (json.JSONDecodeError, UnicodeDecodeError):
                         issues = []
 
                     # 统计
                     functions = len(re.findall(r'\bdef\s+(\w+)\s*\(', code))
                     classes = len(re.findall(r'\bclass\s+(\w+)\s*[:\(]', code))
                     lines = code.split('\n')
-                    loc = len([l for l in lines if l.strip() and not l.strip().startswith('#')])
+                    loc = len([line for line in lines if line.strip() and not line.strip().startswith('#')])
 
                     logger.info(f"Code analysis complete: {len(issues)} issues found")
 
@@ -250,7 +250,7 @@ class CodeTools(BaseTool):
                 lines = code.split('\n')
                 functions = len(re.findall(r'\bfunction\s+(\w+)\s*\(', code))
                 classes = len(re.findall(r'\bclass\s+(\w+)', code))
-                loc = len([l for l in lines if l.strip()])
+                loc = len([line for line in lines if line.strip()])
                 issues = []
 
             # 计算复杂度（简单估算）
