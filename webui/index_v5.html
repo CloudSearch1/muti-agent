@@ -42,6 +42,9 @@
     <script>
         (function() {
             var checkFA = setInterval(function() {
+                // 确保 document.body 存在
+                if (!document.body) return;
+
                 // 检测 FontAwesome 是否加载成功
                 var testEl = document.createElement('i');
                 testEl.className = 'fas fa-check';
