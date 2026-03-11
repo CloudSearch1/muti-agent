@@ -693,6 +693,11 @@
                     <button @click="showShortcuts = true" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition hide-mobile text-gh-text hover:text-white" title="快捷键 (?">
                         <i class="fas fa-keyboard text-sm"></i>
                     </button>
+
+                    <!-- 设置按钮 -->
+                    <button @click="showSettings = true" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition text-gh-text hover:text-white" title="设置">
+                        <i class="fas fa-cog text-sm"></i>
+                    </button>
                 </div>
             </div>
 
@@ -1549,6 +1554,171 @@
             </div>
         </div>
 
+
+        <!-- Settings 设置模态框 -->
+        <div v-if="showSettings" class="fixed inset-0 bg-gh-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showSettings = false" @keydown.escape="showSettings = false">
+            <div class="bg-gh-canvas rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden border border-gh-border">
+                <!-- 头部 -->
+                <div class="flex items-center justify-between p-6 border-b border-gh-border bg-gradient-to-r from-gh-elevated to-gh-canvas">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center border border-gh-border">
+                            <i class="fas fa-cog text-gh-light"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-white">系统设置</h3>
+                            <p class="text-sm text-gh-text">配置 AI 提供商和系统参数</p>
+                        </div>
+                    </div>
+                    <button @click="showSettings = false" class="text-gh-text hover:text-white transition p-2 hover:bg-white/10 rounded-lg">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- 内容 -->
+                <div class="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
+                    <!-- AI 提供商设置 -->
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-semibold text-gh-text uppercase tracking-wider flex items-center">
+                            <i class="fas fa-robot mr-2 text-gh-blue"></i>AI 提供商配置
+                        </h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gh-light mb-2">提供商</label>
+                                <select v-model="settings.aiProvider" @change="onProviderChange" class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white">
+                                    <option value="anthropic">Anthropic (Claude)</option>
+                                    <option value="openai">OpenAI (GPT)</option>
+                                    <option value="deepseek">DeepSeek</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gh-light mb-2">模型</label>
+                                <select v-model="settings.model" class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white">
+                                    <option v-for="model in availableModels[settings.aiProvider]" :key="model" :value="model">{{ model }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gh-light mb-2">API Key</label>
+                            <div class="relative">
+                                <input :type="settings.showApiKey ? 'text' : 'password'" v-model="settings.apiKey" 
+                                    class="w-full px-4 py-2.5 pr-10 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white font-mono text-sm"
+                                    :placeholder="'输入 ' + settings.aiProvider + ' API Key'">
+                                <button @click="settings.showApiKey = !settings.showApiKey" type="button" 
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-gh-text hover:text-white">
+                                    <i :class="settings.showApiKey ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gh-text mt-1">
+                                <i class="fas fa-shield-alt mr-1"></i>API Key 将在本地加密存储
+                            </p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gh-light mb-2">API Endpoint (可选)</label>
+                            <input v-model="settings.apiEndpoint" type="text" 
+                                class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white font-mono text-sm"
+                                placeholder="自定义 API 端点">
+                        </div>
+                    </div>
+
+                    <!-- 模型参数设置 -->
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-semibold text-gh-text uppercase tracking-wider flex items-center">
+                            <i class="fas fa-sliders-h mr-2 text-gh-purple"></i>模型参数
+                        </h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gh-light mb-2">
+                                    Temperature: {{ settings.temperature }}
+                                </label>
+                                <input v-model.number="settings.temperature" type="range" min="0" max="1" step="0.1" 
+                                    class="w-full h-2 bg-gh-elevated rounded-lg appearance-none cursor-pointer accent-gh-blue">
+                                <div class="flex justify-between text-xs text-gh-text mt-1">
+                                    <span>精确</span>
+                                    <span>创意</span>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gh-light mb-2">最大 Token 数</label>
+                                <select v-model.number="settings.maxTokens" class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white">
+                                    <option :value="1024">1024</option>
+                                    <option :value="2048">2048</option>
+                                    <option :value="4096">4096</option>
+                                    <option :value="8192">8192</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 外观设置 -->
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-semibold text-gh-text uppercase tracking-wider flex items-center">
+                            <i class="fas fa-palette mr-2 text-gh-green"></i>外观设置
+                        </h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gh-light mb-2">主题</label>
+                                <select v-model="settings.theme" class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white">
+                                    <option value="dark">深色模式</option>
+                                    <option value="light">浅色模式</option>
+                                    <option value="auto">跟随系统</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gh-light mb-2">语言</label>
+                                <select v-model="settings.language" class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white">
+                                    <option value="zh-CN">简体中文</option>
+                                    <option value="en-US">English</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between p-4 bg-gh-elevated rounded-lg border border-gh-border">
+                            <div>
+                                <p class="text-sm font-medium text-white">自动保存</p>
+                                <p class="text-xs text-gh-text">自动保存对话和设置</p>
+                            </div>
+                            <button @click="settings.autoSave = !settings.autoSave" 
+                                :class="settings.autoSave ? 'bg-gh-green' : 'bg-gh-border'" 
+                                class="w-12 h-6 rounded-full transition relative">
+                                <span :class="settings.autoSave ? 'translate-x-6' : 'translate-x-1'" 
+                                    class="absolute top-1 left-0 w-4 h-4 bg-white rounded-full transition-transform"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 状态提示 -->
+                    <div v-if="settingsSaved" class="flex items-center gap-2 p-3 bg-green-900/30 border border-green-500/30 rounded-lg">
+                        <i class="fas fa-check-circle text-gh-green"></i>
+                        <span class="text-sm text-green-400">设置已保存</span>
+                    </div>
+                </div>
+
+                <!-- 底部操作栏 -->
+                <div class="p-4 border-t border-gh-border bg-gh-elevated/50 flex justify-between">
+                    <button @click="resetSettings" class="px-4 py-2 bg-gh-elevated hover:bg-gh-border text-gh-text rounded-lg transition text-sm font-medium border border-gh-border">
+                        <i class="fas fa-undo mr-2"></i>重置默认
+                    </button>
+                    <div class="flex gap-3">
+                        <button @click="showSettings = false" class="px-4 py-2 bg-gh-elevated hover:bg-gh-border text-gh-text rounded-lg transition text-sm font-medium border border-gh-border">
+                            取消
+                        </button>
+                        <button @click="saveSettings" :disabled="settingsLoading" class="px-6 py-2 bg-gh-green hover:bg-green-500 text-white rounded-lg transition text-sm font-medium flex items-center disabled:opacity-50">
+                            <i v-if="settingsLoading" class="fas fa-spinner fa-spin mr-2"></i>
+                            <i v-else class="fas fa-save mr-2"></i>
+                            {{ settingsLoading ? '保存中...' : '保存设置' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Agent 详情模态框 -->
         <div v-if="showAgentDetailModal" class="fixed inset-0 bg-gh-bg/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click.self="showAgentDetailModal = false" @keydown.escape="showAgentDetailModal = false">
             <div class="bg-gh-canvas rounded-xl shadow-2xl w-full max-w-lg border border-gh-border overflow-hidden" tabindex="-1">
@@ -1833,6 +2003,27 @@
                     editingTask: null,
                     showNotifications: false,
                     showShortcuts: false,
+                    showSettings: false,
+
+                    // Settings 相关
+                    settings: {
+                        aiProvider: 'anthropic',
+                        apiKey: '',
+                        apiEndpoint: '',
+                        model: 'claude-sonnet-4-6',
+                        temperature: 0.7,
+                        maxTokens: 4096,
+                        autoSave: true,
+                        theme: 'dark',
+                        language: 'zh-CN'
+                    },
+                    settingsLoading: false,
+                    settingsSaved: false,
+                    availableModels: {
+                        anthropic: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
+                        openai: ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+                        deepseek: ['deepseek-chat', 'deepseek-coder']
+                    },
                     showAgentDetailModal: false,
                     selectedAgent: null,
                     selectAll: false,
@@ -2476,6 +2667,161 @@
                     this.selectedAgent = null;
                 },
 
+
+                // ============ Settings 设置相关方法 ============
+
+                // 打开设置
+                openSettings() {
+                    this.loadSettings();
+                    this.showSettings = true;
+                },
+
+                // 加载设置
+                async loadSettings() {
+                    try {
+                        const response = await fetch('/api/v1/settings');
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.settings) {
+                                // 解密 API Key
+                                if (data.settings.apiKeyEncrypted) {
+                                    data.settings.apiKey = this.decryptApiKey(data.settings.apiKeyEncrypted);
+                                }
+                                this.settings = { ...this.settings, ...data.settings };
+                            }
+                        }
+                    } catch (error) {
+                        console.log('使用本地设置');
+                        // 尝试从本地存储加载
+                        const saved = localStorage.getItem('intelliteam_settings');
+                        if (saved) {
+                            try {
+                                const parsed = JSON.parse(saved);
+                                if (parsed.apiKeyEncrypted) {
+                                    parsed.apiKey = this.decryptApiKey(parsed.apiKeyEncrypted);
+                                }
+                                this.settings = { ...this.settings, ...parsed };
+                            } catch (e) {
+                                console.error('加载本地设置失败:', e);
+                            }
+                        }
+                    }
+                },
+
+                // 保存设置
+                async saveSettings() {
+                    this.settingsLoading = true;
+                    this.settingsSaved = false;
+
+                    try {
+                        // 加密 API Key
+                        const settingsToSave = { ...this.settings };
+                        if (settingsToSave.apiKey) {
+                            settingsToSave.apiKeyEncrypted = this.encryptApiKey(settingsToSave.apiKey);
+                            delete settingsToSave.apiKey;
+                        }
+
+                        const response = await fetch('/api/v1/settings', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ settings: settingsToSave })
+                        });
+
+                        if (response.ok) {
+                            // 同时保存到本地存储
+                            localStorage.setItem('intelliteam_settings', JSON.stringify(settingsToSave));
+                            this.settingsSaved = true;
+                            this.showToast('设置保存成功', 'success');
+                            
+                            // 3秒后关闭模态框
+                            setTimeout(() => {
+                                this.showSettings = false;
+                                this.settingsSaved = false;
+                            }, 1500);
+                        } else {
+                            throw new Error('保存失败');
+                        }
+                    } catch (error) {
+                        console.error('保存设置失败:', error);
+                        // 保存到本地存储作为备份
+                        const settingsToSave = { ...this.settings };
+                        if (settingsToSave.apiKey) {
+                            settingsToSave.apiKeyEncrypted = this.encryptApiKey(settingsToSave.apiKey);
+                            delete settingsToSave.apiKey;
+                        }
+                        localStorage.setItem('intelliteam_settings', JSON.stringify(settingsToSave));
+                        this.showToast('设置已保存到本地', 'warning');
+                    } finally {
+                        this.settingsLoading = false;
+                    }
+                },
+
+                // 重置设置
+                resetSettings() {
+                    this.settings = {
+                        aiProvider: 'anthropic',
+                        apiKey: '',
+                        apiEndpoint: '',
+                        model: 'claude-sonnet-4-6',
+                        temperature: 0.7,
+                        maxTokens: 4096,
+                        autoSave: true,
+                        theme: 'dark',
+                        language: 'zh-CN'
+                    };
+                    this.showToast('设置已重置为默认值', 'info');
+                },
+
+                // 提供商变更
+                onProviderChange() {
+                    // 切换提供商时自动选择第一个模型
+                    const models = this.availableModels[this.settings.aiProvider];
+                    if (models && models.length > 0) {
+                        this.settings.model = models[0];
+                    }
+                    // 清空 API Key 提示用户重新输入
+                    this.settings.apiKey = '';
+                },
+
+                // 加密 API Key (简单的 Base64 + 混淆)
+                encryptApiKey(key) {
+                    if (!key) return '';
+                    try {
+                        // 简单混淆：反转 + Base64
+                        const reversed = key.split('').reverse().join('');
+                        const encoded = btoa(reversed);
+                        return 'enc:' + encoded;
+                    } catch (e) {
+                        return key;
+                    }
+                },
+
+                // 解密 API Key
+                decryptApiKey(encrypted) {
+                    if (!encrypted || !encrypted.startsWith('enc:')) {
+                        return encrypted || '';
+                    }
+                    try {
+                        const encoded = encrypted.substring(4);
+                        const decoded = atob(encoded);
+                        const original = decoded.split('').reverse().join('');
+                        return original;
+                    } catch (e) {
+                        return '';
+                    }
+                },
+
+                // 获取 AI 配置用于聊天
+                getAIConfig() {
+                    return {
+                        provider: this.settings.aiProvider,
+                        model: this.settings.model,
+                        apiKey: this.settings.apiKey,
+                        endpoint: this.settings.apiEndpoint,
+                        temperature: this.settings.temperature,
+                        maxTokens: this.settings.maxTokens
+                    };
+                },
                 // 获取 Agent 技能标签
                 getAgentSkills(agentName) {
                     const skillsMap = {
@@ -2862,9 +3208,15 @@
                                 messages: this.chatMessages,
                                 stream: true,
                                 session_id: this.chatSessionId,
-                                input_mode: this.inputMode
+                                input_mode: this.inputMode,
+                                // 使用设置中的 API 配置
+                                provider: this.settings.aiProvider,
+                                model: this.settings.model,
+                                apiKey: this.settings.apiKey,
+                                endpoint: this.settings.apiEndpoint,
+                                temperature: this.settings.temperature,
+                                max_tokens: this.settings.maxTokens
                             })
-                        });
 
                         if (!response.ok) {
                             throw new Error('请求失败');

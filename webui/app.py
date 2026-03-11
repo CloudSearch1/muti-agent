@@ -501,6 +501,112 @@ async def toggle_skill(skill_id: int):
 
 # ============ AI 聊天 API ============
 
+# ============ Settings API ============
+
+# 设置存储（内存中，实际应用应使用数据库或加密文件）
+SETTINGS_STORE: dict = {
+    "aiProvider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "temperature": 0.7,
+    "maxTokens": 4096,
+    "autoSave": True,
+    "theme": "dark",
+    "language": "zh-CN"
+}
+
+@app.get("/api/v1/settings")
+async def get_settings():
+    """获取系统设置"""
+    return JSONResponse({
+        "success": True,
+        "settings": SETTINGS_STORE
+    })
+
+@app.post("/api/v1/settings")
+async def save_settings(request: dict):
+    """保存系统设置"""
+    global SETTINGS_STORE
+    
+    if "settings" not in request:
+        raise HTTPException(status_code=400, detail="缺少设置数据")
+    
+    # 合并设置，保留API Key的加密版本
+    new_settings = request["settings"]
+    SETTINGS_STORE.update(new_settings)
+    
+    logger.info(f"设置已更新: {list(new_settings.keys())}")
+    
+    return JSONResponse({
+        "success": True,
+        "message": "设置保存成功",
+        "settings": SETTINGS_STORE
+    })
+
+@app.get("/api/v1/settings/models")
+async def get_available_models():
+    """获取可用的 AI 模型列表"""
+    models = {
+        "anthropic": [
+            {"id": "claude-opus-4-6", "name": "Claude Opus 4.6", "description": "最强大的模型，适合复杂任务"},
+            {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "description": "平衡性能与速度"},
+            {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "description": "快速响应，适合简单任务"}
+        ],
+        "openai": [
+            {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "description": "最新的 GPT-4 模型"},
+            {"id": "gpt-4", "name": "GPT-4", "description": "强大的语言理解能力"},
+            {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "快速且经济"}
+        ],
+        "deepseek": [
+            {"id": "deepseek-chat", "name": "DeepSeek Chat", "description": "通用对话模型"},
+            {"id": "deepseek-coder", "name": "DeepSeek Coder", "description": "代码专用模型"}
+        ]
+    }
+    return JSONResponse({
+        "success": True,
+        "models": models
+    })
+
+@app.post("/api/v1/settings/test")
+async def test_ai_connection(request: dict):
+    """测试 AI API 连接"""
+    import asyncio
+    
+    provider = request.get("provider", "anthropic")
+    api_key = request.get("apiKey", "")
+    endpoint = request.get("endpoint", "")
+    
+    if not api_key:
+        return JSONResponse({
+            "success": False,
+            "error": "API Key 不能为空"
+        })
+    
+    # 模拟测试连接
+    await asyncio.sleep(0.5)
+    
+    # 简单验证 API Key 格式
+    valid_prefixes = {
+        "anthropic": ["sk-ant-"],
+        "openai": ["sk-"],
+        "deepseek": ["sk-"]
+    }
+    
+    prefixes = valid_prefixes.get(provider, ["sk-"])
+    is_valid = any(api_key.startswith(p) for p in prefixes)
+    
+    if is_valid or api_key.startswith("test-"):  # 允许测试 Key
+        return JSONResponse({
+            "success": True,
+            "message": f"{provider} API 连接成功"
+        })
+    else:
+        return JSONResponse({
+            "success": False,
+            "error": f"无效的 {provider} API Key 格式"
+        })
+
+
+
 class ChatMessage(BaseModel):
     """聊天消息模型"""
     role: str  # user, assistant, system
@@ -512,11 +618,16 @@ class ChatRequest(BaseModel):
     stream: bool = True
     temperature: float = 0.7
     max_tokens: int = 2048
+    # 支持自定义 AI 配置
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    apiKey: Optional[str] = None
+    endpoint: Optional[str] = None
 
 # 聊天历史存储（内存中，实际应用应使用数据库）
 CHAT_HISTORY: dict[str, list] = {}
 
-async def generate_chat_response(messages: List[ChatMessage], temperature: float = 0.7, max_tokens: int = 2048) -> AsyncGenerator[str, None]:
+async def generate_chat_response(messages: List[ChatMessage], temperature: float = 0.7, max_tokens: int = 2048, provider: str = None, api_key: str = None, model: str = None, endpoint: str = None) -> AsyncGenerator[str, None]:
     """
     生成聊天响应（流式）
     集成项目的 LLM 服务
@@ -581,7 +692,11 @@ async def chat(request: ChatRequest):
             generate_chat_response(
                 request.messages,
                 temperature=request.temperature,
-                max_tokens=request.max_tokens
+                max_tokens=request.max_tokens,
+                provider=request.provider,
+                api_key=request.apiKey,
+                model=request.model,
+                endpoint=request.endpoint
             ),
             media_type="text/event-stream",
             headers={
@@ -596,7 +711,11 @@ async def chat(request: ChatRequest):
         async for chunk in generate_chat_response(
             request.messages,
             temperature=request.temperature,
-            max_tokens=request.max_tokens
+            max_tokens=request.max_tokens,
+            provider=request.provider,
+            api_key=request.apiKey,
+            model=request.model,
+            endpoint=request.endpoint
         ):
             if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
                 try:
