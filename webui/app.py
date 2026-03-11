@@ -11,15 +11,23 @@ import io
 import logging
 import random
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional, List, AsyncGenerator
 import json
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+
+# 获取项目根目录和 webui 目录的绝对路径
+# 这样无论从哪个目录启动，都能正确找到文件
+WEBUI_DIR = Path(__file__).parent.resolve()
+STATIC_DIR = WEBUI_DIR / "static"
+PROJECT_ROOT = WEBUI_DIR.parent
 
 # 配置结构化日志
 logging.basicConfig(
@@ -38,7 +46,7 @@ app = FastAPI(
     openapi_url="/openapi.json"
 )
 
-# CORS 配置
+# CORS 配置 - 允许所有来源访问（生产环境建议限制）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,15 +55,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Gzip 压缩 - 暂时禁用，避免干扰 HTML 响应
-# app.add_middleware(GZipMiddleware, minimum_size=1024)
+# Gzip 压缩 - 启用以提升传输效率
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
-# 挂载静态文件
-try:
-    app.mount("/static", StaticFiles(directory="webui/static"), name="static")
-    logger.info("静态文件挂载成功：webui/static")
-except Exception as e:
-    logger.error(f"静态文件挂载失败：{e}", exc_info=True)
+# 挂载静态文件（使用绝对路径）
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    logger.info(f"静态文件挂载成功：{STATIC_DIR}")
+else:
+    logger.warning(f"静态文件目录不存在：{STATIC_DIR}")
 
 # ============ 响应缓存 ============
 
@@ -163,7 +171,15 @@ async def root():
     """返回主页面"""
     from starlette.responses import HTMLResponse
 
-    with open("webui/index_v5.html", encoding="utf-8") as f:
+    index_file = WEBUI_DIR / "index_v5.html"
+    if not index_file.exists():
+        logger.error(f"主页面文件不存在：{index_file}")
+        return HTMLResponse(
+            content="<html><body><h1>Web UI not found</h1><p>Please check webui/index_v5.html exists</p></body></html>",
+            status_code=500
+        )
+
+    with open(index_file, encoding="utf-8") as f:
         content = f.read()
 
     return HTMLResponse(content=content)
@@ -172,38 +188,52 @@ async def root():
 @app.get("/manifest.json")
 async def get_manifest():
     """返回 PWA manifest"""
-    return FileResponse(path="webui/manifest.json", media_type="application/json")
+    manifest_file = WEBUI_DIR / "manifest.json"
+    if manifest_file.exists():
+        return FileResponse(path=str(manifest_file), media_type="application/json")
+    return JSONResponse(content={"error": "manifest.json not found"}, status_code=404)
 
 
 @app.get("/offline.html")
 async def get_offline():
     """返回离线页面"""
-    return FileResponse(path="webui/offline.html", media_type="text/html")
+    offline_file = WEBUI_DIR / "offline.html"
+    if offline_file.exists():
+        return FileResponse(path=str(offline_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>Offline</h1></body></html>")
 
 
 @app.get("/ai-assistant.html")
 async def get_ai_assistant():
     """返回 AI 助手页面"""
-    return FileResponse(path="webui/ai-assistant.html", media_type="text/html")
+    ai_file = WEBUI_DIR / "ai-assistant.html"
+    if ai_file.exists():
+        return FileResponse(path=str(ai_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>AI Assistant page not found</h1></body></html>")
 
 
 @app.get("/static/js/{filename:path}")
 async def get_static_js(filename: str):
     """返回静态 JS 文件"""
-    return FileResponse(path=f"webui/static/js/{filename}", media_type="application/javascript")
+    js_file = STATIC_DIR / "js" / filename
+    if js_file.exists():
+        return FileResponse(path=str(js_file), media_type="application/javascript")
+    raise HTTPException(status_code=404, detail=f"JS file not found: {filename}")
 
 
 @app.get("/static/images/{filename:path}")
 async def get_static_images(filename: str):
     """返回静态图片文件"""
-    import os
+    img_file = STATIC_DIR / "images" / filename
 
-    filepath = f"webui/static/images/{filename}"
-    if not os.path.exists(filepath):
+    if not img_file.exists():
         # 如果具体尺寸图标不存在，返回 SVG 占位图
-        return FileResponse(path="webui/static/images/icon.svg", media_type="image/svg+xml")
+        icon_file = STATIC_DIR / "images" / "icon.svg"
+        if icon_file.exists():
+            return FileResponse(path=str(icon_file), media_type="image/svg+xml")
+        raise HTTPException(status_code=404, detail=f"Image not found: {filename}")
 
-    return FileResponse(path=filepath, media_type="image/png")
+    return FileResponse(path=str(img_file), media_type="image/png")
 
 
 @app.get("/api/v1/stats")

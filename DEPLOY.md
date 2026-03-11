@@ -62,6 +62,27 @@ pip install gunicorn
 gunicorn -w 4 -k uvicorn.workers.UvicornWorker webui.app:app --bind 0.0.0.0:8080
 ```
 
+**重要**：启动 Gunicorn 时，请确保在项目根目录执行命令：
+```bash
+cd /path/to/muti-agent
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker webui.app:app --bind 0.0.0.0:8080
+```
+
+### 生产环境配置建议
+
+```bash
+# 推荐的生产启动命令
+gunicorn -w 4 \
+  -k uvicorn.workers.UvicornWorker \
+  webui.app:app \
+  --bind 0.0.0.0:8080 \
+  --timeout 120 \
+  --keep-alive 5 \
+  --access-logfile - \
+  --error-logfile - \
+  --log-level info
+```
+
 ### 使用 Docker
 
 ```dockerfile
@@ -193,6 +214,94 @@ A: 拉取最新代码并重启：
 git pull origin main
 pip install -r requirements.txt
 # 重启服务
+```
+
+---
+
+## 故障排查
+
+### Q: 无法通过公网 IP 访问？
+
+按以下步骤检查：
+
+**1. 确认服务正在监听**
+```bash
+# 检查端口监听状态
+netstat -tlnp | grep 8080
+# 或
+ss -tlnp | grep 8080
+
+# 应该看到类似输出：
+# tcp  0  0  0.0.0.0:8080  0.0.0.0:*  LISTEN  pid/gunicorn
+```
+
+**2. 测试本地访问**
+```bash
+# 在服务器上测试
+curl http://127.0.0.1:8080
+curl http://服务器内网IP:8080
+```
+
+**3. 检查防火墙**
+```bash
+# Ubuntu/Debian
+sudo ufw status
+sudo ufw allow 8080/tcp
+
+# CentOS/RHEL
+sudo firewall-cmd --list-all
+sudo firewall-cmd --add-port=8080/tcp --permanent
+sudo firewall-cmd --reload
+
+# iptables
+sudo iptables -L -n | grep 8080
+sudo iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
+```
+
+**4. 检查云服务商安全组**
+- 阿里云：安全组规则 → 添加入方向规则 → 端口 8080
+- 腾讯云：安全组 → 入站规则 → 添加 TCP 8080
+- AWS：Security Groups → Inbound Rules → Add Rule → TCP 8080
+
+**5. 确认绑定地址正确**
+```bash
+# 错误：只监听本地回环地址
+gunicorn ... --bind 127.0.0.1:8080  # ❌ 无法公网访问
+
+# 正确：监听所有网络接口
+gunicorn ... --bind 0.0.0.0:8080    # ✅ 可以公网访问
+```
+
+**6. 检查工作目录**
+```bash
+# 确保在项目根目录启动
+cd /path/to/muti-agent
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker webui.app:app --bind 0.0.0.0:8080
+```
+
+### Q: 访问返回 500 错误？
+
+检查日志输出：
+```bash
+# 查看详细错误
+gunicorn ... --log-level debug
+```
+
+常见原因：
+- 静态文件目录不存在
+- HTML 模板文件缺失
+- Python 依赖未安装
+
+### Q: WebSocket 连接失败？
+
+如果使用了反向代理（如 Nginx），需要配置 WebSocket 支持：
+```nginx
+location /ws {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
 ```
 
 ---
