@@ -506,6 +506,7 @@ async def toggle_skill(skill_id: int):
 # 设置存储（内存中，实际应用应使用数据库或加密文件）
 SETTINGS_STORE: dict = {
     "aiProvider": "bailian",
+    "apiKey": "",  # API Key 由前端设置
     "model": "qwen3.5-plus",
     "temperature": 0.7,
     "maxTokens": 4096,
@@ -661,7 +662,19 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
     try:
         import httpx
 
-        # 如果提供了自定义 API 配置，直接使用
+        # 从全局配置读取设置（如果请求中没有提供）
+        if not provider:
+            provider = SETTINGS_STORE.get("aiProvider", "bailian")
+        if not api_key:
+            api_key = SETTINGS_STORE.get("apiKey", "")
+        if not model:
+            model = SETTINGS_STORE.get("model", "qwen3.5-plus")
+        if not endpoint:
+            endpoint = SETTINGS_STORE.get("endpoint", "")
+
+        logger.info(f"AI聊天使用配置: provider={provider}, model={model}, api_key={'*' * 8 if api_key else 'None'}")
+
+        # 如果有 API Key 和 provider，使用配置的提供商
         if api_key and provider:
             # 百炼API使用OpenAI兼容格式
             if provider == "bailian":
