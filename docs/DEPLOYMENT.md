@@ -393,4 +393,40 @@ docker-compose exec redis redis-cli info stats | grep hits
 
 ---
 
+## 公网访问问题排查
+
+### 快速排查
+
+使用一键排查脚本：
+
+```bash
+# 运行排查脚本
+./scripts/check_network.sh
+```
+
+### 常见原因
+
+1. **云服务器安全组未配置** (90% 案例)
+   - 阿里云：控制台 → ECS → 安全组 → 添加入方向规则 TCP 8080
+   - AWS：EC2 → Security Groups → Add Inbound Rule TCP 8080
+
+2. **服务器防火墙阻止**
+   ```bash
+   # Ubuntu/Debian (ufw)
+   sudo ufw allow 8080/tcp
+
+   # CentOS/RHEL (firewalld)
+   sudo firewall-cmd --permanent --add-port=8080/tcp
+   sudo firewall-cmd --reload
+   ```
+
+3. **端口绑定错误**
+   - 确保 Gunicorn 绑定 `0.0.0.0:8080`，而非 `127.0.0.1:8080`
+
+### 详细排查指南
+
+参见 [公网访问排查指南](./公网访问排查指南.md)
+
+---
+
 *持续更新中...* 🚀
