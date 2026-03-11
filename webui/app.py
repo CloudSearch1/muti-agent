@@ -511,6 +511,7 @@ SETTINGS_STORE: dict = {
     "model": "qwen3.5-plus",
     "temperature": 0.7,
     "maxTokens": 4096,
+    "contextWindow": None,  # 上下文窗口长度，None 表示使用模型默认
     "autoSave": True,
     "theme": "dark",
     "language": "zh-CN"
@@ -698,6 +699,7 @@ class ChatRequest(BaseModel):
     stream: bool = True
     temperature: float = 0.7
     max_tokens: int = 2048
+    context_window: Optional[int] = None  # 上下文窗口长度
     # 支持自定义 AI 配置
     provider: Optional[str] = None
     model: Optional[str] = None
@@ -707,7 +709,7 @@ class ChatRequest(BaseModel):
 # 聊天历史存储（内存中，实际应用应使用数据库）
 CHAT_HISTORY: dict[str, list] = {}
 
-async def generate_chat_response(messages: List[ChatMessage], temperature: float = 0.7, max_tokens: int = 2048, provider: str = None, api_key: str = None, model: str = None, endpoint: str = None) -> AsyncGenerator[str, None]:
+async def generate_chat_response(messages: List[ChatMessage], temperature: float = 0.7, max_tokens: int = 2048, provider: str = None, api_key: str = None, model: str = None, endpoint: str = None, context_window: int = None) -> AsyncGenerator[str, None]:
     """
     生成聊天响应（流式）
     支持 Anthropic、OpenAI、DeepSeek 和阿里云百炼 API
@@ -726,6 +728,12 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
             model = SETTINGS_STORE.get("model", "qwen3.5-plus")
         if not endpoint:
             endpoint = SETTINGS_STORE.get("endpoint", "") or SETTINGS_STORE.get("apiEndpoint", "")
+
+        # 从全局设置读取 max_tokens 和 context_window（如果请求中没有提供）
+        if max_tokens == 2048:  # 默认值，可能需要从设置中获取
+            max_tokens = SETTINGS_STORE.get("maxTokens", 4096)
+        if context_window is None:
+            context_window = SETTINGS_STORE.get("contextWindow", None)
 
         logger.info(f"AI聊天使用配置: provider={provider}, model={model}, api_key={'*' * 8 if api_key else 'None'}")
 
@@ -803,7 +811,7 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                 }
 
             # 添加调试日志：打印实际发送的 payload
-            logger.info(f"[DEBUG] 实际发送的 payload: model={payload.get('model')}, provider={provider}")
+            logger.info(f"[DEBUG] 实际发送的 payload: model={payload.get('model')}, provider={provider}, max_tokens={max_tokens}, context_window={context_window}")
             logger.info(f"[DEBUG] 完整 payload: {json.dumps(payload, ensure_ascii=False)[:500]}")
 
             # 发送流式请求 - 使用详细的超时配置
@@ -979,7 +987,8 @@ async def chat(request: ChatRequest):
                 provider=request.provider,
                 api_key=request.apiKey,
                 model=request.model,
-                endpoint=request.endpoint
+                endpoint=request.endpoint,
+                context_window=request.context_window
             ),
             media_type="text/event-stream",
             headers={
@@ -998,7 +1007,8 @@ async def chat(request: ChatRequest):
             provider=request.provider,
             api_key=request.apiKey,
             model=request.model,
-            endpoint=request.endpoint
+            endpoint=request.endpoint,
+            context_window=request.context_window
         ):
             if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
                 try:
