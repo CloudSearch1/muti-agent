@@ -1824,6 +1824,20 @@
                     editingSkill: null,
                     newSkill: { name: '', description: '', category: 'general', version: '1.0.0', enabled: true },
 
+                    // AI 助手相关
+                    aiMessages: [],
+                    aiInputMessage: '',
+                    aiLoading: false,
+                    fileTree: [
+                        { name: 'src', type: 'folder', path: 'src' },
+                        { name: 'webui', type: 'folder', path: 'webui' },
+                        { name: 'tests', type: 'folder', path: 'tests' },
+                        { name: 'README.md', type: 'file', path: 'README.md' },
+                        { name: 'requirements.txt', type: 'file', path: 'requirements.txt' },
+                        { name: 'pyproject.toml', type: 'file', path: 'pyproject.toml' }
+                    ],
+                    aiSessionId: 'session-' + Date.now(),
+
                     selectedTasks: [],
                     wsConnected: false,
                     systemLatency: 0,
@@ -1965,6 +1979,8 @@
                 this.loadData();
                 // 加载技能数据
                 this.loadSkills();
+                // 加载 AI 聊天历史
+                this.loadAiChatHistory();
             },
 
             methods: {
@@ -2632,7 +2648,7 @@
                     // Ctrl+I 打开 AI 助手页面
                     if (e.ctrlKey && e.key === 'i') {
                         e.preventDefault();
-                        window.open('/ai-assistant.html', '_blank');
+                        this.currentTab = 'ai-assistant';
                     }
                     // Ctrl+R 刷新
                     if (e.ctrlKey && e.key === 'r') {
@@ -2675,7 +2691,119 @@
 
                 // 打开 AI 助手页面
                 toggleChatPanel() {
-                    window.open('/ai-assistant.html', '_blank');
+                    this.currentTab = 'ai-assistant';
+                },
+
+                // AI 助手相关方法
+                async sendAiMessage() {
+                    const message = this.aiInputMessage.trim();
+                    if (!message || this.aiLoading) return;
+
+                    // 添加用户消息
+                    this.aiMessages.push({
+                        role: 'user',
+                        content: message,
+                        time: new Date()
+                    });
+
+                    this.aiInputMessage = '';
+                    this.scrollAiToBottom();
+
+                    // 发送给 AI
+                    this.aiLoading = true;
+                    try {
+                        const response = await fetch('/api/v1/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                messages: this.aiMessages.map(m => ({
+                                    role: m.role,
+                                    content: m.content
+                                })),
+                                stream: false
+                            })
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            this.aiMessages.push({
+                                role: 'assistant',
+                                content: data.response || '抱歉，我无法处理您的请求。',
+                                time: new Date()
+                            });
+                        } else {
+                            throw new Error('API 请求失败');
+                        }
+                    } catch (error) {
+                        console.error('发送消息失败:', error);
+                        this.aiMessages.push({
+                            role: 'assistant',
+                            content: '抱歉，连接 AI 服务失败，请稍后重试。',
+                            time: new Date()
+                        });
+                    } finally {
+                        this.aiLoading = false;
+                        this.scrollAiToBottom();
+                        this.saveAiChatHistory();
+                    }
+                },
+
+                sendQuickAiMessage(message) {
+                    this.aiInputMessage = message;
+                    this.sendAiMessage();
+                },
+
+                renderAiMarkdown(content) {
+                    if (typeof marked !== 'undefined') {
+                        return marked.parse(content);
+                    }
+                    return content;
+                },
+
+                formatAiTime(date) {
+                    if (!date) return '';
+                    const d = new Date(date);
+                    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                },
+
+                scrollAiToBottom() {
+                    this.$nextTick(() => {
+                        const container = this.$refs.aiMessagesContainer;
+                        if (container) {
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    });
+                },
+
+                selectFile(file) {
+                    if (file.type === 'file') {
+                        this.aiInputMessage = `帮我查看和编辑文件：${file.path}`;
+                    }
+                },
+
+                refreshFileTree() {
+                    // 刷新文件树
+                    console.log('刷新文件树');
+                },
+
+                clearAiChat() {
+                    if (confirm('确定要清空所有聊天记录吗？')) {
+                        this.aiMessages = [];
+                        localStorage.removeItem('aiChatHistory');
+                    }
+                },
+
+                saveAiChatHistory() {
+                    localStorage.setItem('aiChatHistory', JSON.stringify(this.aiMessages));
+                },
+
+                loadAiChatHistory() {
+                    const history = localStorage.getItem('aiChatHistory');
+                    if (history) {
+                        this.aiMessages = JSON.parse(history);
+                    }
                 },
 
                 // 发送消息
