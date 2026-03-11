@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Optional, List, AsyncGenerator
 import json
 
+import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -712,8 +713,6 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
     支持 Anthropic、OpenAI、DeepSeek 和阿里云百炼 API
     """
     try:
-        import httpx
-
         # 从全局配置读取设置（如果请求中没有提供）
         if not provider:
             provider = SETTINGS_STORE.get("aiProvider", "bailian")
@@ -800,8 +799,29 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                     "stream": True
                 }
 
-            # 发送流式请求
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            # 发送流式请求 - 使用详细的超时配置
+            timeout_config = httpx.Timeout(
+                connect=10.0,      # 连接超时 10 秒
+                read=60.0,         # 读取超时 60 秒
+                write=30.0,        # 写入超时 30 秒
+                pool=10.0          # 连接池超时 10 秒
+            )
+
+            # 支持系统代理
+            import os
+            proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or \
+                    os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
+
+            client_kwargs = {
+                "timeout": timeout_config,
+                "follow_redirects": True,
+                "limits": httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            }
+            if proxy:
+                client_kwargs["proxy"] = proxy
+                logger.info(f"[百炼API] 使用代理: {proxy}")
+
+            async with httpx.AsyncClient(**client_kwargs) as client:
                 async with client.stream("POST", api_url, headers=headers, json=payload) as response:
                     if response.status_code != 200:
                         error_text = await response.aread()
@@ -902,6 +922,15 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
 
         yield "data: [DONE]\n\n"
 
+    except httpx.ConnectError as e:
+        logger.error(f"网络连接失败: {e}", exc_info=True)
+        yield f"data: {json.dumps({'error': '网络连接失败，请检查网络或代理设置'})}\n\n"
+        yield f"data: {json.dumps({'error': f'详细信息: {str(e)}'})}\n\n"
+        yield "data: [DONE]\n\n"
+    except httpx.TimeoutException as e:
+        logger.error(f"请求超时: {e}", exc_info=True)
+        yield f"data: {json.dumps({'error': '请求超时，请稍后重试'})}\n\n"
+        yield "data: [DONE]\n\n"
     except Exception as e:
         logger.error(f"AI 聊天错误: {e}", exc_info=True)
         # 如果是配置错误，提供友好提示
