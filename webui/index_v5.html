@@ -1612,13 +1612,13 @@
                 </div>
 
                 <!-- 内容 -->
-                <div class="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
+                <form id="settingsForm" @submit.prevent="saveSettings" class="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
                     <!-- AI 提供商设置 -->
                     <div class="space-y-4">
                         <h4 class="text-sm font-semibold text-gh-text uppercase tracking-wider flex items-center">
                             <i class="fas fa-robot mr-2 text-gh-blue"></i>AI 提供商配置
                         </h4>
-                        
+
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gh-light mb-2">提供商</label>
@@ -1663,9 +1663,10 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gh-light mb-2">API Key</label>
+                            <label for="apiKeyInput" class="block text-sm font-medium text-gh-light mb-2">API Key</label>
                             <div class="relative">
-                                <input :type="settings.showApiKey ? 'text' : 'password'" v-model="settings.apiKey"
+                                <input id="apiKeyInput" :type="settings.showApiKey ? 'text' : 'password'" v-model="settings.apiKey"
+                                    autocomplete="current-password"
                                     class="w-full px-4 py-2.5 pr-10 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white font-mono text-sm"
                                     :placeholder="'输入 ' + getProviderDisplayName(settings.aiProvider) + ' API Key'">
                                 <button @click="settings.showApiKey = !settings.showApiKey" type="button"
@@ -1682,8 +1683,8 @@
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gh-light mb-2">API Endpoint (可选)</label>
-                            <input v-model="settings.apiEndpoint" type="text"
+                            <label for="apiEndpointInput" class="block text-sm font-medium text-gh-light mb-2">API Endpoint (可选)</label>
+                            <input id="apiEndpointInput" v-model="settings.apiEndpoint" type="text"
                                 class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white font-mono text-sm"
                                 :placeholder="getDefaultEndpoint(settings.aiProvider)">
                             <p v-if="settings.aiProvider === 'bailian'" class="text-xs text-gh-text mt-1">
@@ -1767,18 +1768,18 @@
                         <i class="fas fa-check-circle text-gh-green"></i>
                         <span class="text-sm text-green-400">设置已保存</span>
                     </div>
-                </div>
+                </form>
 
                 <!-- 底部操作栏 -->
                 <div class="p-4 border-t border-gh-border bg-gh-elevated/50 flex justify-between">
-                    <button @click="resetSettings" class="px-4 py-2 bg-gh-elevated hover:bg-gh-border text-gh-text rounded-lg transition text-sm font-medium border border-gh-border">
+                    <button type="button" @click="resetSettings" class="px-4 py-2 bg-gh-elevated hover:bg-gh-border text-gh-text rounded-lg transition text-sm font-medium border border-gh-border">
                         <i class="fas fa-undo mr-2"></i>重置默认
                     </button>
                     <div class="flex gap-3">
-                        <button @click="showSettings = false" class="px-4 py-2 bg-gh-elevated hover:bg-gh-border text-gh-text rounded-lg transition text-sm font-medium border border-gh-border">
+                        <button type="button" @click="showSettings = false" class="px-4 py-2 bg-gh-elevated hover:bg-gh-border text-gh-text rounded-lg transition text-sm font-medium border border-gh-border">
                             取消
                         </button>
-                        <button @click="saveSettings" :disabled="settingsLoading" class="px-6 py-2 bg-gh-green hover:bg-green-500 text-white rounded-lg transition text-sm font-medium flex items-center disabled:opacity-50">
+                        <button type="submit" form="settingsForm" :disabled="settingsLoading" class="px-6 py-2 bg-gh-green hover:bg-green-500 text-white rounded-lg transition text-sm font-medium flex items-center disabled:opacity-50">
                             <i v-if="settingsLoading" class="fas fa-spinner fa-spin mr-2"></i>
                             <i v-else class="fas fa-save mr-2"></i>
                             {{ settingsLoading ? '保存中...' : '保存设置' }}

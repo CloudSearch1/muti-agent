@@ -10,6 +10,7 @@ from .llm import router as llm_router
 from .local_llm import router as local_llm_router
 from .memory import router as memory_router
 from .pi import router as pi_router
+from .settings import router as settings_router
 from .skill import router as skill_router
 from .task import router as task_router
 
@@ -24,3 +25,4 @@ router.include_router(event_sourcing_router, tags=["events"])
 router.include_router(llm_router, prefix="/llm", tags=["llm"])
 router.include_router(local_llm_router, tags=["Local LLM"])
 router.include_router(pi_router, prefix="/pi", tags=["pi"])
+router.include_router(settings_router, tags=["settings"])
