@@ -562,15 +562,18 @@ async def save_settings(request: dict):
     if "apiKeyEncrypted" in new_settings:
         # 解密加密的 API Key
         decrypted = decrypt_api_key(new_settings["apiKeyEncrypted"])
-        new_settings["apiKey"] = decrypted
-        logger.info(f"[DEBUG] 解密 apiKeyEncrypted -> apiKey: {'*' * 8 if decrypted else 'empty'}")
+        if decrypted:  # 只有解密成功才更新 apiKey
+            new_settings["apiKey"] = decrypted
+            logger.info(f"[DEBUG] 解密 apiKeyEncrypted -> apiKey: {'*' * 8}")
+        else:
+            logger.warning(f"[DEBUG] apiKeyEncrypted 解密失败，保留现有 apiKey")
         # 保留加密版本用于返回给前端
         SETTINGS_STORE["apiKeyEncrypted"] = new_settings["apiKeyEncrypted"]
-    elif "apiKey" in new_settings:
-        logger.info(f"[DEBUG] 直接收到 apiKey: {'*' * 8 if new_settings['apiKey'] else 'empty'}")
-    
-    # 确保 apiKey 字段存在（如果前端没有发送，保留现有值）
-    if "apiKey" not in new_settings and "apiKey" in SETTINGS_STORE:
+    elif "apiKey" in new_settings and new_settings["apiKey"]:
+        logger.info(f"[DEBUG] 直接收到 apiKey: {'*' * 8}")
+
+    # 确保 apiKey 字段存在（如果前端没有发送有效值，保留现有值）
+    if (not new_settings.get("apiKey")) and SETTINGS_STORE.get("apiKey"):
         new_settings["apiKey"] = SETTINGS_STORE["apiKey"]
         logger.info(f"[DEBUG] 保留现有 apiKey")
 
