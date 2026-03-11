@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 助手 - IntelliTeam</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 头部导航 */
+        .header {
+            height: 60px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo i {
+            color: #33BB22;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .nav-links a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: #e6edf3;
+            background: #21262d;
+        }
+
+        .nav-links a.active {
+            color: #fff;
+            background: #238636;
+        }
+
+        /* 主内容区 */
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            height: calc(100vh - 60px);
+        }
+
+        /* 文件浏览器侧边栏 */
+        .file-sidebar {
+            width: 260px;
+            background: #161b22;
+            border-right: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e6edf3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #8b949e;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover {
+            background: #21262d;
+            color: #e6edf3;
+        }
+
+        .file-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        .file-item.folder {
+            color: #58a6ff;
+        }
+
+        /* 聊天区域 */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0d1117;
+        }
+
+        .chat-header {
+            height: 60px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 15px;
+        }
+
+        .chat-header-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .chat-header-info h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e6edf3;
+            margin-bottom: 2px;
+        }
+
+        .chat-header-info p {
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .welcome-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 36px;
+        }
+
+        .welcome-message h3 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #e6edf3;
+            margin-bottom: 10px;
+        }
+
+        .welcome-message p {
+            font-size: 14px;
+            color: #8b949e;
+            margin-bottom: 30px;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .quick-action-btn {
+            padding: 10px 16px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            color: #8b949e;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .quick-action-btn:hover {
+            background: #30363d;
+            border-color: #58a6ff;
+            color: #e6edf3;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .message-avatar.user {
+            background: #238636;
+        }
+
+        .message-avatar.assistant {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .message-content {
+            flex: 1;
+            max-width: calc(100% - 60px);
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .message-author {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e6edf3;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #6e7681;
+        }
+
+        .message-body {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #e6edf3;
+            background: #21262d;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+        }
+
+        .message-body.user {
+            background: #238636;
+            border-color: #2ea043;
+        }
+
+        /* 输入区域 */
+        .chat-input-area {
+            padding: 15px 20px;
+            background: #161b22;
+            border-top: 1px solid #30363d;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: #58a6ff;
+        }
+
+        .chat-textarea {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: #e6edf3;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            min-height: 20px;
+            max-height: 120px;
+            font-family: inherit;
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .input-action-btn {
+            padding: 4px 8px;
+            background: transparent;
+            border: none;
+            color: #6e7681;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .input-action-btn:hover {
+            color: #e6edf3;
+            background: #21262d;
+        }
+
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            background: #238636;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-btn:hover {
+            background: #2ea043;
+        }
+
+        .send-btn:disabled {
+            background: #21262d;
+            color: #6e7681;
+            cursor: not-allowed;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 768px) {
+            .file-sidebar {
+                display: none;
+            }
+
+            .nav-links {
+                display: none;
+            }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6e7681;
+        }
+    </style>
+</head>
+<body>
+    <!-- 头部导航 -->
+    <header class="header">
+        <div class="header-left">
+            <a href="#" class="logo">
+                <i class="fas fa-robot"></i>
+                IntelliTeam
+            </a>
+            <nav class="nav-links">
+                <a href="#">首页</a>
+                <a href="#">任务</a>
+                <a href="#">智能体</a>
+                <a href="#">技能</a>
+                <a href="#" class="active">
+                    <i class="fas fa-robot"></i> AI助手
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 文件浏览器侧边栏 -->
+        <aside class="file-sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">
+                    <i class="fas fa-folder-open"></i>
+                    项目文件
+                </span>
+                <button onclick="refreshFiles()" class="input-action-btn">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <div class="file-tree" id="fileTree">
+                <div class="file-item folder">
+                    <i class="fas fa-folder"></i>
+                    <span>src</span>
+                </div>
+                <div class="file-item folder">
+                    <i class="fas fa-folder"></i>
+                    <span>webui</span>
+                </div>
+                <div class="file-item folder">
+                    <i class="fas fa-folder"></i>
+                    <span>tests</span>
+                </div>
+                <div class="file-item">
+                    <i class="fas fa-file"></i>
+                    <span>README.md</span>
+                </div>
+                <div class="file-item">
+                    <i class="fas fa-file"></i>
+                    <span>requirements.txt</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 聊天区域 -->
+        <main class="chat-area">
+            <div class="chat-header">
+                <div class="chat-header-icon">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="chat-header-info">
+                    <h2>AI 助手</h2>
+                    <p>基于 Claude 的智能研发助手</p>
+                </div>
+            </div>
+
+            <div class="chat-messages" id="messagesContainer">
+                <!-- 欢迎消息 -->
+                <div id="welcomeMessage" class="welcome-message">
+                    <div class="welcome-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3>我是您的智能研发助手</h3>
+                    <p>我可以帮您编写代码、调试程序、管理项目文件，让开发更高效</p>
+                    <div class="quick-actions">
+                        <button class="quick-action-btn" onclick="sendQuickMessage('帮我写一个 Python 函数来计算斐波那契数列')">
+                            <i class="fas fa-code"></i>
+                            编写代码
+                        </button>
+                        <button class="quick-action-btn" onclick="sendQuickMessage('帮我调试这个错误')">
+                            <i class="fas fa-bug"></i>
+                            调试程序
+                        </button>
+                        <button class="quick-action-btn" onclick="sendQuickMessage('帮我优化这段代码的性能')">
+                            <i class="fas fa-tachometer-alt"></i>
+                            优化性能
+                        </button>
+                        <button class="quick-action-btn" onclick="sendQuickMessage('帮我生成项目的 README 文档')">
+                            <i class="fas fa-file-alt"></i>
+                            生成文档
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea 
+                            class="chat-textarea"
+                            id="messageInput"
+                            placeholder="输入消息，按 Enter 发送..."
+                            rows="1"
+                            onkeydown="handleKeyDown(event)"
+                            oninput="autoResize(this)"
+                        ></textarea>
+                        <div class="input-actions">
+                            <button class="input-action-btn" onclick="attachFile()">
+                                <i class="fas fa-paperclip"></i> 附件
+                            </button>
+                            <button class="input-action-btn" onclick="clearChat()">
+                                <i class="fas fa-trash"></i> 清空
+                            </button>
+                        </div>
+                    </div>
+                    <button 
+                        class="send-btn" 
+                        id="sendBtn"
+                        onclick="sendMessage()"
+                    >
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 消息历史
+        let messages = [];
+        let isLoading = false;
+
+        // 发送消息
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+
+            // 隐藏欢迎消息
+            document.getElementById('welcomeMessage').style.display = 'none';
+
+            // 添加用户消息
+            addMessage('user', message);
+            
+            // 清空输入框
+            input.value = '';
+            autoResize(input);
+
+            // 模拟AI回复
+            isLoading = true;
+            document.getElementById('sendBtn').disabled = true;
+            
+            setTimeout(() => {
+                addMessage('assistant', '这是一个演示回复。在实际部署中，这里会连接到AI服务获取真实回复。');
+                isLoading = false;
+                document.getElementById('sendBtn').disabled = false;
+            }, 1000);
+        }
+
+        // 添加消息到界面
+        function addMessage(role, content) {
+            const container = document.getElementById('messagesContainer');
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = `
+                <div class="message-avatar ${role}">
+                    <i class="fas fa-${role === 'user' ? 'user' : 'robot'}"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-author">${role === 'user' ? '您' : 'AI 助手'}</span>
+                        <span class="message-time">${time}</span>
+                    </div>
+                    <div class="message-body ${role}">${escapeHtml(content)}</div>
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+            
+            messages.push({ role, content, time });
+        }
+
+        // 快捷消息
+        function sendQuickMessage(text) {
+            document.getElementById('messageInput').value = text;
+            sendMessage();
+        }
+
+        // 处理键盘事件
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // 自动调整文本框高度
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        // 转义HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 附件功能
+        function attachFile() {
+            alert('附件功能演示');
+        }
+
+        // 清空聊天
+        function clearChat() {
+            if (confirm('确定要清空所有聊天记录吗？')) {
+                messages = [];
+                document.getElementById('messagesContainer').innerHTML = `
+                    <div id="welcomeMessage" class="welcome-message">
+                        <div class="welcome-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h3>我是您的智能研发助手</h3>
+                        <p>我可以帮您编写代码、调试程序、管理项目文件，让开发更高效</p>
+                        <div class="quick-actions">
+                            <button class="quick-action-btn" onclick="sendQuickMessage('帮我写一个 Python 函数来计算斐波那契数列')">
+                                <i class="fas fa-code"></i>
+                                编写代码
+                            </button>
+                            <button class="quick-action-btn" onclick="sendQuickMessage('帮我调试这个错误')">
+                                <i class="fas fa-bug"></i>
+                                调试程序
+                            </button>
+                            <button class="quick-action-btn" onclick="sendQuickMessage('帮我优化这段代码的性能')">
+                                <i class="fas fa-tachometer-alt"></i>
+                                优化性能
+                            </button>
+                            <button class="quick-action-btn" onclick="sendQuickMessage('帮我生成项目的 README 文档')">
+                                <i class="fas fa-file-alt"></i>
+                                生成文档
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // 刷新文件树
+        function refreshFiles() {
+            console.log('刷新文件树');
+        }
+
+        // 页面加载完成
+        console.log('AI 助手独立页面已加载');
+    </script>
+</body>
+</html>
