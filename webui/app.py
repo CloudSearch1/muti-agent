@@ -568,6 +568,11 @@ async def save_settings(request: dict):
         SETTINGS_STORE["apiKeyEncrypted"] = new_settings["apiKeyEncrypted"]
     elif "apiKey" in new_settings:
         logger.info(f"[DEBUG] 直接收到 apiKey: {'*' * 8 if new_settings['apiKey'] else 'empty'}")
+    
+    # 确保 apiKey 字段存在（如果前端没有发送，保留现有值）
+    if "apiKey" not in new_settings and "apiKey" in SETTINGS_STORE:
+        new_settings["apiKey"] = SETTINGS_STORE["apiKey"]
+        logger.info(f"[DEBUG] 保留现有 apiKey")
 
     SETTINGS_STORE.update(new_settings)
 
