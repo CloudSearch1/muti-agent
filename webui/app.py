@@ -841,31 +841,66 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                         yield "data: [DONE]\n\n"
                         return
 
-                    async for line in response.aiter_lines():
-                        if line.startswith("data: "):
-                            data = line[6:]
-                            if data == "[DONE]":
-                                yield "data: [DONE]\n\n"
-                                return
-                            try:
-                                chunk = json.loads(data)
-                                if provider == "anthropic":
-                                    # Anthropic 格式
-                                    if chunk.get("type") == "content_block_delta":
-                                        content = chunk.get("delta", {}).get("text", "")
-                                        if content:
-                                            yield f"data: {json.dumps({'content': content})}\n\n"
-                                else:
-                                    # OpenAI 兼容格式（包括百炼）
-                                    delta = chunk.get("choices", [{}])[0].get("delta", {})
-                                    content = delta.get("content", "")
-                                    if content:
-                                        yield f"data: {json.dumps({'content': content})}\n\n"
-                            except json.JSONDecodeError:
+                    # 记录响应状态
+                    logger.info(f"[百炼API] 流式响应状态: {response.status_code}")
+
+                    buffer = ""  # 用于处理不完整的行
+                    async for chunk_bytes in response.aiter_bytes():
+                        chunk_text = chunk_bytes.decode('utf-8')
+                        buffer += chunk_text
+
+                        # 按行分割处理
+                        while '\n' in buffer:
+                            line, buffer = buffer.split('\n', 1)
+                            line = line.strip()
+
+                            if not line:
                                 continue
 
-            yield "data: [DONE]\n\n"
-            return
+                            logger.debug(f"[百炼API] 收到行: {line[:100]}...")
+
+                            if line.startswith("data: "):
+                                data = line[6:]
+                                if data == "[DONE]":
+                                    logger.info("[百炼API] 收到 [DONE] 信号")
+                                    yield "data: [DONE]\n\n"
+                                    return
+                                try:
+                                    chunk = json.loads(data)
+                                    if provider == "anthropic":
+                                        # Anthropic 格式
+                                        if chunk.get("type") == "content_block_delta":
+                                            content = chunk.get("delta", {}).get("text", "")
+                                            if content:
+                                                yield f"data: {json.dumps({'content': content})}\n\n"
+                                    else:
+                                        # OpenAI 兼容格式（包括百炼）
+                                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                                        content = delta.get("content", "")
+                                        if content:
+                                            logger.debug(f"[百炼API] 提取内容: {content[:50]}...")
+                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                                except json.JSONDecodeError as e:
+                                    logger.warning(f"[百炼API] JSON 解析失败: {e}, 数据: {data[:100]}")
+                                    continue
+
+                    # 处理 buffer 中剩余的数据
+                    if buffer.strip():
+                        line = buffer.strip()
+                        logger.debug(f"[百炼API] 剩余数据: {line[:100]}...")
+                        if line.startswith("data: ") and line[6:] != "[DONE]":
+                            try:
+                                chunk = json.loads(line[6:])
+                                delta = chunk.get("choices", [{}])[0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    yield f"data: {json.dumps({'content': content})}\n\n"
+                            except:
+                                pass
+
+                    logger.info("[百炼API] 流式响应完成")
+                    yield "data: [DONE]\n\n"
+                    return
 
         # 如果没有自定义配置，尝试使用项目的 LLM 服务
         import sys
@@ -962,7 +997,7 @@ async def chat(request: ChatRequest):
                     continue
 
         return {
-            "content": response_content,
+            "response": response_content,
             "model": "intelliteam-ai",
             "timestamp": datetime.now().isoformat()
         }
