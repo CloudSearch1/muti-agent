@@ -508,7 +508,7 @@ async def toggle_skill(skill_id: int):
 SETTINGS_STORE: dict = {
     "aiProvider": "bailian",
     "apiKey": "",  # API Key 由前端设置
-    "model": "qwen3.5-plus",
+    "model": "bailian/qwen3.5-plus",
     "temperature": 0.7,
     "maxTokens": 4096,
     "autoSave": True,
@@ -607,14 +607,14 @@ async def get_available_models():
             {"id": "deepseek-coder", "name": "DeepSeek Coder", "description": "代码专用模型"}
         ],
         "bailian": [
-            {"id": "qwen3.5-plus", "name": "Qwen3.5 Plus", "description": "通义千问3.5增强版，性价比最优", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "qwen3-max-2026-01-23", "name": "Qwen3 Max", "description": "通义千问3最强版，适合复杂任务", "reasoning": True, "input": "¥0.002/千tokens", "cost": "¥0.006/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "qwen3-coder-next", "name": "Qwen3 Coder Next", "description": "代码专用模型，最新版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "qwen3-coder-plus", "name": "Qwen3 Coder Plus", "description": "代码专用模型，增强版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "MiniMax-M2.5", "name": "MiniMax M2.5", "description": "MiniMax通用模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 24576, "maxTokens": 4096},
-            {"id": "glm-5", "name": "GLM-5", "description": "智谱GLM-5，深度推理", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "glm-4.7", "name": "GLM-4.7", "description": "智谱GLM-4.7，通用对话", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "kimi-k2.5", "name": "Kimi K2.5", "description": "Moonshot Kimi模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192}
+            {"id": "bailian/qwen3.5-plus", "name": "Qwen3.5 Plus", "description": "通义千问3.5增强版，性价比最优", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "bailian/qwen3-max-2026-01-23", "name": "Qwen3 Max", "description": "通义千问3最强版，适合复杂任务", "reasoning": True, "input": "¥0.002/千tokens", "cost": "¥0.006/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "bailian/qwen3-coder-next", "name": "Qwen3 Coder Next", "description": "代码专用模型，最新版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "bailian/qwen3-coder-plus", "name": "Qwen3 Coder Plus", "description": "代码专用模型，增强版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "bailian/MiniMax-M2.5", "name": "MiniMax M2.5", "description": "MiniMax通用模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 24576, "maxTokens": 4096},
+            {"id": "bailian/glm-5", "name": "GLM-5", "description": "智谱GLM-5，深度推理", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "bailian/glm-4.7", "name": "GLM-4.7", "description": "智谱GLM-4.7，通用对话", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "bailian/kimi-k2.5", "name": "Kimi K2.5", "description": "Moonshot Kimi模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192}
         ]
     }
     return JSONResponse({
@@ -723,7 +723,7 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                 api_key = decrypt_api_key(SETTINGS_STORE.get("apiKeyEncrypted", ""))
                 logger.info(f"[DEBUG] 从 apiKeyEncrypted 解密得到 API Key")
         if not model:
-            model = SETTINGS_STORE.get("model", "qwen3.5-plus")
+            model = SETTINGS_STORE.get("model", "bailian/qwen3.5-plus")
         if not endpoint:
             endpoint = SETTINGS_STORE.get("endpoint", "") or SETTINGS_STORE.get("apiEndpoint", "")
 
@@ -749,6 +749,10 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                     "Content-Type": "application/json"
                 }
                 logger.info(f"[百炼API] 请求 URL: {api_url}")
+                # 处理 bailian/ 前缀，发送到 API 时去掉前缀
+                if model and model.startswith("bailian/"):
+                    model = model[8:]  # 去掉 "bailian/" 前缀
+                    logger.info(f"[百炼API] 去掉 bailian/ 前缀，实际模型: {model}")
             elif provider == "openai":
                 base_url = endpoint or "https://api.openai.com/v1"
                 api_url = f"{base_url}/chat/completions"

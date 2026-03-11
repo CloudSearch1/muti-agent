@@ -632,7 +632,7 @@
                     // AI 设置
                     aiSettings: {
                         provider: 'bailian',
-                        model: 'qwen3.5-plus',
+                        model: 'bailian/qwen3.5-plus',
                         apiKey: '',
                         endpoint: ''
                     }
@@ -839,7 +839,7 @@
                                 // 加载 AI 设置
                                 this.aiSettings = {
                                     provider: data.settings.aiProvider || 'bailian',
-                                    model: data.settings.model || 'qwen3.5-plus',
+                                    model: data.settings.model || 'bailian/qwen3.5-plus',
                                     apiKey: apiKey,
                                     endpoint: data.settings.apiEndpoint || data.settings.endpoint || ''
                                 };
@@ -859,7 +859,7 @@
                                 }
                                 this.aiSettings = {
                                     provider: parsed.aiProvider || 'bailian',
-                                    model: parsed.model || 'qwen3.5-plus',
+                                    model: parsed.model || 'bailian/qwen3.5-plus',
                                     apiKey: apiKey,
                                     endpoint: parsed.apiEndpoint || ''
                                 };
