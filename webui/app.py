@@ -749,10 +749,9 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                     "Content-Type": "application/json"
                 }
                 logger.info(f"[百炼API] 请求 URL: {api_url}")
-                # 处理 bailian/ 前缀，发送到 API 时去掉前缀
-                if model and model.startswith("bailian/"):
-                    model = model[8:]  # 去掉 "bailian/" 前缀
-                    logger.info(f"[百炼API] 去掉 bailian/ 前缀，实际模型: {model}")
+                # 保留 bailian/ 前缀，百炼 API 需要使用带前缀的模型名
+                if model:
+                    logger.info(f"[百炼API] 使用模型: {model}")
             elif provider == "openai":
                 base_url = endpoint or "https://api.openai.com/v1"
                 api_url = f"{base_url}/chat/completions"
