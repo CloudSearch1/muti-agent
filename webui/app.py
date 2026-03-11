@@ -181,6 +181,12 @@ async def get_offline():
     return FileResponse(path="webui/offline.html", media_type="text/html")
 
 
+@app.get("/ai-assistant.html")
+async def get_ai_assistant():
+    """返回 AI 助手页面"""
+    return FileResponse(path="webui/ai-assistant.html", media_type="text/html")
+
+
 @app.get("/static/js/{filename:path}")
 async def get_static_js(filename: str):
     """返回静态 JS 文件"""
