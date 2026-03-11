@@ -733,16 +733,26 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
         if api_key and provider:
             # 百炼API使用OpenAI兼容格式
             if provider == "bailian":
-                # 百炼 API endpoint - 不自动修正，用户设置什么就是什么
-                # 默认使用 coding 端点
+                # 百炼 API endpoint
+                # 根据模型类型选择端点：
+                # - Qwen 模型：可使用 coding 端点
+                # - 其他模型（GLM, Kimi等）：使用通用兼容端点
                 if endpoint:
                     # 清理 API Key 中可能的空格和换行
                     api_key = api_key.strip()
                     # 直接使用用户提供的 endpoint，不做任何修改
                     base_url = endpoint.rstrip('/')
                 else:
-                    # 默认 endpoint
-                    base_url = "https://coding.dashscope.aliyuncs.com/v1"
+                    # 根据模型名称自动选择端点
+                    model_lower = model.lower() if model else ""
+                    # Qwen 系列模型使用 coding 端点
+                    if model_lower.startswith("qwen"):
+                        base_url = "https://coding.dashscope.aliyuncs.com/v1"
+                        logger.info(f"[百炼API] Qwen模型使用 coding 端点: {model}")
+                    else:
+                        # GLM、Kimi、MiniMax 等模型使用通用兼容端点
+                        base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+                        logger.info(f"[百炼API] 非 Qwen 模型使用通用兼容端点: {model}")
 
                 api_url = f"{base_url}/chat/completions"
                 headers = {
@@ -799,6 +809,10 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                     "stream": True
                 }
 
+            # 添加调试日志：打印实际发送的 payload
+            logger.info(f"[DEBUG] 实际发送的 payload: model={payload.get('model')}, provider={provider}")
+            logger.info(f"[DEBUG] 完整 payload: {json.dumps(payload, ensure_ascii=False)[:500]}")
+
             # 发送流式请求 - 使用详细的超时配置
             timeout_config = httpx.Timeout(
                 connect=10.0,      # 连接超时 10 秒
@@ -831,8 +845,12 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
 
                     # 记录响应状态
                     logger.info(f"[百炼API] 流式响应状态: {response.status_code}")
+                    # 记录响应头中的模型信息
+                    model_header = response.headers.get("x-model", "unknown")
+                    logger.info(f"[百炼API] 响应头 x-model: {model_header}")
 
                     buffer = ""  # 用于处理不完整的行
+                    first_chunk = True  # 标记第一个 chunk
                     async for chunk_bytes in response.aiter_bytes():
                         chunk_text = chunk_bytes.decode('utf-8')
                         buffer += chunk_text
@@ -855,6 +873,10 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                                     return
                                 try:
                                     chunk = json.loads(data)
+                                    # 记录第一个 chunk 中的模型信息
+                                    if first_chunk and "model" in chunk:
+                                        logger.info(f"[DEBUG] API 返回的模型: {chunk.get('model')}")
+                                        first_chunk = False
                                     if provider == "anthropic":
                                         # Anthropic 格式
                                         if chunk.get("type") == "content_block_delta":
