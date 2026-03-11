@@ -559,6 +559,12 @@ async def get_available_models():
         "deepseek": [
             {"id": "deepseek-chat", "name": "DeepSeek Chat", "description": "通用对话模型"},
             {"id": "deepseek-coder", "name": "DeepSeek Coder", "description": "代码专用模型"}
+        ],
+        "bailian": [
+            {"id": "qwen-max", "name": "Qwen Max", "description": "通义千问最强模型，适合复杂任务"},
+            {"id": "qwen-plus", "name": "Qwen Plus", "description": "平衡性能与速度，推荐使用"},
+            {"id": "qwen-turbo", "name": "Qwen Turbo", "description": "快速响应，经济实惠"},
+            {"id": "qwen-long", "name": "Qwen Long", "description": "支持超长上下文"}
         ]
     }
     return JSONResponse({
@@ -570,34 +576,50 @@ async def get_available_models():
 async def test_ai_connection(request: dict):
     """测试 AI API 连接"""
     import asyncio
-    
+
     provider = request.get("provider", "anthropic")
     api_key = request.get("apiKey", "")
     endpoint = request.get("endpoint", "")
-    
+
     if not api_key:
         return JSONResponse({
             "success": False,
             "error": "API Key 不能为空"
         })
-    
+
     # 模拟测试连接
     await asyncio.sleep(0.5)
-    
+
     # 简单验证 API Key 格式
     valid_prefixes = {
         "anthropic": ["sk-ant-"],
         "openai": ["sk-"],
-        "deepseek": ["sk-"]
+        "deepseek": ["sk-"],
+        "bailian": ["sk-"]  # 百炼API Key格式
     }
-    
+
+    # 百炼API特殊处理
+    if provider == "bailian":
+        # 百炼API支持多种前缀，不做严格格式检查
+        if api_key.startswith("sk-") or len(api_key) >= 20:
+            return JSONResponse({
+                "success": True,
+                "message": "阿里云百炼 API 连接成功"
+            })
+
     prefixes = valid_prefixes.get(provider, ["sk-"])
     is_valid = any(api_key.startswith(p) for p in prefixes)
-    
+
     if is_valid or api_key.startswith("test-"):  # 允许测试 Key
+        provider_names = {
+            "anthropic": "Anthropic",
+            "openai": "OpenAI",
+            "deepseek": "DeepSeek",
+            "bailian": "阿里云百炼"
+        }
         return JSONResponse({
             "success": True,
-            "message": f"{provider} API 连接成功"
+            "message": f"{provider_names.get(provider, provider)} API 连接成功"
         })
     else:
         return JSONResponse({
@@ -630,10 +652,106 @@ CHAT_HISTORY: dict[str, list] = {}
 async def generate_chat_response(messages: List[ChatMessage], temperature: float = 0.7, max_tokens: int = 2048, provider: str = None, api_key: str = None, model: str = None, endpoint: str = None) -> AsyncGenerator[str, None]:
     """
     生成聊天响应（流式）
-    集成项目的 LLM 服务
+    支持 Anthropic、OpenAI、DeepSeek 和阿里云百炼 API
     """
     try:
-        # 尝试导入 LLM 服务
+        import httpx
+
+        # 如果提供了自定义 API 配置，直接使用
+        if api_key and provider:
+            # 百炼API使用OpenAI兼容格式
+            if provider == "bailian":
+                base_url = endpoint or "https://dashscope.aliyuncs.com/compatible-mode/v1"
+                api_url = f"{base_url}/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+            elif provider == "openai":
+                base_url = endpoint or "https://api.openai.com/v1"
+                api_url = f"{base_url}/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+            elif provider == "deepseek":
+                base_url = endpoint or "https://api.deepseek.com/v1"
+                api_url = f"{base_url}/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+            elif provider == "anthropic":
+                base_url = endpoint or "https://api.anthropic.com"
+                api_url = f"{base_url}/v1/messages"
+                headers = {
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json"
+                }
+            else:
+                raise ValueError(f"不支持的提供商: {provider}")
+
+            # 构建消息格式
+            if provider == "anthropic":
+                # Anthropic 格式
+                api_messages = [{"role": m.role, "content": m.content} for m in messages if m.role != "system"]
+                system_msg = next((m.content for m in messages if m.role == "system"), None)
+                payload = {
+                    "model": model or "claude-sonnet-4-6",
+                    "messages": api_messages,
+                    "max_tokens": max_tokens,
+                    "stream": True
+                }
+                if system_msg:
+                    payload["system"] = system_msg
+            else:
+                # OpenAI 兼容格式（包括百炼）
+                api_messages = [{"role": m.role, "content": m.content} for m in messages]
+                payload = {
+                    "model": model or "qwen-plus",
+                    "messages": api_messages,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "stream": True
+                }
+
+            # 发送流式请求
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream("POST", api_url, headers=headers, json=payload) as response:
+                    if response.status_code != 200:
+                        error_text = await response.aread()
+                        yield f"data: {json.dumps({'error': f'API错误 ({response.status_code}): {error_text.decode()}'})}\n\n"
+                        yield "data: [DONE]\n\n"
+                        return
+
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            if data == "[DONE]":
+                                yield "data: [DONE]\n\n"
+                                return
+                            try:
+                                chunk = json.loads(data)
+                                if provider == "anthropic":
+                                    # Anthropic 格式
+                                    if chunk.get("type") == "content_block_delta":
+                                        content = chunk.get("delta", {}).get("text", "")
+                                        if content:
+                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                                else:
+                                    # OpenAI 兼容格式（包括百炼）
+                                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                                    content = delta.get("content", "")
+                                    if content:
+                                        yield f"data: {json.dumps({'content': content})}\n\n"
+                            except json.JSONDecodeError:
+                                continue
+
+            yield "data: [DONE]\n\n"
+            return
+
+        # 如果没有自定义配置，尝试使用项目的 LLM 服务
         import sys
         import os
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -665,17 +783,19 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
 
         yield "data: [DONE]\n\n"
 
-    except LLMConfigError:
-        # LLM 未配置，使用模拟响应
-        msg1 = '⚠️ LLM 服务未配置。请在环境变量中设置 API Key（如 OPENAI_API_KEY、ANTHROPIC_API_KEY 等）。\n\n'
-        msg2 = '您可以继续与我聊天，但我只能提供模拟响应。'
-        yield f"data: {json.dumps({'content': msg1})}\n\n"
-        yield f"data: {json.dumps({'content': msg2})}\n\n"
-        yield "data: [DONE]\n\n"
-
     except Exception as e:
         logger.error(f"AI 聊天错误: {e}", exc_info=True)
-        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        # 如果是配置错误，提供友好提示
+        error_msg = str(e)
+        if "LLMConfigError" in error_msg or "未配置" in error_msg:
+            msg1 = '⚠️ LLM 服务未配置。请在设置中配置 API Key。\n\n'
+            msg2 = '支持：Anthropic、OpenAI、DeepSeek、阿里云百炼'
+        else:
+            msg1 = f'❌ AI 聊天错误: {error_msg}'
+            msg2 = ''
+        yield f"data: {json.dumps({'content': msg1})}\n\n"
+        if msg2:
+            yield f"data: {json.dumps({'content': msg2})}\n\n"
         yield "data: [DONE]\n\n"
 
 

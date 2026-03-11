@@ -1592,9 +1592,10 @@
                                     <option value="anthropic">Anthropic (Claude)</option>
                                     <option value="openai">OpenAI (GPT)</option>
                                     <option value="deepseek">DeepSeek</option>
+                                    <option value="bailian">阿里云百炼 (Qwen)</option>
                                 </select>
                             </div>
-                            
+
                             <div>
                                 <label class="block text-sm font-medium text-gh-light mb-2">模型</label>
                                 <select v-model="settings.model" class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white">
@@ -1606,10 +1607,10 @@
                         <div>
                             <label class="block text-sm font-medium text-gh-light mb-2">API Key</label>
                             <div class="relative">
-                                <input :type="settings.showApiKey ? 'text' : 'password'" v-model="settings.apiKey" 
+                                <input :type="settings.showApiKey ? 'text' : 'password'" v-model="settings.apiKey"
                                     class="w-full px-4 py-2.5 pr-10 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white font-mono text-sm"
-                                    :placeholder="'输入 ' + settings.aiProvider + ' API Key'">
-                                <button @click="settings.showApiKey = !settings.showApiKey" type="button" 
+                                    :placeholder="'输入 ' + getProviderDisplayName(settings.aiProvider) + ' API Key'">
+                                <button @click="settings.showApiKey = !settings.showApiKey" type="button"
                                     class="absolute right-3 top-1/2 -translate-y-1/2 text-gh-text hover:text-white">
                                     <i :class="settings.showApiKey ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
                                 </button>
@@ -1617,13 +1618,19 @@
                             <p class="text-xs text-gh-text mt-1">
                                 <i class="fas fa-shield-alt mr-1"></i>API Key 将在本地加密存储
                             </p>
+                            <p v-if="settings.aiProvider === 'bailian'" class="text-xs text-gh-blue mt-1">
+                                <i class="fas fa-info-circle mr-1"></i>获取API Key: <a href="https://bailian.console.aliyun.com/" target="_blank" class="underline">阿里云百炼控制台</a>
+                            </p>
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gh-light mb-2">API Endpoint (可选)</label>
-                            <input v-model="settings.apiEndpoint" type="text" 
+                            <input v-model="settings.apiEndpoint" type="text"
                                 class="w-full px-4 py-2.5 border border-gh-border rounded-lg bg-gh-elevated focus:outline-none focus:border-gh-blue text-white font-mono text-sm"
-                                placeholder="自定义 API 端点">
+                                :placeholder="getDefaultEndpoint(settings.aiProvider)">
+                            <p v-if="settings.aiProvider === 'bailian'" class="text-xs text-gh-text mt-1">
+                                <i class="fas fa-link mr-1"></i>默认: https://dashscope.aliyuncs.com/compatible-mode/v1
+                            </p>
                         </div>
                     </div>
 
@@ -2025,7 +2032,8 @@
                     availableModels: {
                         anthropic: ['claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
                         openai: ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
-                        deepseek: ['deepseek-chat', 'deepseek-coder']
+                        deepseek: ['deepseek-chat', 'deepseek-coder'],
+                        bailian: ['qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen-long']
                     },
                     showAgentDetailModal: false,
                     selectedAgent: null,
@@ -2784,6 +2792,30 @@
                     }
                     // 清空 API Key 提示用户重新输入
                     this.settings.apiKey = '';
+                    // 清空自定义端点（使用默认）
+                    this.settings.apiEndpoint = '';
+                },
+
+                // 获取提供商显示名称
+                getProviderDisplayName(provider) {
+                    const names = {
+                        anthropic: 'Anthropic',
+                        openai: 'OpenAI',
+                        deepseek: 'DeepSeek',
+                        bailian: '阿里云百炼'
+                    };
+                    return names[provider] || provider;
+                },
+
+                // 获取默认API端点
+                getDefaultEndpoint(provider) {
+                    const endpoints = {
+                        anthropic: 'https://api.anthropic.com',
+                        openai: 'https://api.openai.com/v1',
+                        deepseek: 'https://api.deepseek.com/v1',
+                        bailian: 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+                    };
+                    return endpoints[provider] || '自定义 API 端点';
                 },
 
                 // 加密 API Key (简单的 Base64 + 混淆)
