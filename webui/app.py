@@ -523,20 +523,56 @@ async def get_settings():
         "settings": SETTINGS_STORE
     })
 
+import base64
+
+def decrypt_api_key(encrypted: str) -> str:
+    """
+    解密前端加密的 API Key
+    前端加密方式：反转 + Base64
+    """
+    if not encrypted:
+        return ""
+    try:
+        # 前端加密格式：前缀 + Base64(反转的key)
+        if encrypted.startswith("enc:"):
+            encrypted = encrypted[4:]  # 去掉前缀
+        # Base64 解码
+        decoded = base64.b64decode(encrypted).decode('utf-8')
+        # 反转回来
+        return decoded[::-1]
+    except Exception:
+        return encrypted  # 如果解密失败，返回原值
+
+
 @app.post("/api/v1/settings")
 async def save_settings(request: dict):
     """保存系统设置"""
     global SETTINGS_STORE
-    
+
+    logger.info(f"[DEBUG] save_settings 收到请求: {list(request.keys())}")
+
     if "settings" not in request:
         raise HTTPException(status_code=400, detail="缺少设置数据")
-    
-    # 合并设置，保留API Key的加密版本
+
+    # 合并设置
     new_settings = request["settings"]
+    logger.info(f"[DEBUG] new_settings 字段: {list(new_settings.keys())}")
+
+    # 处理 API Key：前端可能发送 apiKey 或 apiKeyEncrypted
+    if "apiKeyEncrypted" in new_settings:
+        # 解密加密的 API Key
+        decrypted = decrypt_api_key(new_settings["apiKeyEncrypted"])
+        new_settings["apiKey"] = decrypted
+        logger.info(f"[DEBUG] 解密 apiKeyEncrypted -> apiKey: {'*' * 8 if decrypted else 'empty'}")
+        # 保留加密版本用于返回给前端
+        SETTINGS_STORE["apiKeyEncrypted"] = new_settings["apiKeyEncrypted"]
+    elif "apiKey" in new_settings:
+        logger.info(f"[DEBUG] 直接收到 apiKey: {'*' * 8 if new_settings['apiKey'] else 'empty'}")
+
     SETTINGS_STORE.update(new_settings)
-    
-    logger.info(f"设置已更新: {list(new_settings.keys())}")
-    
+
+    logger.info(f"[DEBUG] SETTINGS_STORE 当前状态: apiKey={'存在' if SETTINGS_STORE.get('apiKey') else '不存在'}, apiKeyEncrypted={'存在' if SETTINGS_STORE.get('apiKeyEncrypted') else '不存在'}")
+
     return JSONResponse({
         "success": True,
         "message": "设置保存成功",
@@ -666,11 +702,15 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
         if not provider:
             provider = SETTINGS_STORE.get("aiProvider", "bailian")
         if not api_key:
+            # 优先从 apiKey 读取，如果没有则尝试从 apiKeyEncrypted 解密
             api_key = SETTINGS_STORE.get("apiKey", "")
+            if not api_key and SETTINGS_STORE.get("apiKeyEncrypted"):
+                api_key = decrypt_api_key(SETTINGS_STORE.get("apiKeyEncrypted", ""))
+                logger.info(f"[DEBUG] 从 apiKeyEncrypted 解密得到 API Key")
         if not model:
             model = SETTINGS_STORE.get("model", "qwen3.5-plus")
         if not endpoint:
-            endpoint = SETTINGS_STORE.get("endpoint", "")
+            endpoint = SETTINGS_STORE.get("endpoint", "") or SETTINGS_STORE.get("apiEndpoint", "")
 
         logger.info(f"AI聊天使用配置: provider={provider}, model={model}, api_key={'*' * 8 if api_key else 'None'}")
 
