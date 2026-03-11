@@ -652,27 +652,17 @@ async def test_ai_connection(request: dict):
 
     # 百炼API特殊处理
     if provider == "bailian":
-        # 验证 endpoint 格式
-        endpoint_warning = None
+        # 百炼 API - 不自动修正 endpoint，用户设置什么就是什么
+        # 默认使用 coding 端点: https://coding.dashscope.aliyuncs.com/v1
         if endpoint:
             endpoint = endpoint.strip()
-            # 检查是否使用了不推荐的 endpoint
-            if 'coding-intl.dashscope.aliyuncs.com' in endpoint:
-                endpoint_warning = "提示：coding-intl.dashscope.aliyuncs.com 将自动修正为 dashscope-intl.aliyuncs.com/compatible-mode/v1"
-            elif 'coding.dashscope.aliyuncs.com' in endpoint:
-                endpoint_warning = "提示：coding.dashscope.aliyuncs.com 将自动修正为 dashscope.aliyuncs.com/compatible-mode/v1"
-            elif '/compatible-mode' not in endpoint and 'dashscope' in endpoint:
-                endpoint_warning = "提示：建议使用 /compatible-mode/v1 路径以获得 OpenAI 兼容格式"
 
         # 百炼API支持多种前缀，不做严格格式检查
         if api_key.startswith("sk-") or len(api_key) >= 20:
-            response = {
+            return JSONResponse({
                 "success": True,
                 "message": "阿里云百炼 API 连接成功"
-            }
-            if endpoint_warning:
-                response["warning"] = endpoint_warning
-            return JSONResponse(response)
+            })
 
     prefixes = valid_prefixes.get(provider, ["sk-"])
     is_valid = any(api_key.startswith(p) for p in prefixes)
@@ -744,38 +734,16 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
         if api_key and provider:
             # 百炼API使用OpenAI兼容格式
             if provider == "bailian":
-                # 百炼 API endpoint 自动修正
-                # 支持的格式：
-                # - https://dashscope.aliyuncs.com/compatible-mode/v1 (中国站)
-                # - https://dashscope-intl.aliyuncs.com/compatible-mode/v1 (国际站)
+                # 百炼 API endpoint - 不自动修正，用户设置什么就是什么
+                # 默认使用 coding 端点
                 if endpoint:
                     # 清理 API Key 中可能的空格和换行
                     api_key = api_key.strip()
-
-                    # 自动修正 endpoint 格式
+                    # 直接使用用户提供的 endpoint，不做任何修改
                     base_url = endpoint.rstrip('/')
-
-                    # 如果 endpoint 不包含 /compatible-mode，自动添加
-                    if '/compatible-mode' not in base_url:
-                        # 处理 coding.dashscope.aliyuncs.com 或 coding-intl.dashscope.aliyuncs.com
-                        if 'coding-intl.dashscope.aliyuncs.com' in base_url:
-                            # 国际站：替换为正确的格式
-                            base_url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-                            logger.info(f"[百炼API] 自动修正 endpoint: {endpoint} -> {base_url}")
-                        elif 'coding.dashscope.aliyuncs.com' in base_url:
-                            # 中国站 coding 端点：替换为标准格式
-                            base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-                            logger.info(f"[百炼API] 自动修正 endpoint: {endpoint} -> {base_url}")
-                        elif 'dashscope.aliyuncs.com' in base_url and not base_url.endswith('/compatible-mode/v1'):
-                            # 其他 dashscope 域名，添加 /compatible-mode/v1
-                            base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-                            logger.info(f"[百炼API] 自动修正 endpoint: {endpoint} -> {base_url}")
-                        else:
-                            # 其他自定义 endpoint，添加 /v1 如果需要
-                            if not base_url.endswith('/v1'):
-                                base_url = base_url.rstrip('/') + '/v1'
                 else:
-                    base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+                    # 默认 endpoint
+                    base_url = "https://coding.dashscope.aliyuncs.com/v1"
 
                 api_url = f"{base_url}/chat/completions"
                 headers = {
