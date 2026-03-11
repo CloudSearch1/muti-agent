@@ -64,7 +64,7 @@ async def test_llm_connection():
         print("建议:")
         print("  - 检查 .env 文件中的 OPENAI_API_KEY 是否正确")
         print("  - 检查网络连接")
-        print("  - 访问 https://coding.dashscope.aliyuncs.com 验证 API 状态")
+        print("  - 访问 https://dashscope.aliyuncs.com 验证 API 状态")
         return False
 
 

@@ -163,7 +163,8 @@ intelliteam/
 ```bash
 # LLM 配置
 OPENAI_API_KEY=sk-your-key
-OPENAI_API_BASE=https://coding.dashscope.aliyuncs.com/v1
+# 百炼 API 推荐使用 OpenAI 兼容模式
+OPENAI_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
 OPENAI_MODEL=qwen3.5-plus
 
 # 数据库
