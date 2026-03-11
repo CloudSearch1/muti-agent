@@ -194,6 +194,30 @@
         .pulse-dot { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
+        /* === 打字机光标动画 === */
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #58a6ff;
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* 流式文本淡入效果 */
+        .stream-text {
+            animation: fadeIn 0.1s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0.7; }
+            to { opacity: 1; }
+        }
+
         /* === 响应式隐藏 === */
         @media (max-width: 768px) {
             .hide-mobile { display: none !important; }
@@ -1318,13 +1342,24 @@
                                     <div class="flex items-center gap-2 mb-1">
                                         <span class="text-sm font-medium text-white">{{ msg.role === 'user' ? '您' : 'AI 助手' }}</span>
                                         <span class="text-xs text-gh-text">{{ formatAiTime(msg.time) }}</span>
+                                        <!-- 停止生成按钮 -->
+                                        <button v-if="msg.isStreaming && aiStreaming"
+                                                @click="stopAiGeneration"
+                                                class="text-xs px-2 py-0.5 bg-gh-red/20 text-gh-red rounded hover:bg-gh-red/30 transition">
+                                            <i class="fas fa-stop mr-1"></i>停止
+                                        </button>
                                     </div>
-                                    <div class="text-sm text-gh-light prose prose-invert max-w-none" v-html="renderAiMarkdown(msg.content)"></div>
+                                    <!-- AI 消息内容 - 支持流式显示和光标 -->
+                                    <div class="text-sm text-gh-light prose prose-invert max-w-none stream-text">
+                                        <span v-html="renderAiMarkdown(msg.displayContent || msg.content)"></span>
+                                        <!-- 打字机光标 -->
+                                        <span v-if="msg.isStreaming" class="typing-cursor"></span>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- 加载指示器 -->
-                            <div v-if="aiLoading" class="flex gap-3">
+                            <!-- 旧的加载指示器（仅在非流式等待时显示） -->
+                            <div v-if="aiLoading && !aiStreaming && aiMessages.length > 0 && !aiMessages[aiMessages.length - 1].isStreaming" class="flex gap-3">
                                 <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center flex-shrink-0">
                                     <i class="fas fa-robot text-white text-sm"></i>
                                 </div>
@@ -1390,12 +1425,19 @@
                                         </button>
                                     </div>
                                 </div>
-                                <button
+                                <!-- 发送/停止按钮 -->
+                                <button v-if="!aiStreaming"
                                     @click="sendAiMessage"
                                     :disabled="!aiInputMessage.trim() || aiLoading"
                                     class="w-10 h-10 bg-gh-green hover:bg-green-500 disabled:bg-gh-elevated disabled:text-gh-text rounded-lg flex items-center justify-center transition"
                                 >
                                     <i class="fas fa-paper-plane text-white"></i>
+                                </button>
+                                <button v-else
+                                    @click="stopAiGeneration"
+                                    class="w-10 h-10 bg-gh-red hover:bg-red-600 rounded-lg flex items-center justify-center transition"
+                                >
+                                    <i class="fas fa-stop text-white"></i>
                                 </button>
                             </div>
                         </div>
@@ -2130,6 +2172,12 @@
                     aiMessages: [],
                     aiInputMessage: '',
                     aiLoading: false,
+                    aiStreaming: false,          // SSE 流式传输中
+                    aiStreamBuffer: '',          // 流式接收的完整内容
+                    aiDisplayContent: '',        // 当前显示的内容
+                    aiTypingIndex: 0,            // 打字机位置
+                    aiTypingTimer: null,         // 打字机定时器
+                    aiAbortController: null,     // 用于取消请求
                     fileTree: [
                         { name: 'src', type: 'folder', path: 'src' },
                         { name: 'webui', type: 'folder', path: 'webui' },
@@ -3178,7 +3226,7 @@
                 // AI 助手相关方法
                 async sendAiMessage() {
                     const message = this.aiInputMessage.trim();
-                    if (!message || this.aiLoading) return;
+                    if (!message || this.aiLoading || this.aiStreaming) return;
 
                     // 添加用户消息
                     this.aiMessages.push({
@@ -3190,8 +3238,29 @@
                     this.aiInputMessage = '';
                     this.scrollAiToBottom();
 
-                    // 发送给 AI
+                    // 添加 AI 回复占位
+                    this.aiMessages.push({
+                        role: 'assistant',
+                        content: '',
+                        displayContent: '',    // 显示的内容
+                        isStreaming: true,     // 正在流式传输
+                        time: new Date()
+                    });
+                    const aiMsgIndex = this.aiMessages.length - 1;
+
+                    // 初始化流式状态
                     this.aiLoading = true;
+                    this.aiStreaming = true;
+                    this.aiStreamBuffer = '';
+                    this.aiDisplayContent = '';
+                    this.aiTypingIndex = 0;
+
+                    // 创建 AbortController 用于取消请求
+                    this.aiAbortController = new AbortController();
+
+                    // 启动打字机效果
+                    this.startTypewriter(aiMsgIndex);
+
                     try {
                         const response = await fetch('/api/v1/chat', {
                             method: 'POST',
@@ -3199,36 +3268,133 @@
                                 'Content-Type': 'application/json'
                             },
                             body: JSON.stringify({
-                                messages: this.aiMessages.map(m => ({
+                                messages: this.aiMessages.slice(0, -1).map(m => ({
                                     role: m.role,
                                     content: m.content
                                 })),
-                                stream: false
-                            })
+                                stream: true,
+                                provider: this.settings.aiProvider,
+                                model: this.settings.model,
+                                apiKey: this.settings.apiKey,
+                                endpoint: this.settings.apiEndpoint,
+                                temperature: this.settings.temperature,
+                                max_tokens: this.settings.maxTokens
+                            }),
+                            signal: this.aiAbortController.signal
                         });
 
-                        if (response.ok) {
-                            const data = await response.json();
-                            this.aiMessages.push({
-                                role: 'assistant',
-                                content: data.response || '抱歉，我无法处理您的请求。',
-                                time: new Date()
-                            });
-                        } else {
+                        if (!response.ok) {
                             throw new Error('API 请求失败');
                         }
+
+                        // 读取流式响应
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+
+                            const chunk = decoder.decode(value);
+                            const lines = chunk.split('\n');
+
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    const data = line.slice(6).trim();
+                                    if (data === '[DONE]') continue;
+
+                                    try {
+                                        const json = JSON.parse(data);
+                                        if (json.content) {
+                                            // 将内容添加到缓冲区
+                                            this.aiStreamBuffer += json.content;
+                                        }
+                                        if (json.error) {
+                                            this.aiStreamBuffer += `\n⚠️ 错误: ${json.error}`;
+                                        }
+                                    } catch (e) {
+                                        // 尝试作为纯文本处理
+                                        if (data && !data.startsWith('{')) {
+                                            this.aiStreamBuffer += data;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     } catch (error) {
-                        console.error('发送消息失败:', error);
-                        this.aiMessages.push({
-                            role: 'assistant',
-                            content: '抱歉，连接 AI 服务失败，请稍后重试。',
-                            time: new Date()
-                        });
+                        if (error.name === 'AbortError') {
+                            // 用户主动取消
+                            this.aiStreamBuffer += '\n\n*生成已停止*';
+                        } else {
+                            console.error('发送消息失败:', error);
+                            this.aiStreamBuffer = '抱歉，连接 AI 服务失败，请稍后重试。';
+                        }
                     } finally {
-                        this.aiLoading = false;
-                        this.scrollAiToBottom();
-                        this.saveAiChatHistory();
+                        // 标记流式传输结束，等待打字机完成
+                        this.aiStreaming = false;
+                        this.aiAbortController = null;
                     }
+                },
+
+                // 启动打字机效果
+                startTypewriter(msgIndex) {
+                    // 先清除之前的定时器
+                    if (this.aiTypingTimer) {
+                        cancelAnimationFrame(this.aiTypingTimer);
+                    }
+
+                    const typeNext = () => {
+                        if (msgIndex >= this.aiMessages.length) return;
+
+                        const msg = this.aiMessages[msgIndex];
+                        const bufferLength = this.aiStreamBuffer.length;
+                        const displayLength = msg.displayContent ? msg.displayContent.length : 0;
+
+                        // 如果还有内容需要显示
+                        if (displayLength < bufferLength) {
+                            // 计算每次显示的字符数（实现加速效果）
+                            const remaining = bufferLength - displayLength;
+                            const speed = Math.min(3, Math.ceil(remaining / 20)); // 动态速度
+
+                            // 追加新内容
+                            const newContent = this.aiStreamBuffer.slice(displayLength, displayLength + speed);
+                            msg.displayContent = (msg.displayContent || '') + newContent;
+                            msg.content = msg.displayContent;
+
+                            this.scrollAiToBottom();
+                        }
+
+                        // 如果流式传输结束且显示完成
+                        if (!this.aiStreaming && displayLength >= bufferLength) {
+                            msg.isStreaming = false;
+                            this.aiLoading = false;
+                            this.stopTypewriter();
+                            this.saveAiChatHistory();
+                            return;
+                        }
+
+                        // 继续下一帧
+                        this.aiTypingTimer = requestAnimationFrame(typeNext);
+                    };
+
+                    // 启动打字机
+                    this.aiTypingTimer = requestAnimationFrame(typeNext);
+                },
+
+                // 停止打字机效果
+                stopTypewriter() {
+                    if (this.aiTypingTimer) {
+                        cancelAnimationFrame(this.aiTypingTimer);
+                        this.aiTypingTimer = null;
+                    }
+                },
+
+                // 停止生成
+                stopAiGeneration() {
+                    if (this.aiAbortController) {
+                        this.aiAbortController.abort();
+                    }
+                    this.aiStreaming = false;
                 },
 
                 sendQuickAiMessage(message) {
@@ -3271,19 +3437,41 @@
 
                 clearAiChat() {
                     if (confirm('确定要清空所有聊天记录吗？')) {
+                        // 停止正在进行的生成
+                        this.stopAiGeneration();
+                        this.stopTypewriter();
+
+                        // 重置状态
                         this.aiMessages = [];
+                        this.aiLoading = false;
+                        this.aiStreaming = false;
+                        this.aiStreamBuffer = '';
+                        this.aiDisplayContent = '';
+
                         localStorage.removeItem('aiChatHistory');
+                        this.showToast('对话已清空', 'success');
                     }
                 },
 
                 saveAiChatHistory() {
-                    localStorage.setItem('aiChatHistory', JSON.stringify(this.aiMessages));
+                    // 只保存必要的字段，不保存临时状态
+                    const messagesToSave = this.aiMessages.map(m => ({
+                        role: m.role,
+                        content: m.content,
+                        time: m.time
+                    }));
+                    localStorage.setItem('aiChatHistory', JSON.stringify(messagesToSave));
                 },
 
                 loadAiChatHistory() {
                     const history = localStorage.getItem('aiChatHistory');
                     if (history) {
                         this.aiMessages = JSON.parse(history);
+                        // 确保加载的消息没有流式状态
+                        this.aiMessages.forEach(m => {
+                            m.isStreaming = false;
+                            m.displayContent = m.content;
+                        });
                     }
                 },
 
