@@ -361,7 +361,9 @@ async def get_workflows():
 
 
 # ============ Skills API ============
+# 同时支持带斜杠和不带斜杠的路径，避免返回 HTML 错误页面
 
+@app.get("/api/v1/skills")
 @app.get("/api/v1/skills/")
 async def get_skills(category: str = None, enabled: bool = None):
     """获取技能列表"""
@@ -378,6 +380,7 @@ async def get_skills(category: str = None, enabled: bool = None):
     return {"items": skills, "total": len(skills)}
 
 
+@app.post("/api/v1/skills")
 @app.post("/api/v1/skills/")
 async def create_skill(skill: dict):
     """创建新技能"""

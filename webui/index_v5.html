@@ -35,8 +35,35 @@
         };
     </script>
 
-    <!-- FontAwesome (国内 CDN) -->
-    <link rel="stylesheet" href="https://cdn.staticfile.org/font-awesome/6.5.1/css/all.min.css">
+    <!-- FontAwesome (多 CDN 备份策略) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css'">
+    <!-- 备用 CDN 加载脚本 -->
+    <script>
+        (function() {
+            var checkFA = setInterval(function() {
+                // 检测 FontAwesome 是否加载成功
+                var testEl = document.createElement('i');
+                testEl.className = 'fas fa-check';
+                testEl.style.display = 'none';
+                document.body.appendChild(testEl);
+                var computed = window.getComputedStyle(testEl);
+                var loaded = computed.fontFamily.indexOf('Font Awesome') !== -1 ||
+                             computed.getPropertyValue('font-family').indexOf('Font') !== -1;
+                document.body.removeChild(testEl);
+
+                if (!loaded && !window.faFallbackLoaded) {
+                    window.faFallbackLoaded = true;
+                    console.log('FontAwesome 主 CDN 加载失败，尝试备用 CDN');
+                    var link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = 'https://use.fontawesome.com/releases/v6.5.1/css/all.css';
+                    document.head.appendChild(link);
+                }
+                clearInterval(checkFA);
+            }, 2000);
+        })();
+    </script>
 
     <!-- Marked.js for Markdown rendering -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
