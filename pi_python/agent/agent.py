@@ -1,7 +1,7 @@
 """
 PI-Python Agent 类
 
-有状态的 Agent 运行时，支持工具调用和事件流
+有状态的 Agent 运行时，支持工具调用、事件流和技能集成
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from ..ai import (
@@ -23,6 +24,7 @@ from ..ai import (
     stream,
 )
 from ..ai.stream import AssistantMessageEventStream, StreamOptions
+from ..skills import Skill, SkillLoader, SkillRegistry
 from .events import AgentEvent, AgentEventType
 from .session import Session
 from .tools import AgentTool
@@ -41,6 +43,10 @@ class AgentState:
     pending_tool_calls: set[str] = field(default_factory=set)
     error: str | None = None
     session: Session | None = None
+    # Skills 相关
+    skill_registry: SkillRegistry | None = None
+    active_skills: list[Skill] = field(default_factory=list)
+    skills_injected: bool = False
 
 
 class Agent:
@@ -52,6 +58,7 @@ class Agent:
     - 工具执行生命周期
     - 事件驱动架构
     - Steering/Follow-up 消息队列
+    - Skills 集成（动态加载和注入）
     """
 
     def __init__(
@@ -61,6 +68,9 @@ class Agent:
         transform_context: Callable[[Context], Awaitable[Context]] | None = None,
         steering_mode: str = "one-at-a-time",
         follow_up_mode: str = "one-at-a-time",
+        skill_registry: SkillRegistry | None = None,
+        skills_dir: Path | None = None,
+        auto_match_skills: bool = True,
     ):
         """
         初始化 Agent
@@ -71,6 +81,9 @@ class Agent:
             transform_context: 上下文转换函数（用于压缩、注入外部上下文）
             steering_mode: Steering 模式
             follow_up_mode: Follow-up 模式
+            skill_registry: 技能注册表（可选，不提供则使用全局注册表）
+            skills_dir: 技能目录（可选，用于加载技能文件）
+            auto_match_skills: 是否自动匹配技能（默认 True）
         """
         self.state = initial_state
         self._convert_to_llm = convert_to_llm or self._default_convert_to_llm
@@ -81,6 +94,18 @@ class Agent:
         self._steering_queue: asyncio.Queue[Message] = asyncio.Queue()
         self._follow_up_queue: asyncio.Queue[Message] = asyncio.Queue()
         self._abort_controller = asyncio.Event()
+        self._auto_match_skills = auto_match_skills
+
+        # 初始化技能注册表
+        if skill_registry:
+            self.state.skill_registry = skill_registry
+        else:
+            from ..skills.registry import get_skill_registry
+            self.state.skill_registry = get_skill_registry()
+
+        # 从目录加载技能
+        if skills_dir:
+            self._load_skills_from_directory(skills_dir)
 
     def subscribe(self, callback: Callable[[AgentEvent], Awaitable[None]]) -> None:
         """订阅 Agent 事件"""
@@ -208,8 +233,17 @@ class Agent:
 
     async def _build_context(self) -> Context:
         """构建上下文"""
+        # 构建系统提示词，包含 Skills
+        system_prompt = self.state.system_prompt
+
+        # 如果有技能注册表且尚未注入，添加技能列表
+        if self.state.skill_registry and not self.state.skills_injected:
+            skills_prompt = self.format_skills_for_prompt()
+            if skills_prompt:
+                system_prompt = system_prompt + skills_prompt
+
         context = Context(
-            system_prompt=self.state.system_prompt,
+            system_prompt=system_prompt,
             messages=self._convert_to_llm(self.state.messages),
             tools=[t.to_tool() for t in self.state.tools]
         )
@@ -382,3 +416,146 @@ class Agent:
 
         message = await complete(self.state.model, context)
         return message.text
+
+    # ===========================================
+    # Skills 集成方法
+    # ===========================================
+
+    def _load_skills_from_directory(self, skills_dir: Path) -> int:
+        """
+        从目录加载技能
+
+        Args:
+            skills_dir: 技能目录
+
+        Returns:
+            加载的技能数量
+        """
+        if self.state.skill_registry:
+            return self.state.skill_registry.load_from_directory(skills_dir)
+        return 0
+
+    def format_skills_for_prompt(self, skills: list[Skill] | None = None) -> str:
+        """
+        格式化技能为紧凑的提示词格式
+
+        参考 OpenClaw 的紧凑格式，在系统提示词中显示为简洁列表
+
+        Args:
+            skills: 要格式化的技能列表（None 则使用所有已注册技能）
+
+        Returns:
+            格式化后的技能提示词
+        """
+        registry = self.state.skill_registry
+        if not registry:
+            return ""
+
+        skills_to_format = skills if skills is not None else registry.list()
+        if not skills_to_format:
+            return ""
+
+        lines = [
+            "",
+            "# Available Skills",
+            "",
+            "Skills provide specialized capabilities. Invoke with: skill: \"<name>\"",
+            "",
+        ]
+
+        # 紧凑格式：每个技能一行
+        for skill in skills_to_format:
+            trigger_hint = f" - trigger: {', '.join(skill.triggers[:3])}" if skill.triggers else ""
+            lines.append(f"- **{skill.name}**: {skill.description}{trigger_hint}")
+
+        lines.append("")
+        lines.append("When a skill matches the user's request, follow its guidance.")
+        lines.append("")
+
+        return "\n".join(lines)
+
+    def match_skills(self, text: str) -> list[Skill]:
+        """
+        匹配用户输入与技能
+
+        Args:
+            text: 用户输入文本
+
+        Returns:
+            匹配的技能列表
+        """
+        if not self.state.skill_registry:
+            return []
+
+        return self.state.skill_registry.find_matching(text)
+
+    def inject_skill_instructions(self, skills: list[Skill]) -> str:
+        """
+        注入技能详细指令
+
+        当技能被触发时，动态加载完整的技能指令
+
+        Args:
+            skills: 要注入的技能列表
+
+        Returns:
+            完整的技能指令
+        """
+        if not skills:
+            return ""
+
+        lines = ["", "# Active Skill Instructions", ""]
+
+        for skill in skills:
+            lines.append(skill.to_prompt())
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def set_skill_registry(self, registry: SkillRegistry) -> None:
+        """设置技能注册表"""
+        self.state.skill_registry = registry
+
+    def register_skill(self, skill: Skill) -> None:
+        """注册单个技能"""
+        if self.state.skill_registry:
+            self.state.skill_registry.register(skill)
+
+    def get_active_skills(self) -> list[Skill]:
+        """获取当前激活的技能"""
+        return self.state.active_skills.copy()
+
+    def clear_active_skills(self) -> None:
+        """清除激活的技能"""
+        self.state.active_skills.clear()
+        self.state.skills_injected = False
+
+    async def prompt_with_skills(
+        self,
+        content: str | list[Any],
+        inject_matched: bool = True
+    ) -> None:
+        """
+        发送提示并自动处理技能
+
+        Args:
+            content: 用户输入
+            inject_matched: 是否注入匹配的技能指令
+        """
+        # 匹配技能
+        if self._auto_match_skills and inject_matched:
+            text = content if isinstance(content, str) else str(content)
+            matched = self.match_skills(text)
+
+            if matched:
+                self.state.active_skills = matched
+
+                # 注入技能指令到系统提示词
+                skill_instructions = self.inject_skill_instructions(matched)
+                if skill_instructions:
+                    original_prompt = self.state.system_prompt
+                    self.state.system_prompt = original_prompt + skill_instructions
+                    self.state.skills_injected = True
+
+        # 调用原始 prompt 方法
+        await self.prompt(content)

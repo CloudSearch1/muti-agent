@@ -48,6 +48,11 @@ from .skills import (
     SkillLoader,
     SkillRegistry,
 )
+from .skills.registry import (
+    get_skill_registry,
+    register_skill,
+    find_skills,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -89,4 +94,7 @@ __all__ = [
     "Skill",
     "SkillLoader",
     "SkillRegistry",
+    "get_skill_registry",
+    "register_skill",
+    "find_skills",
 ]
