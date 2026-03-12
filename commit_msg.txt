@@ -1,0 +1,9 @@
+Major architecture update: role mapping system and modern WebUI
+
+- Implemented role-based architecture replacing legacy executor
+- Migrated WebUI from static HTML to modular JS components
+- Enhanced workflow engine with unified task management
+- Updated all agents to use new role mapping system
+- Added comprehensive documentation and tests
+
+58 files changed, +9352 -4533 lines

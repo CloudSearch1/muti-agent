@@ -3,7 +3,8 @@
  * 管理全局应用状态：导航、主题、通知、加载状态等
  */
 
-import { reactive, computed } from 'vue';
+// 使用全局Vue对象（从CDN加载）
+const { reactive, computed } = Vue;
 import { TABS, DEFAULT_SETTINGS } from '../utils/constants.js';
 
 // 创建响应式状态

@@ -5,6 +5,8 @@ IntelliTeam 应用工厂模块
 """
 
 import logging
+from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +23,29 @@ from .utils.exceptions import register_exception_handlers
 from .utils.logging_config import setup_logging
 
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时
+    logger.info("应用启动中...")
+    await init_health_checks()
+
+    # 连接缓存
+    from .api.response_cache import init_response_cacher
+    await init_response_cacher()
+
+    # 连接速率限制器
+    from .api.rate_limiter import init_rate_limiter
+    await init_rate_limiter()
+
+    logger.info("应用启动完成")
+    yield
+    # 关闭时
+    logger.info("应用关闭中...")
+    # 清理资源
+    logger.info("应用已关闭")
 
 
 def create_app(config_name: str = "production") -> FastAPI:
@@ -47,6 +72,7 @@ def create_app(config_name: str = "production") -> FastAPI:
         docs_url=None,  # 自定义
         redoc_url=None,  # 自定义
         openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
 
     # CORS
@@ -81,31 +107,6 @@ def create_app(config_name: str = "production") -> FastAPI:
 
     # 注册知识库路由
     app.include_router(knowledge_router, prefix="/api/v1")
-
-    # 初始化健康检查
-    @app.on_event("startup")
-    async def startup_event():
-        logger.info("应用启动中...")
-        await init_health_checks()
-
-        # 连接缓存
-        from .api.response_cache import init_response_cacher
-
-        await init_response_cacher()
-
-        # 连接速率限制器
-        from .api.rate_limiter import init_rate_limiter
-
-        await init_rate_limiter()
-
-        logger.info("应用启动完成")
-
-    # 关闭事件
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        logger.info("应用关闭中...")
-        # 清理资源
-        logger.info("应用已关闭")
 
     # Prometheus 指标
     @app.get("/metrics", include_in_schema=False)

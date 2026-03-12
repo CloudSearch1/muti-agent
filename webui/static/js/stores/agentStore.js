@@ -3,7 +3,8 @@
  * 管理 Agent 相关的状态和操作
  */
 
-import { reactive, computed } from 'vue';
+// 使用全局Vue对象（从CDN加载）
+const { reactive, computed } = Vue;
 import { api } from '../utils/api.js';
 import { DEFAULT_AGENTS, AGENT_STATUS } from '../utils/constants.js';
 import { appStore } from './appStore.js';

@@ -1,0 +1,19 @@
+feat(tools): implement ProcessTool for background process management
+
+- Add ProcessTool with 7 actions: list, poll, log, write, kill, clear, remove
+- Implement agent scope isolation for all operations
+- Integrate with ExecTool via shared ProcessSessionManager
+- Add comprehensive request/response models
+- Add unit tests for ProcessTool
+- Add usage documentation
+
+Actions:
+- list: List background sessions with pagination
+- poll: Poll session status with wait support
+- log: Get session logs (stdout/stderr/both)
+- write: Write input to running sessions
+- kill: Terminate sessions (SIGTERM + SIGKILL fallback)
+- clear: Clear session output buffers
+- remove: Delete session records
+
+Related: #tools-system-fix
