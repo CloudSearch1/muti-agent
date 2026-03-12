@@ -14,6 +14,11 @@ from typing import Any
 
 from ..ai import Message, parse_message
 
+__all__ = [
+    "Session",
+    "SessionManager",
+]
+
 
 class Session:
     """

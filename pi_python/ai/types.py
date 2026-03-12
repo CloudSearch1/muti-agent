@@ -12,6 +12,32 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+__all__ = [
+    # API 类型
+    "ApiType",
+    "StopReason",
+    # 内容类型
+    "TextContent",
+    "ImageContent",
+    "ThinkingContent",
+    "ToolCall",
+    "Content",
+    # 消息类型
+    "UserMessage",
+    "AssistantMessage",
+    "ToolResultMessage",
+    "Message",
+    "parse_message",
+    # 模型定义
+    "ModelCost",
+    "Model",
+    # 工具定义
+    "ToolParameter",
+    "Tool",
+    # 上下文
+    "Context",
+]
+
 # ============ API 类型 ============
 
 class ApiType(str, Enum):
@@ -164,6 +190,8 @@ class Tool(BaseModel):
     description: str
     parameters: dict[str, ToolParameter] = Field(default_factory=dict)
     required: list[str] = Field(default_factory=list)
+
+    model_config = {"arbitrary_types_allowed": True}
 
     def _build_properties(self) -> dict[str, Any]:
         """构建参数属性字典"""

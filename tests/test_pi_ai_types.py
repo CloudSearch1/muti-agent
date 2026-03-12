@@ -327,3 +327,104 @@ class TestContext:
         context.add_user_message("World")
         assert len(context.messages) == 2
         assert len(copy.messages) == 1
+
+
+class TestEdgeCases:
+    """边界情况测试"""
+
+    def test_empty_context_messages(self):
+        """测试空消息上下文"""
+        context = Context()
+        messages = context.to_openai_messages()
+        assert messages == []
+
+        anthropic_messages = context.to_anthropic_messages()
+        assert anthropic_messages == []
+
+    def test_context_without_system_prompt(self):
+        """测试无系统提示的上下文"""
+        context = Context()
+        context.add_user_message("Hello")
+
+        messages = context.to_openai_messages()
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+
+    def test_tool_call_with_empty_input(self):
+        """测试空输入的工具调用"""
+        tool_call = ToolCall(id="call_1", name="test", input={})
+        assert tool_call.input == {}
+
+    def test_model_cost_defaults(self):
+        """测试模型成本默认值"""
+        cost = ModelCost()
+        assert cost.input == 0.0
+        assert cost.output == 0.0
+        assert cost.cache_read == 0.0
+        assert cost.cache_write == 0.0
+
+    def test_tool_without_parameters(self):
+        """测试无参数工具"""
+        tool = Tool(name="test", description="Test tool")
+        assert tool.parameters == {}
+        assert tool.required == []
+
+        openai_format = tool.to_openai_format()
+        assert openai_format["function"]["name"] == "test"
+
+    def test_tool_parameter_with_enum(self):
+        """测试带枚举的工具参数"""
+        param = ToolParameter(
+            type="string",
+            description="Color",
+            enum=["red", "green", "blue"]
+        )
+        assert param.enum == ["red", "green", "blue"]
+
+    def test_assistant_message_with_only_tool_calls(self):
+        """测试只有工具调用的助手消息"""
+        msg = AssistantMessage(content=[
+            ToolCall(id="call_1", name="test", input={})
+        ])
+        assert msg.text == ""
+
+    def test_user_message_with_empty_text(self):
+        """测试空文本用户消息"""
+        msg = UserMessage.from_text("")
+        assert msg.content[0].text == ""
+
+    def test_context_with_tools(self):
+        """测试带工具的上下文"""
+        context = Context()
+        tool = Tool(name="test", description="Test tool")
+        context.tools.append(tool)
+        assert len(context.tools) == 1
+
+    def test_message_timestamp(self):
+        """测试消息时间戳"""
+        import time
+        before = time.time()
+        msg = UserMessage.from_text("Hello")
+        after = time.time()
+        assert before <= msg.timestamp <= after
+
+    def test_parse_message_with_extra_fields(self):
+        """测试带额外字段的消息解析"""
+        data = {
+            "role": "user",
+            "content": [{"type": "text", "text": "Hello"}],
+            "extra_field": "ignored"
+        }
+        msg = parse_message(data)
+        assert isinstance(msg, UserMessage)
+
+    def test_multiple_tool_calls_in_assistant_message(self):
+        """测试助手消息中的多个工具调用"""
+        msg = AssistantMessage(content=[
+            TextContent(text="Let me help you."),
+            ToolCall(id="call_1", name="bash", input={"cmd": "ls"}),
+            ToolCall(id="call_2", name="read", input={"path": "/tmp"}),
+        ])
+        assert msg.text == "Let me help you."
+        tool_calls = [c for c in msg.content if isinstance(c, ToolCall)]
+        assert len(tool_calls) == 2

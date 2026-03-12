@@ -22,6 +22,18 @@ from .types import (
     ToolCall,
 )
 
+__all__ = [
+    "AssistantMessageEvent",
+    "AssistantMessageEventStream",
+    "StreamOptions",
+    "EventBuilder",
+    "register_provider",
+    "get_provider",
+    "stream",
+    "stream_simple",
+    "complete",
+]
+
 
 @dataclass
 class AssistantMessageEvent:

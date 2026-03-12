@@ -14,6 +14,11 @@ from ..agent import Agent
 from ..agent.session import Session
 from ..agent.tools import AgentTool
 
+__all__ = [
+    "ExtensionContext",
+    "ExtensionAPI",
+]
+
 
 @dataclass
 class ExtensionContext:

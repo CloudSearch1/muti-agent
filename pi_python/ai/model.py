@@ -11,6 +11,22 @@ from typing import TYPE_CHECKING, Any
 
 from .types import ApiType, Model, ModelCost
 
+__all__ = [
+    "ModelRegistry",
+    "register_model",
+    "register_provider",
+    "get_model",
+    "get_provider",
+    "list_models",
+    "register_builtin_models",
+    # 内置模型常量
+    "OPENAI_MODELS",
+    "ANTHROPIC_MODELS",
+    "GOOGLE_MODELS",
+    "BAILIAN_MODELS",
+    "OLLAMA_MODELS",
+]
+
 if TYPE_CHECKING:
     from .stream import AssistantMessageEventStream
     from .types import Context, StreamOptions

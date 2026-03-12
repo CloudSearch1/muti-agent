@@ -14,6 +14,11 @@ from typing import Any
 
 from .api import ExtensionAPI, ExtensionContext
 
+__all__ = [
+    "ExtensionLoader",
+    "create_builtin_extensions",
+]
+
 logger = logging.getLogger(__name__)
 
 

@@ -10,6 +10,12 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+__all__ = [
+    "Skill",
+    "SkillLoader",
+    "create_builtin_skills",
+]
+
 
 @dataclass
 class Skill:

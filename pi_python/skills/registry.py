@@ -10,6 +10,13 @@ from pathlib import Path
 
 from .loader import Skill, SkillLoader
 
+__all__ = [
+    "SkillRegistry",
+    "get_skill_registry",
+    "register_skill",
+    "find_skills",
+]
+
 
 class SkillRegistry:
     """技能注册表"""
