@@ -127,9 +127,10 @@ class TestPlannerAgent:
         await agent.stop()
 
     @pytest.mark.asyncio
-    async def test_planner_execute(self, sample_task):
+    async def test_planner_execute(self, sample_task, mock_llm_helper):
         """测试 PlannerAgent 执行"""
-        agent = PlannerAgent()
+        # 使用 mock LLM helper 避免调用真实 API
+        agent = PlannerAgent(llm_helper=mock_llm_helper)
 
         # 设置任务输入
         sample_task.input_data = {
@@ -137,27 +138,35 @@ class TestPlannerAgent:
             "context": {},
         }
 
-        # 执行任务
+        # 执行任务（使用 fallback 逻辑）
         result = await agent.execute(sample_task)
 
         assert result["status"] == "planning_complete"
         assert "subtasks" in result
         assert len(result["subtasks"]) > 0
+        
+        # 验证 mock 没有被调用（因为 is_available 返回 False）
+        mock_llm_helper.is_available.assert_called()
 
     @pytest.mark.asyncio
-    async def test_planner_think(self):
+    async def test_planner_think(self, mock_llm_helper):
         """测试 PlannerAgent 思考"""
-        agent = PlannerAgent()
+        # 使用 mock LLM helper 避免调用真实 API
+        agent = PlannerAgent(llm_helper=mock_llm_helper)
 
         context = {
             "goal": "构建一个 Web 应用",
             "constraints": ["使用 Python", "使用 FastAPI"],
         }
 
+        # 执行思考（使用 fallback 逻辑）
         result = await agent.think(context)
 
         assert "subtasks" in result
         assert isinstance(result["subtasks"], list)
+        
+        # 验证 mock 没有被调用（因为 is_available 返回 False）
+        mock_llm_helper.is_available.assert_called()
 
 
 # ===========================================
@@ -177,9 +186,10 @@ class TestCoderAgent:
         assert agent.ROLE == AgentRole.CODER
 
     @pytest.mark.asyncio
-    async def test_coder_execute(self, sample_task):
+    async def test_coder_execute(self, sample_task, mock_llm_helper):
         """测试 CoderAgent 执行"""
-        agent = CoderAgent()
+        # 使用 mock LLM helper 避免调用真实 API
+        agent = CoderAgent(llm_helper=mock_llm_helper)
 
         # 设置任务输入
         sample_task.input_data = {

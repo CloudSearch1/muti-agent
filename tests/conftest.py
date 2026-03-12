@@ -86,6 +86,114 @@ def sample_agent_config():
     }
 
 
+# ============ Mock LLM Helper ============
+
+@pytest.fixture
+def mock_llm_helper():
+    """
+    Mock AgentLLMHelper for testing
+    
+    提供统一的 mock LLM helper，避免测试时调用真实 LLM API
+    
+    使用示例:
+        async def test_planner_with_mock(mock_llm_helper):
+            agent = PlannerAgent(llm_helper=mock_llm_helper)
+            result = await agent.execute(task)
+    
+    默认行为:
+        - is_available() 返回 False（触发 fallback 逻辑）
+        - 所有 LLM 方法都有 mock 实现
+    """
+    helper = MagicMock()
+    
+    # Mock is_available - 默认返回 False，避免调用真实 LLM
+    helper.is_available = MagicMock(return_value=False)
+    
+    # Mock generate 方法
+    helper.generate = AsyncMock(return_value="Mock LLM response")
+    
+    # Mock generate_json 方法 - 返回合理的测试数据
+    helper.generate_json = AsyncMock(return_value={
+        "reasoning": "Mock reasoning for testing",
+        "subtasks": [
+            {
+                "title": "Mock Subtask 1",
+                "description": "Description for mock subtask",
+                "priority": "normal",
+                "assigned_role": "coder",
+                "dependencies": [],
+                "input_data": {}
+            }
+        ]
+    })
+    
+    # Mock think 方法
+    helper.think = AsyncMock(return_value={
+        "analysis": "Mock analysis",
+        "decision": "proceed",
+        "subtasks": []
+    })
+    
+    return helper
+
+
+@pytest.fixture
+def mock_llm_helper_enabled():
+    """
+    Mock AgentLLMHelper with LLM enabled
+    
+    用于测试 LLM 可用时的场景
+    
+    使用示例:
+        async def test_with_llm_enabled(mock_llm_helper_enabled):
+            agent = PlannerAgent(llm_helper=mock_llm_helper_enabled)
+            # is_available() 返回 True
+    """
+    helper = MagicMock()
+    helper.is_available = MagicMock(return_value=True)
+    helper.generate = AsyncMock(return_value="Mock LLM response")
+    helper.generate_json = AsyncMock(return_value={
+        "reasoning": "Mock reasoning",
+        "subtasks": []
+    })
+    helper.think = AsyncMock(return_value={
+        "analysis": "Mock analysis",
+        "decision": "proceed"
+    })
+    return helper
+
+
+@pytest.fixture
+def mock_llm_helper_factory():
+    """
+    Mock AgentLLMHelper factory for custom responses
+    
+    返回一个工厂函数，允许为每个测试创建自定义的 mock helper
+    
+    使用示例:
+        async def test_custom(mock_llm_helper_factory):
+            mock_helper = mock_llm_helper_factory(
+                available=True,
+                generate_json_response={"custom": "data"}
+            )
+            agent = PlannerAgent(llm_helper=mock_helper)
+    """
+    def _create_mock(
+        available=False,
+        generate_response="Mock response",
+        generate_json_response=None,
+        think_response=None
+    ):
+        helper = MagicMock()
+        helper.is_available = MagicMock(return_value=available)
+        helper.generate = AsyncMock(return_value=generate_response)
+        helper.generate_json = AsyncMock(return_value=generate_json_response)
+        helper.think = AsyncMock(return_value=think_response or {})
+        return helper
+    
+    return _create_mock
+
+
 # ============ 测试辅助函数 ============
 
 def assert_response_ok(response):

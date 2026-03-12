@@ -20,6 +20,7 @@ from typing import Any, TypeVar
 from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String, Text, event, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
+from sqlalchemy.pool import NullPool
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -260,16 +261,32 @@ class DatabaseManager:
 
     def connect(self) -> None:
         """连接数据库 - 优化连接池配置"""
-        self.engine = create_async_engine(
-            self.database_url,
-            echo=False,
-            future=True,
-            pool_size=self.pool_size,
-            max_overflow=self.max_overflow,
-            pool_pre_ping=True,
-            pool_recycle=self.pool_recycle,
-            pool_timeout=self.pool_timeout,
-        )
+        # 构建引擎参数
+        engine_kwargs = {
+            "echo": False,
+            "future": True,
+        }
+
+        # SQLite 不支持连接池，需要特殊处理
+        if self.database_url.startswith("sqlite"):
+            # SQLite 使用 NullPool，每次操作创建新连接
+            engine_kwargs["poolclass"] = NullPool
+            logger.info("Using NullPool for SQLite (connection pooling not supported)")
+        else:
+            # PostgreSQL/MySQL 使用连接池
+            engine_kwargs.update({
+                "pool_size": self.pool_size,
+                "max_overflow": self.max_overflow,
+                "pool_pre_ping": True,
+                "pool_recycle": self.pool_recycle,
+                "pool_timeout": self.pool_timeout,
+            })
+            logger.info(
+                f"Using connection pool: pool_size={self.pool_size}, "
+                f"max_overflow={self.max_overflow}"
+            )
+
+        self.engine = create_async_engine(self.database_url, **engine_kwargs)
 
         # 注册查询事件监听
         @event.listens_for(self.engine.sync_engine, "before_cursor_execute")
@@ -288,10 +305,14 @@ class DatabaseManager:
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
 
-        logger.info(
-            f"Database connected: pool_size={self.pool_size}, "
-            f"max_overflow={self.max_overflow}"
-        )
+        # 根据数据库类型输出不同的连接信息
+        if self.database_url.startswith("sqlite"):
+            logger.info(f"Database connected: SQLite (NullPool mode)")
+        else:
+            logger.info(
+                f"Database connected: pool_size={self.pool_size}, "
+                f"max_overflow={self.max_overflow}"
+            )
 
     async def disconnect(self) -> None:
         """断开连接"""

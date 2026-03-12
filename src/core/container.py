@@ -2,19 +2,31 @@
 Agent 依赖注入容器
 
 管理 Agent 的所有依赖，支持动态切换和测试 Mock
+
+版本：2.0.0
+更新时间：2026-03-12
+增强功能：
+- 支持 Agent 实例的注册和获取
+- 支持 Agent 工厂函数注册
+- 支持批量 Agent 创建
 """
 
 import logging
+import threading
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 
 from ..db.database import DatabaseManager, get_database_manager
 from ..llm.cache import LLMCache, get_llm_cache
-from ..llm.llm_provider import LLMProvider, get_llm
+from ..llm.llm_provider import BaseProvider, get_llm
 from ..llm.semantic_cache import SemanticCache, get_semantic_cache
+from .models import AgentRole
 from .state_store import StateStore, get_state_store
 
 logger = logging.getLogger(__name__)
+
+# Agent 类型别名（避免循环导入）
+AgentFactory = Callable[[], Any]  # Agent 工厂函数类型
 
 
 @dataclass
@@ -60,13 +72,23 @@ class AgentContainer:
 
     _instance: "AgentContainer | None" = None
     _instances: dict[str, "AgentContainer"] = {}
+    _lock = threading.Lock()  # 类级别锁，保证单例创建的线程安全
 
     def __new__(cls, name: str = "default"):
-        """单例模式，支持多实例"""
+        """
+        单例模式，支持多实例（线程安全）
+        
+        使用双重检查锁定（Double-Checked Locking）模式：
+        1. 第一次检查避免不必要的锁竞争
+        2. 锁内第二次检查防止重复创建
+        """
         if name not in cls._instances:
-            instance = super().__new__(cls)
-            instance._initialized = False
-            cls._instances[name] = instance
+            with cls._lock:
+                # 双重检查：防止在等待锁期间其他线程已创建实例
+                if name not in cls._instances:
+                    instance = super().__new__(cls)
+                    instance._initialized = False
+                    cls._instances[name] = instance
         return cls._instances[name]
 
     def __init__(self, name: str = "default"):
@@ -77,11 +99,17 @@ class AgentContainer:
         self.config = AgentConfig()
 
         # 依赖项
-        self._llm_provider: LLMProvider | None = None
+        self._llm_provider: BaseProvider | None = None
         self._llm_cache: LLMCache | None = None
         self._semantic_cache: SemanticCache | None = None
         self._db_manager: DatabaseManager | None = None
         self._state_store: StateStore | None = None
+
+        # Agent 实例缓存
+        self._agents: dict[str, Any] = {}
+
+        # Agent 工厂函数注册表
+        self._agent_factories: dict[str, AgentFactory] = {}
 
         # 自定义依赖
         self._custom_deps: dict[str, Any] = {}
@@ -109,7 +137,7 @@ class AgentContainer:
         logger.info(f"AgentContainer '{self.name}' configured: {kwargs}")
         return self
 
-    def set_llm_provider(self, provider: LLMProvider):
+    def set_llm_provider(self, provider: BaseProvider):
         """设置 LLM 提供商"""
         self._llm_provider = provider
         logger.info(f"LLM provider set: {provider.__class__.__name__}")
@@ -145,7 +173,220 @@ class AgentContainer:
         logger.info(f"Custom dependency registered: {name}")
         return self
 
-    def get_llm(self) -> LLMProvider:
+    # ===========================================
+    # Agent 管理（新增）
+    # ===========================================
+
+    def register_agent(self, name: str, agent: Any) -> "AgentContainer":
+        """
+        注册 Agent 实例
+
+        Args:
+            name: Agent 名称（如 "planner", "architect"）
+            agent: Agent 实例
+
+        Returns:
+            self（支持链式调用）
+        """
+        self._agents[name] = agent
+        logger.info(f"Agent registered: {name}")
+        return self
+
+    def register_agent_factory(self, name: str, factory: AgentFactory) -> "AgentContainer":
+        """
+        注册 Agent 工厂函数
+
+        Args:
+            name: Agent 名称
+            factory: 创建 Agent 实例的工厂函数
+
+        Returns:
+            self（支持链式调用）
+
+        使用示例:
+            container.register_agent_factory("planner", lambda: PlannerAgent())
+        """
+        self._agent_factories[name] = factory
+        logger.info(f"Agent factory registered: {name}")
+        return self
+
+    def get_agent(self, name: str) -> Any:
+        """
+        获取 Agent 实例
+
+        优先级：
+        1. 已注册的 Agent 实例
+        2. 调用工厂函数创建并缓存
+
+        Args:
+            name: Agent 名称
+
+        Returns:
+            Agent 实例
+
+        Raises:
+            KeyError: Agent 未注册
+        """
+        # 1. 检查已缓存的实例
+        if name in self._agents:
+            return self._agents[name]
+
+        # 2. 使用工厂函数创建
+        if name in self._agent_factories:
+            agent = self._agent_factories[name]()
+            self._agents[name] = agent  # 缓存实例
+            logger.info(f"Agent created via factory: {name}")
+            return agent
+
+        raise KeyError(f"Agent not found: {name}. Please register it first.")
+
+    def has_agent(self, name: str) -> bool:
+        """检查 Agent 是否已注册"""
+        return name in self._agents or name in self._agent_factories
+
+    def get_all_agents(self) -> dict[str, Any]:
+        """
+        获取所有 Agent 实例
+
+        会触发所有已注册工厂函数的执行
+
+        Returns:
+            Agent 名称到实例的映射
+        """
+        # 确保所有工厂函数都被执行
+        for name in self._agent_factories:
+            if name not in self._agents:
+                self._agents[name] = self._agent_factories[name]()
+
+        return self._agents.copy()
+
+    def clear_agents(self) -> "AgentContainer":
+        """清除所有 Agent 实例（保留工厂函数）"""
+        self._agents.clear()
+        logger.info("All agent instances cleared")
+        return self
+
+    def create_agents_batch(self, agent_configs: dict[str, AgentFactory]) -> dict[str, Any]:
+        """
+        批量创建 Agent
+
+        Args:
+            agent_configs: Agent 名称到工厂函数的映射
+
+        Returns:
+            创建的 Agent 实例字典
+        """
+        agents = {}
+        for name, factory in agent_configs.items():
+            if name not in self._agents:
+                self._agent_factories[name] = factory
+                self._agents[name] = factory()
+                agents[name] = self._agents[name]
+                logger.info(f"Agent created: {name}")
+        return agents
+
+    def create_agent_by_role(
+        self,
+        role: AgentRole,
+        name: str | None = None,
+        **kwargs,
+    ) -> Any:
+        """
+        根据角色创建 Agent 实例
+
+        这是推荐的方式，使用 AgentRole 枚举自动映射到具体的 Agent 类。
+
+        Args:
+            role: Agent 角色枚举
+            name: Agent 名称（可选，默认使用角色名称）
+            **kwargs: 传递给 Agent 构造函数的额外参数
+
+        Returns:
+            Agent 实例
+
+        Raises:
+            ValueError: 角色未找到对应的 Agent 类
+
+        使用示例:
+            from src.core.models import AgentRole
+
+            container = get_agent_container()
+            planner = container.create_agent_by_role(AgentRole.PLANNER)
+            coder = container.create_agent_by_role(AgentRole.CODER, name="code_assistant")
+        """
+        agent_class = AgentRole.get_agent_class(role)
+        if agent_class is None:
+            raise ValueError(f"No agent class found for role: {role}")
+
+        # 使用角色值作为默认名称
+        agent_name = name or role.value
+
+        # 创建 Agent 实例
+        agent = agent_class(name=agent_name, **kwargs)
+
+        # 注册到容器
+        self._agents[agent_name] = agent
+        logger.info(f"Agent created by role: {role.value} -> {agent_class.__name__}")
+
+        return agent
+
+    def create_all_agents(self, **kwargs) -> dict[str, Any]:
+        """
+        创建所有角色的 Agent 实例
+
+        Args:
+            **kwargs: 传递给所有 Agent 构造函数的通用参数
+
+        Returns:
+            Agent 名称到实例的映射
+
+        使用示例:
+            container = get_agent_container()
+            agents = container.create_all_agents()
+            # 返回: {"planner": PlannerAgent, "architect": ArchitectAgent, ...}
+        """
+        agents = {}
+        for role in AgentRole.get_all_roles():
+            try:
+                agent = self.create_agent_by_role(role, **kwargs)
+                agents[role.value] = agent
+            except Exception as e:
+                logger.error(f"Failed to create agent for role {role.value}: {e}")
+
+        logger.info(f"Created {len(agents)} agents for all roles")
+        return agents
+
+    def get_agent_by_role(self, role: AgentRole) -> Any:
+        """
+        根据角色获取 Agent 实例
+
+        优先级：
+        1. 已注册的同名 Agent 实例
+        2. 已注册的同名工厂函数
+        3. 自动创建并注册
+
+        Args:
+            role: Agent 角色枚举
+
+        Returns:
+            Agent 实例
+
+        Raises:
+            ValueError: 角色未找到对应的 Agent 类
+        """
+        # 1. 尝试使用角色值作为名称查找
+        role_name = role.value
+        if role_name in self._agents:
+            return self._agents[role_name]
+
+        # 2. 检查工厂函数
+        if role_name in self._agent_factories:
+            return self.get_agent(role_name)
+
+        # 3. 自动创建
+        return self.create_agent_by_role(role)
+
+    def get_llm(self) -> BaseProvider:
         """获取 LLM 提供商"""
         if self._llm_provider:
             return self._llm_provider
@@ -203,6 +444,7 @@ class AgentContainer:
             "semantic_cache": self._semantic_cache,
             "db_manager": self._db_manager,
             "state_store": self._state_store,
+            "agents": self._agents,
             **self._custom_deps,
         }
 

@@ -2,8 +2,17 @@
 RAG 检索引擎模块
 
 提供检索增强生成（RAG）核心功能。
+
+版本：2.0.0
+更新时间：2026-03-12
+改进：
+- 实现混合检索（语义 + 关键词）
+- 支持 BM25 关键词搜索
+- 结果融合和重排序
 """
 
+import re
+from collections import Counter
 from typing import Any
 
 import structlog
@@ -18,6 +27,101 @@ logger = structlog.get_logger(__name__)
 DEFAULT_TOP_K = 5
 DEFAULT_MAX_CONTEXT_TOKENS = 3000
 DEFAULT_MIN_SCORE = 0.3
+
+
+def simple_tokenize(text: str) -> list[str]:
+    """
+    简单分词器
+    
+    支持中英文混合文本
+    """
+    # 转小写
+    text = text.lower()
+    # 分割中文字符
+    chinese_chars = re.findall(r'[\u4e00-\u9fff]+', text)
+    # 分割英文单词
+    english_words = re.findall(r'[a-z]+', text)
+    # 合并结果
+    tokens = []
+    for chars in chinese_chars:
+        # 中文按字符分割
+        tokens.extend(list(chars))
+    tokens.extend(english_words)
+    return tokens
+
+
+class BM25Scorer:
+    """
+    BM25 相关性评分器
+    
+    用于关键词搜索的排序算法
+    """
+    
+    def __init__(self, k1: float = 1.5, b: float = 0.75):
+        self.k1 = k1
+        self.b = b
+        self.doc_freqs: dict[str, int] = {}
+        self.doc_lens: list[int] = []
+        self.avgdl = 0.0
+        self.n_docs = 0
+    
+    def fit(self, documents: list[str]):
+        """训练 BM25 模型"""
+        self.n_docs = len(documents)
+        self.doc_freqs = Counter()
+        self.doc_lens = []
+        
+        for doc in documents:
+            tokens = simple_tokenize(doc)
+            self.doc_lens.append(len(tokens))
+            # 文档词频
+            seen = set()
+            for token in tokens:
+                if token not in seen:
+                    self.doc_freqs[token] += 1
+                    seen.add(token)
+        
+        # 平均文档长度
+        self.avgdl = sum(self.doc_lens) / self.n_docs if self.n_docs > 0 else 0
+    
+    def score(self, query: str, documents: list[str]) -> list[float]:
+        """
+        计算 BM25 分数
+        
+        Args:
+            query: 查询文本
+            documents: 文档列表
+            
+        Returns:
+            每个文档的 BM25 分数
+        """
+        query_tokens = simple_tokenize(query)
+        scores = []
+        
+        for i, doc in enumerate(documents):
+            doc_tokens = simple_tokenize(doc)
+            doc_len = self.doc_lens[i] if i < len(self.doc_lens) else len(doc_tokens)
+            
+            score = 0.0
+            for token in query_tokens:
+                # IDF
+                df = self.doc_freqs.get(token, 0)
+                idf = (
+                    (self.n_docs - df + 0.5) / (df + 0.5) + 1
+                    if df > 0 else 0
+                )
+                
+                # TF
+                tf = doc_tokens.count(token)
+                
+                # BM25 公式
+                numerator = tf * (self.k1 + 1)
+                denominator = tf + self.k1 * (1 - self.b + self.b * doc_len / self.avgdl)
+                score += idf * numerator / denominator
+            
+            scores.append(score)
+        
+        return scores
 
 
 class RAGEngine:
@@ -108,30 +212,197 @@ class RAGEngine:
         query: str,
         keyword_query: str | None = None,
         top_k: int | None = None,
+        alpha: float = 0.5,
     ) -> list[SearchResult]:
         """
         混合搜索（语义 + 关键词）
 
+        结合语义向量搜索和关键词 BM25 搜索，通过加权融合获得更好的检索效果。
+
         Args:
             query: 语义查询
-            keyword_query: 关键词查询
+            keyword_query: 关键词查询（如未提供，使用 query）
             top_k: 检索数量
+            alpha: 语义搜索权重（0-1），1-alpha 为关键词搜索权重
 
         Returns:
             检索结果列表
+
+        算法说明：
+            1. 执行语义向量搜索，获取 top_k * 2 个结果
+            2. 执行关键词 BM25 搜索，获取 top_k * 2 个结果
+            3. 使用 RR（Reciprocal Rank）融合两种结果
+            4. 按融合分数排序返回 top_k 个结果
         """
         top_k = top_k or self.top_k
+        keyword_query = keyword_query or query
+        
+        # 如果关键词查询与语义查询相同，且 alpha 为 1，直接使用语义搜索
+        if keyword_query == query and alpha >= 1.0:
+            return await self.retrieve(query, top_k=top_k)
 
-        # 语义搜索
-        semantic_results = await self.retrieve(query, top_k=top_k)
+        # 1. 语义搜索（获取更多结果以便融合）
+        semantic_results = await self.retrieve(query, top_k=top_k * 2)
+        
+        # 如果没有关键词查询或 alpha 为 1，直接返回语义结果
+        if not keyword_query or alpha >= 1.0:
+            return semantic_results[:top_k]
+        
+        # 2. 关键词搜索
+        keyword_results = await self._keyword_search(keyword_query, top_k * 2)
+        
+        # 3. 结果融合
+        merged_results = self._merge_results(
+            semantic_results=semantic_results,
+            keyword_results=keyword_results,
+            alpha=alpha,
+            top_k=top_k,
+        )
 
-        # 如果没有关键词查询，直接返回语义结果
-        if not keyword_query:
-            return semantic_results
+        self.logger.debug(
+            "Hybrid search completed",
+            query=query[:50],
+            keyword_query=keyword_query[:50] if keyword_query else None,
+            semantic_count=len(semantic_results),
+            keyword_count=len(keyword_results),
+            merged_count=len(merged_results),
+            alpha=alpha,
+        )
 
-        # TODO: 实现关键词搜索和融合
-        # 目前简单返回语义搜索结果
-        return semantic_results
+        return merged_results
+
+    async def _keyword_search(
+        self,
+        query: str,
+        top_k: int,
+    ) -> list[SearchResult]:
+        """
+        关键词搜索（BM25）
+        
+        Args:
+            query: 关键词查询
+            top_k: 返回数量
+            
+        Returns:
+            搜索结果列表
+        """
+        try:
+            # 从向量存储获取所有文档（或使用缓存）
+            # 这里我们使用向量存储的搜索功能，但使用不同的查询方式
+            # 先获取语义搜索结果作为候选集
+            candidate_results = await self.retrieve(query, top_k=top_k * 3)
+            
+            if not candidate_results:
+                return []
+            
+            # 提取候选文档内容
+            documents = [r.content for r in candidate_results]
+            
+            # 使用 BM25 评分
+            scorer = BM25Scorer()
+            scorer.fit(documents)
+            scores = scorer.score(query, documents)
+            
+            # 按分数排序
+            scored_results = list(zip(scores, candidate_results))
+            scored_results.sort(key=lambda x: x[0], reverse=True)
+            
+            # 更新结果的分数
+            results = []
+            for score, result in scored_results[:top_k]:
+                # 创建新的 SearchResult，更新分数
+                results.append(SearchResult(
+                    chunk_id=result.chunk_id,
+                    document_id=result.document_id,
+                    document_title=result.document_title,
+                    content=result.content,
+                    score=score,  # 使用 BM25 分数
+                    metadata=result.metadata,
+                ))
+            
+            return results
+            
+        except Exception as e:
+            self.logger.warning("Keyword search failed", error=str(e))
+            return []
+
+    def _merge_results(
+        self,
+        semantic_results: list[SearchResult],
+        keyword_results: list[SearchResult],
+        alpha: float,
+        top_k: int,
+    ) -> list[SearchResult]:
+        """
+        融合语义搜索和关键词搜索结果
+        
+        使用 Reciprocal Rank Fusion (RRF) 算法
+        
+        Args:
+            semantic_results: 语义搜索结果
+            keyword_results: 关键词搜索结果
+            alpha: 语义搜索权重
+            top_k: 返回数量
+            
+        Returns:
+            融合后的结果
+        """
+        # 使用 chunk_id 作为唯一标识
+        result_map: dict[str, SearchResult] = {}
+        
+        # RRF 参数
+        k = 60  # RRF 常数
+        
+        # 计算语义搜索的 RRF 分数
+        semantic_scores: dict[str, float] = {}
+        for rank, result in enumerate(semantic_results):
+            chunk_id = result.chunk_id
+            result_map[chunk_id] = result
+            semantic_scores[chunk_id] = 1.0 / (k + rank + 1)
+        
+        # 计算关键词搜索的 RRF 分数
+        keyword_scores: dict[str, float] = {}
+        for rank, result in enumerate(keyword_results):
+            chunk_id = result.chunk_id
+            if chunk_id not in result_map:
+                result_map[chunk_id] = result
+            keyword_scores[chunk_id] = 1.0 / (k + rank + 1)
+        
+        # 融合分数
+        final_scores: dict[str, float] = {}
+        for chunk_id in result_map:
+            sem_score = semantic_scores.get(chunk_id, 0.0)
+            kw_score = keyword_scores.get(chunk_id, 0.0)
+            # 加权融合
+            final_scores[chunk_id] = alpha * sem_score + (1 - alpha) * kw_score
+        
+        # 按融合分数排序
+        sorted_chunk_ids = sorted(
+            final_scores.keys(),
+            key=lambda x: final_scores[x],
+            reverse=True
+        )
+        
+        # 构建最终结果
+        results = []
+        for chunk_id in sorted_chunk_ids[:top_k]:
+            result = result_map[chunk_id]
+            # 创建新的 SearchResult，更新分数
+            results.append(SearchResult(
+                chunk_id=result.chunk_id,
+                document_id=result.document_id,
+                document_title=result.document_title,
+                content=result.content,
+                score=final_scores[chunk_id],
+                metadata={
+                    **result.metadata,
+                    "semantic_score": semantic_scores.get(chunk_id, 0.0),
+                    "keyword_score": keyword_scores.get(chunk_id, 0.0),
+                    "fusion_score": final_scores[chunk_id],
+                },
+            ))
+        
+        return results
 
     def build_context(
         self,

@@ -9,11 +9,23 @@ LangGraph 工作流编排（增强版）
 - 超时控制
 - 进度追踪
 - 并行执行支持
+- 依赖注入支持（v2.0.0 新增）
+- 灵活的任务依赖管理（v2.0.0 新增，从 executor.py 迁移）
+- 事件处理器机制（v2.0.0 新增，从 executor.py 迁移）
+
+版本：2.1.0
+更新时间：2026-03-12
+变更：
+- 合并 src/core/executor.py 功能
+- 添加 WorkflowTask 和 WorkflowDefinition 支持
+- 支持灵活的任务依赖和并行执行
+- 统一工作流执行接口
 """
 
 import asyncio
 import time
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
@@ -30,12 +42,9 @@ except ImportError:
     StateGraph = None
     END = "__end__"
 
-from ..agents.architect import ArchitectAgent
-from ..agents.coder import CoderAgent
-from ..agents.doc_writer import DocWriterAgent
-from ..agents.planner import PlannerAgent
-from ..agents.tester import TesterAgent
-from ..config.settings import get_settings
+# 依赖注入：从容器获取 Agent，而非直接导入具体类
+from ..core.container import AgentContainer, get_agent_container
+from ..core.models import Task, TaskStatus
 from .states import AgentState
 
 logger = structlog.get_logger(__name__)
@@ -52,6 +61,73 @@ NodeType = Literal[
     "doc_writer",
     "end",
 ]
+
+
+# ===========================================
+# 工作流任务定义（从 executor.py 迁移）
+# ===========================================
+
+
+@dataclass
+class WorkflowTask:
+    """
+    工作流中的任务
+    
+    支持灵活的依赖关系定义和并行执行
+    
+    Attributes:
+        agent_name: Agent 名称
+        task_description: 任务描述
+        dependencies: 依赖的任务索引列表
+        timeout_seconds: 超时时间（秒）
+        retry_count: 重试次数
+        status: 任务状态
+        result: 执行结果
+        error: 错误信息
+        started_at: 开始时间
+        completed_at: 完成时间
+    """
+    agent_name: str
+    task_description: str
+    dependencies: list[str] = field(default_factory=list)
+    timeout_seconds: int = 300
+    retry_count: int = 3
+    status: TaskStatus = TaskStatus.PENDING
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+
+
+@dataclass
+class WorkflowDefinition:
+    """
+    工作流定义
+    
+    用于定义灵活的工作流结构，支持复杂的依赖关系
+    
+    Attributes:
+        name: 工作流名称
+        description: 工作流描述
+        tasks: 任务列表
+        status: 工作流状态
+        created_at: 创建时间
+        started_at: 开始时间
+        completed_at: 完成时间
+        metadata: 元数据
+    """
+    name: str
+    description: str
+    tasks: list[WorkflowTask] = field(default_factory=list)
+    status: "WorkflowStatus" = None  # 将在后面定义
+    created_at: datetime = field(default_factory=datetime.now)
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        if self.status is None:
+            self.status = WorkflowStatus.PENDING
 
 
 class WorkflowStatus(StrEnum):
@@ -162,12 +238,31 @@ class AgentWorkflow:
     - 错误恢复机制
     - 超时控制
     - 进度追踪
+    - 依赖注入支持（v2.0.0 新增）
+    
+    使用方式：
+        # 方式1：使用默认 Agent（从容器自动获取）
+        workflow = AgentWorkflow()
+        
+        # 方式2：注入自定义 Agent
+        workflow = AgentWorkflow(agents={
+            "planner": CustomPlannerAgent(),
+            "architect": CustomArchitectAgent(),
+        })
+        
+        # 方式3：使用自定义容器
+        container = AgentContainer()
+        container.register_agent("planner", PlannerAgent())
+        workflow = AgentWorkflow(container=container)
     """
 
     # 默认超时配置（秒）
     DEFAULT_NODE_TIMEOUT = 300  # 5分钟
     DEFAULT_WORKFLOW_TIMEOUT = 1800  # 30分钟
     MAX_RETRY_COUNT = 3
+    
+    # 默认 Agent 配置（用于懒加载）
+    DEFAULT_AGENTS = ["planner", "architect", "coder", "tester", "doc_writer"]
 
     def __init__(
         self,
@@ -175,6 +270,8 @@ class AgentWorkflow:
         node_timeout: int = DEFAULT_NODE_TIMEOUT,
         workflow_timeout: int = DEFAULT_WORKFLOW_TIMEOUT,
         enable_recovery: bool = True,
+        container: AgentContainer | None = None,
+        agents: dict[str, Any] | None = None,
     ):
         """
         初始化工作流
@@ -184,6 +281,8 @@ class AgentWorkflow:
             node_timeout: 单节点超时（秒）
             workflow_timeout: 整体超时（秒）
             enable_recovery: 是否启用错误恢复
+            container: 依赖注入容器（可选，默认使用全局容器）
+            agents: Agent 实例字典（可选，用于直接注入）
         """
         self.workflow_id = workflow_id or f"workflow_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.graph: StateGraph | None = None
@@ -199,24 +298,165 @@ class AgentWorkflow:
         self.progress = WorkflowProgress()
         self.error_history: list[dict[str, Any]] = []
 
-        # 初始化 Agent
-        get_settings()
-        self.planner = PlannerAgent()
-        self.architect = ArchitectAgent()
-        self.coder = CoderAgent()
-        self.tester = TesterAgent()
-        self.doc_writer = DocWriterAgent()
+        # 依赖注入：使用容器管理 Agent
+        self._container = container or get_agent_container()
+        self._agents: dict[str, Any] = {}
+        
+        # 如果提供了 Agent 实例，直接注册到本地缓存
+        if agents:
+            for name, agent in agents.items():
+                self._agents[name] = agent
 
         # 回调函数
         self._on_progress: Callable[[WorkflowProgress], None] | None = None
         self._on_error: Callable[[Exception, str], None] | None = None
+        
+        # 事件处理器（从 executor.py 迁移）
+        self._event_handlers: dict[str, list[Callable]] = {}
 
         logger.info(
             "AgentWorkflow initialized",
             workflow_id=self.workflow_id,
             node_timeout=node_timeout,
             workflow_timeout=workflow_timeout,
+            use_di=True,
         )
+    
+    # ===========================================
+    # 事件处理器机制（从 executor.py 迁移）
+    # ===========================================
+    
+    def register_event_handler(self, event_type: str, handler: Callable) -> None:
+        """
+        注册事件处理器
+        
+        Args:
+            event_type: 事件类型（workflow_started, workflow_completed, workflow_failed, task_started, task_completed）
+            handler: 处理函数（可以是同步或异步函数）
+        
+        示例:
+            >>> workflow.register_event_handler("workflow_started", on_workflow_start)
+            >>> workflow.register_event_handler("task_completed", on_task_done)
+        """
+        if event_type not in self._event_handlers:
+            self._event_handlers[event_type] = []
+        self._event_handlers[event_type].append(handler)
+        logger.debug(f"Event handler registered: {event_type}")
+    
+    async def _emit_event(self, event_type: str, data: dict[str, Any]) -> None:
+        """
+        触发事件
+        
+        Args:
+            event_type: 事件类型
+            data: 事件数据
+        """
+        handlers = self._event_handlers.get(event_type, [])
+        for handler in handlers:
+            try:
+                if asyncio.iscoroutinefunction(handler):
+                    await handler(data)
+                else:
+                    handler(data)
+            except Exception as e:
+                logger.error(
+                    "Event handler failed",
+                    event_type=event_type,
+                    error=str(e),
+                )
+
+    def _get_agent(self, name: str) -> Any:
+        """
+        获取 Agent 实例（支持依赖注入）
+        
+        优先级：
+        1. 本地缓存的 Agent 实例
+        2. 容器中注册的 Agent
+        3. 容器中的工厂函数（懒加载）
+        
+        Args:
+            name: Agent 名称
+            
+        Returns:
+            Agent 实例
+        """
+        # 1. 检查本地缓存
+        if name in self._agents:
+            return self._agents[name]
+        
+        # 2. 从容器获取
+        try:
+            agent = self._container.get_agent(name)
+            self._agents[name] = agent  # 缓存到本地
+            return agent
+        except KeyError:
+            logger.warning(
+                "Agent not found in container, using default factory",
+                agent_name=name,
+            )
+            # 3. 使用默认工厂创建（向后兼容）
+            agent = self._create_default_agent(name)
+            self._agents[name] = agent
+            return agent
+
+    def _create_default_agent(self, name: str) -> Any:
+        """
+        创建默认 Agent（向后兼容）
+        
+        当容器中没有注册 Agent 时，使用此方法创建默认实例。
+        这确保了现有代码的向后兼容性。
+        
+        Args:
+            name: Agent 名称
+            
+        Returns:
+            Agent 实例
+        """
+        # 延迟导入以避免循环依赖
+        from ..agents.architect import ArchitectAgent
+        from ..agents.coder import CoderAgent
+        from ..agents.doc_writer import DocWriterAgent
+        from ..agents.planner import PlannerAgent
+        from ..agents.tester import TesterAgent
+        
+        agent_factories = {
+            "planner": PlannerAgent,
+            "architect": ArchitectAgent,
+            "coder": CoderAgent,
+            "tester": TesterAgent,
+            "doc_writer": DocWriterAgent,
+        }
+        
+        if name not in agent_factories:
+            raise ValueError(f"Unknown agent: {name}")
+            
+        logger.info(f"Creating default agent: {name}")
+        return agent_factories[name]()
+    
+    @property
+    def planner(self) -> Any:
+        """获取 Planner Agent"""
+        return self._get_agent("planner")
+    
+    @property
+    def architect(self) -> Any:
+        """获取 Architect Agent"""
+        return self._get_agent("architect")
+    
+    @property
+    def coder(self) -> Any:
+        """获取 Coder Agent"""
+        return self._get_agent("coder")
+    
+    @property
+    def tester(self) -> Any:
+        """获取 Tester Agent"""
+        return self._get_agent("tester")
+    
+    @property
+    def doc_writer(self) -> Any:
+        """获取 DocWriter Agent"""
+        return self._get_agent("doc_writer")
 
     def on_progress(self, callback: Callable[[WorkflowProgress], None]) -> None:
         """设置进度回调"""
@@ -698,10 +938,278 @@ class AgentWorkflow:
             "error_count": len(self.error_history),
             "errors": self.error_history[-5:] if self.error_history else [],
         }
+    
+    # ===========================================
+    # 灵活工作流执行（从 executor.py 迁移并增强）
+    # ===========================================
+    
+    async def execute_workflow_definition(
+        self,
+        workflow: WorkflowDefinition,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        执行工作流定义（支持复杂依赖关系）
+        
+        这是从 executor.py 迁移的核心功能，支持：
+        - 灵活的任务依赖关系
+        - 并行执行无依赖的任务
+        - 事件通知机制
+        - 错误处理和重试
+        
+        Args:
+            workflow: 工作流定义
+            context: 执行上下文
+            
+        Returns:
+            执行结果字典
+            
+        示例:
+            >>> workflow_def = WorkflowDefinition(
+            ...     name="Custom Workflow",
+            ...     tasks=[
+            ...         WorkflowTask(agent_name="planner", task_description="Plan"),
+            ...         WorkflowTask(agent_name="architect", task_description="Design", dependencies=["planner"]),
+            ...         WorkflowTask(agent_name="coder", task_description="Code", dependencies=["architect"]),
+            ...     ]
+            ... )
+            >>> result = await workflow.execute_workflow_definition(workflow_def)
+        """
+        logger.info(f"Starting workflow: {workflow.name}")
+        await self._emit_event("workflow_started", {
+            "workflow_name": workflow.name,
+            "task_count": len(workflow.tasks),
+        })
+
+        workflow.status = WorkflowStatus.RUNNING
+        workflow.started_at = datetime.now()
+
+        try:
+            # 构建任务映射
+            task_map = {task.agent_name: task for task in workflow.tasks}
+            completed_tasks = set()
+            results = {}
+
+            # 执行任务（考虑依赖）
+            while len(completed_tasks) < len(workflow.tasks):
+                # 找到所有可以执行的任务（依赖已满足）
+                ready_tasks = []
+                for task in workflow.tasks:
+                    if task.agent_name in completed_tasks:
+                        continue
+                    # 检查依赖是否满足
+                    if all(dep in completed_tasks for dep in task.dependencies):
+                        ready_tasks.append(task)
+
+                if not ready_tasks:
+                    # 检查是否有循环依赖
+                    remaining = [t.agent_name for t in workflow.tasks if t.agent_name not in completed_tasks]
+                    if remaining:
+                        raise ValueError(f"Circular dependency detected: {remaining}")
+                    break
+
+                # 并发执行就绪任务
+                tasks_to_run = [
+                    self._execute_workflow_task(task, context, results)
+                    for task in ready_tasks
+                ]
+
+                task_results = await asyncio.gather(*tasks_to_run, return_exceptions=True)
+
+                # 处理结果
+                for task, result in zip(ready_tasks, task_results, strict=False):
+                    if isinstance(result, Exception):
+                        task.status = TaskStatus.FAILED
+                        task.error = str(result)
+                        logger.error(f"Task failed: {task.agent_name} - {result}")
+
+                        # 如果是关键任务失败，可以选择终止工作流
+                        if task.retry_count == 0:
+                            workflow.status = WorkflowStatus.FAILED
+                            workflow.completed_at = datetime.now()
+                            await self._emit_event("workflow_failed", {
+                                "workflow_name": workflow.name,
+                                "failed_task": task.agent_name,
+                                "error": str(result),
+                            })
+                            return {"status": "failed", "error": str(result)}
+                    else:
+                        task.status = TaskStatus.COMPLETED
+                        task.result = result
+                        task.completed_at = datetime.now()
+                        completed_tasks.add(task.agent_name)
+                        results[task.agent_name] = result
+
+                        logger.info(f"Task completed: {task.agent_name}")
+                        await self._emit_event("task_completed", {
+                            "agent_name": task.agent_name,
+                            "result": result,
+                        })
+
+            # 所有任务完成
+            workflow.status = WorkflowStatus.COMPLETED
+            workflow.completed_at = datetime.now()
+
+            await self._emit_event("workflow_completed", {
+                "workflow_name": workflow.name,
+                "results": results,
+            })
+
+            return {
+                "status": "completed",
+                "results": results,
+                "workflow_name": workflow.name,
+            }
+
+        except Exception as e:
+            workflow.status = WorkflowStatus.FAILED
+            workflow.completed_at = datetime.now()
+            logger.error(f"Workflow failed: {e}", exc_info=True)
+
+            await self._emit_event("workflow_failed", {
+                "workflow_name": workflow.name,
+                "error": str(e),
+            })
+
+            return {"status": "failed", "error": str(e)}
+    
+    async def _execute_workflow_task(
+        self,
+        task: WorkflowTask,
+        context: dict[str, Any] | None,
+        previous_results: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        执行单个工作流任务
+        
+        Args:
+            task: 工作流任务
+            context: 执行上下文
+            previous_results: 之前任务的结果
+            
+        Returns:
+            任务执行结果
+        """
+        task.status = TaskStatus.IN_PROGRESS
+        task.started_at = datetime.now()
+
+        logger.info(f"Executing task: {task.agent_name}")
+        await self._emit_event("task_started", {
+            "agent_name": task.agent_name,
+            "description": task.task_description,
+        })
+
+        # 获取 Agent
+        agent = self._get_agent(task.agent_name)
+
+        # 准备任务数据
+        task_input = {
+            "description": task.task_description,
+            "context": context,
+            "previous_results": previous_results,
+        }
+
+        # 创建任务对象
+        task_obj = Task(
+            id=f"workflow_task_{task.agent_name}",
+            title=task.agent_name,
+            description=task.task_description,
+            input_data=task_input,
+        )
+
+        # 执行 Agent（带超时控制）
+        try:
+            result = await asyncio.wait_for(
+                agent.execute(task_obj),
+                timeout=task.timeout_seconds,
+            )
+            return result
+        except TimeoutError:
+            raise TimeoutError(f"Task timeout: {task.agent_name} ({task.timeout_seconds}s)") from None
+    
+    def create_standard_workflow(self, workflow_name: str = "Standard Development Workflow") -> WorkflowDefinition:
+        """
+        创建标准研发工作流
+        
+        包含：Planner → Architect → Coder → Tester → DocWriter
+        
+        Args:
+            workflow_name: 工作流名称
+            
+        Returns:
+            工作流定义
+            
+        示例:
+            >>> workflow_def = workflow.create_standard_workflow("My Project")
+            >>> result = await workflow.execute_workflow_definition(workflow_def)
+        """
+        workflow = WorkflowDefinition(
+            name=workflow_name,
+            description="标准研发工作流",
+        )
+
+        # 添加标准任务
+        workflow.tasks = [
+            WorkflowTask(
+                agent_name="planner",
+                task_description="分析需求，制定任务计划",
+                dependencies=[],
+            ),
+            WorkflowTask(
+                agent_name="architect",
+                task_description="设计系统架构",
+                dependencies=["planner"],  # 依赖 planner
+            ),
+            WorkflowTask(
+                agent_name="coder",
+                task_description="实现代码",
+                dependencies=["architect"],  # 依赖 architect
+            ),
+            WorkflowTask(
+                agent_name="tester",
+                task_description="编写和执行测试",
+                dependencies=["coder"],  # 依赖 coder
+            ),
+            WorkflowTask(
+                agent_name="doc_writer",
+                task_description="编写文档",
+                dependencies=["coder"],  # 依赖 coder（可以和 tester 并行）
+            ),
+        ]
+
+        return workflow
+    
+    def get_workflow_status(self, workflow: WorkflowDefinition) -> dict[str, Any]:
+        """
+        获取工作流状态
+        
+        Args:
+            workflow: 工作流定义
+            
+        Returns:
+            工作流状态字典
+        """
+        return {
+            "name": workflow.name,
+            "status": workflow.status.value if workflow.status else "pending",
+            "created_at": workflow.created_at.isoformat(),
+            "started_at": workflow.started_at.isoformat() if workflow.started_at else None,
+            "completed_at": workflow.completed_at.isoformat() if workflow.completed_at else None,
+            "tasks": [
+                {
+                    "agent": task.agent_name,
+                    "status": task.status.value,
+                    "error": task.error,
+                }
+                for task in workflow.tasks
+            ],
+        }
 
 
 def create_workflow(
     workflow_id: str | None = None,
+    container: AgentContainer | None = None,
+    agents: dict[str, Any] | None = None,
     **kwargs,
 ) -> AgentWorkflow:
     """
@@ -709,9 +1217,71 @@ def create_workflow(
 
     Args:
         workflow_id: 工作流 ID
+        container: 依赖注入容器
+        agents: Agent 实例字典（用于依赖注入）
         **kwargs: 其他配置参数
 
     Returns:
         AgentWorkflow 实例
+        
+    使用示例:
+        # 基本用法
+        workflow = create_workflow()
+        
+        # 使用自定义容器
+        container = get_agent_container()
+        container.register_agent("planner", CustomPlannerAgent())
+        workflow = create_workflow(container=container)
+        
+        # 直接注入 Agent
+        workflow = create_workflow(agents={
+            "planner": PlannerAgent(),
+            "architect": ArchitectAgent(),
+        })
     """
-    return AgentWorkflow(workflow_id=workflow_id, **kwargs)
+    return AgentWorkflow(
+        workflow_id=workflow_id,
+        container=container,
+        agents=agents,
+        **kwargs,
+    )
+
+
+# ===========================================
+# 向后兼容：提供 executor.py 的别名
+# ===========================================
+
+# 为了向后兼容，保留旧的类名和函数
+Workflow = WorkflowDefinition  # 别名
+
+# 提供类似 executor.py 的全局实例
+_workflow_instance: AgentWorkflow | None = None
+
+
+def get_workflow() -> AgentWorkflow:
+    """
+    获取全局工作流实例（向后兼容 executor.py）
+    
+    Returns:
+        AgentWorkflow 实例
+    """
+    global _workflow_instance
+    if _workflow_instance is None:
+        _workflow_instance = AgentWorkflow()
+    return _workflow_instance
+
+
+async def init_workflow(agents: dict[str, Any]) -> AgentWorkflow:
+    """
+    初始化工作流（向后兼容 executor.py）
+    
+    Args:
+        agents: Agent 实例字典
+        
+    Returns:
+        AgentWorkflow 实例
+    """
+    workflow = get_workflow()
+    for name, agent in agents.items():
+        workflow._agents[name] = agent
+    return workflow

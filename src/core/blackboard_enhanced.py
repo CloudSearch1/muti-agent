@@ -2,8 +2,16 @@
 黑板系统增强
 
 职责：实现完整的黑板通信机制，支持消息订阅和发布
+
+版本：2.0.0
+更新时间：2026-03-12
+增强功能：
+- 修复异步处理一致性问题
+- 提供同步和异步两种 API
+- 任务结果追踪和错误处理
 """
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from typing import Any
@@ -20,7 +28,7 @@ class MessageSubscription:
 
     def __init__(
         self,
-        callback: Callable[[Message], Awaitable[None]],
+        callback: Callable[[Message], Awaitable[None]] | Callable[[Message], None],
         message_type: MessageType | None = None,
         sender_role: str | None = None,
     ):
@@ -37,13 +45,17 @@ class MessageSubscription:
         return True
 
     async def notify(self, message: Message) -> None:
-        """通知订阅者"""
+        """通知订阅者（支持同步和异步回调）"""
         try:
-            await self.callback(message)
+            result = self.callback(message)
+            # 检查是否是协程
+            if asyncio.iscoroutine(result):
+                await result
         except Exception as e:
             logger.error(
                 "Subscription callback failed",
                 error=str(e),
+                message_id=message.id,
             )
 
 
@@ -56,6 +68,11 @@ class EnhancedBlackboard(Blackboard):
     - 条目变更通知
     - TTL 管理
     - 查询优化
+
+    异步处理：
+    - 提供同步和异步两种 API
+    - post_message: 同步方法，安全处理异步回调
+    - post_message_async: 异步方法，正确 await 所有回调
     """
 
     def __init__(self, **kwargs):
@@ -66,6 +83,9 @@ class EnhancedBlackboard(Blackboard):
 
         # 条目变更回调
         self._entry_callbacks: dict[str, list[Callable]] = {}
+
+        # 后台任务引用（防止被垃圾回收）
+        self._pending_tasks: set[asyncio.Task] = set()
 
         logger.info(
             "EnhancedBlackboard initialized",
@@ -78,7 +98,7 @@ class EnhancedBlackboard(Blackboard):
 
     def subscribe(
         self,
-        callback: Callable[[Message], Awaitable[None]],
+        callback: Callable[[Message], Awaitable[None]] | Callable[[Message], None],
         message_type: MessageType | None = None,
         sender_role: str | None = None,
     ) -> None:
@@ -86,7 +106,7 @@ class EnhancedBlackboard(Blackboard):
         订阅消息
 
         Args:
-            callback: 消息回调函数
+            callback: 消息回调函数（支持同步和异步）
             message_type: 消息类型过滤
             sender_role: 发送者角色过滤
         """
@@ -130,31 +150,165 @@ class EnhancedBlackboard(Blackboard):
         """
         发布消息（增强版）
 
-        除了存储消息，还会通知订阅者
+        除了存储消息，还会通知订阅者。
+        支持在同步上下文中安全调用。
+
+        注意：如果需要在异步上下文中等待所有回调完成，
+        请使用 post_message_async() 方法。
         """
         # 调用父类方法存储消息
         super().post_message(message)
 
         # 通知订阅者
-        self._notify_subscribers(message)
+        self._notify_subscribers_safe(message)
 
-    def _notify_subscribers(self, message: Message) -> None:
-        """通知所有匹配的订阅者"""
+    async def post_message_async(self, message: Message) -> int:
+        """
+        发布消息（异步版本）
+
+        除了存储消息，还会通知订阅者并等待所有回调完成。
+
+        Args:
+            message: 要发布的消息
+
+        Returns:
+            成功通知的订阅者数量
+        """
+        # 调用父类方法存储消息
+        super().post_message(message)
+
+        # 异步通知订阅者
+        return await self._notify_subscribers_async(message)
+
+    def _notify_subscribers_safe(self, message: Message) -> None:
+        """
+        安全通知所有匹配的订阅者
+
+        检测当前是否有运行的事件循环：
+        - 如果有：创建后台任务并保存引用
+        - 如果没有：在当前线程同步执行（降级处理）
+        """
         notified_count = 0
+        matching_subscriptions = [
+            s for s in self._subscriptions if s.matches(message)
+        ]
+        notified_count = len(matching_subscriptions)
 
-        for subscription in self._subscriptions:
-            if subscription.matches(message):
-                # 异步通知（不阻塞）
-                import asyncio
+        if not matching_subscriptions:
+            logger.debug(
+                "No matching subscribers",
+                message_id=message.id,
+            )
+            return
 
-                asyncio.create_task(subscription.notify(message))
-                notified_count += 1
+        try:
+            # 尝试获取运行中的事件循环
+            loop = asyncio.get_running_loop()
+
+            # 有事件循环，创建后台任务
+            async def _notify_all():
+                tasks = [s.notify(message) for s in matching_subscriptions]
+                await asyncio.gather(*tasks, return_exceptions=True)
+
+            task = loop.create_task(_notify_all())
+            # 保存任务引用，防止被垃圾回收
+            self._pending_tasks.add(task)
+            task.add_done_callback(self._pending_tasks.discard)
+
+            logger.debug(
+                "Subscribers notified (async)",
+                message_id=message.id,
+                notified_count=notified_count,
+            )
+
+        except RuntimeError:
+            # 没有运行的事件循环，使用同步降级
+            logger.warning(
+                "No event loop running, using synchronous fallback",
+                message_id=message.id,
+            )
+            self._notify_subscribers_sync(message, matching_subscriptions)
+
+    def _notify_subscribers_sync(
+        self,
+        message: Message,
+        subscriptions: list[MessageSubscription],
+    ) -> None:
+        """
+        同步通知订阅者（降级处理）
+
+        在没有事件循环时，创建临时事件循环执行异步回调。
+        """
+        try:
+            # 为每个订阅者创建并运行临时事件循环
+            for subscription in subscriptions:
+                try:
+                    # 检查回调是否是异步函数
+                    if asyncio.iscoroutinefunction(subscription.callback):
+                        # 创建临时事件循环执行异步回调
+                        asyncio.run(subscription.notify(message))
+                    else:
+                        # 同步回调直接执行
+                        subscription.callback(message)
+                except Exception as e:
+                    logger.error(
+                        "Subscription callback failed in sync mode",
+                        error=str(e),
+                        message_id=message.id,
+                    )
+        except Exception as e:
+            logger.error(
+                "Failed to notify subscribers in sync mode",
+                error=str(e),
+                message_id=message.id,
+            )
+
+    async def _notify_subscribers_async(self, message: Message) -> int:
+        """
+        异步通知所有匹配的订阅者
+
+        正确等待所有回调完成，并收集错误。
+
+        Args:
+            message: 要通知的消息
+
+        Returns:
+            成功通知的订阅者数量
+        """
+        matching_subscriptions = [
+            s for s in self._subscriptions if s.matches(message)
+        ]
+
+        if not matching_subscriptions:
+            logger.debug(
+                "No matching subscribers",
+                message_id=message.id,
+            )
+            return 0
+
+        # 并发执行所有通知
+        tasks = [s.notify(message) for s in matching_subscriptions]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # 统计成功和失败
+        success_count = sum(1 for r in results if not isinstance(r, Exception))
+        error_count = len(results) - success_count
+
+        if error_count > 0:
+            logger.warning(
+                "Some subscription callbacks failed",
+                message_id=message.id,
+                success_count=success_count,
+                error_count=error_count,
+            )
 
         logger.debug(
-            "Subscribers notified",
+            "Subscribers notified (async awaited)",
             message_id=message.id,
-            notified_count=notified_count,
+            notified_count=success_count,
         )
+
+        return success_count
 
     # ===========================================
     # 条目变更通知
@@ -163,14 +317,14 @@ class EnhancedBlackboard(Blackboard):
     def on_entry_change(
         self,
         key: str,
-        callback: Callable[[str, Any, Any], None],
+        callback: Callable[[str, Any, Any], None] | Callable[[str, Any, Any], Awaitable[None]],
     ) -> None:
         """
         注册条目变更回调
 
         Args:
             key: 条目键名
-            callback: 回调函数 (key, old_value, new_value)
+            callback: 回调函数 (key, old_value, new_value)，支持同步和异步
         """
         if key not in self._entry_callbacks:
             self._entry_callbacks[key] = []
@@ -192,7 +346,7 @@ class EnhancedBlackboard(Blackboard):
         """
         放置条目（增强版）
 
-        会触发变更通知
+        会触发变更通知。支持同步和异步回调的安全执行。
         """
         # 获取旧值
         old_value = self.get(key)
@@ -205,18 +359,95 @@ class EnhancedBlackboard(Blackboard):
 
         return entry
 
+    async def put_async(
+        self,
+        key: str,
+        value: Any,
+        owner_id: str | None = None,
+        **kwargs,
+    ) -> BlackboardEntry:
+        """
+        放置条目（异步版本）
+
+        会触发变更通知并等待所有异步回调完成。
+        """
+        # 获取旧值
+        old_value = self.get(key)
+
+        # 创建/更新条目
+        entry = super().put(key, value, owner_id, **kwargs)
+
+        # 触发变更回调（异步）
+        await self._trigger_entry_callbacks_async(key, old_value, value)
+
+        return entry
+
     def _trigger_entry_callbacks(
         self,
         key: str,
         old_value: Any,
         new_value: Any,
     ) -> None:
-        """触发条目变更回调"""
+        """触发条目变更回调（安全版本）"""
         callbacks = self._entry_callbacks.get(key, [])
+
+        if not callbacks:
+            return
+
+        try:
+            # 尝试获取运行中的事件循环
+            loop = asyncio.get_running_loop()
+
+            # 有事件循环，创建后台任务处理异步回调
+            async def _run_callbacks():
+                for callback in callbacks:
+                    try:
+                        result = callback(key, old_value, new_value)
+                        if asyncio.iscoroutine(result):
+                            await result
+                    except Exception as e:
+                        logger.error(
+                            "Entry callback failed",
+                            key=key,
+                            error=str(e),
+                        )
+
+            task = loop.create_task(_run_callbacks())
+            self._pending_tasks.add(task)
+            task.add_done_callback(self._pending_tasks.discard)
+
+        except RuntimeError:
+            # 没有运行的事件循环，同步执行
+            for callback in callbacks:
+                try:
+                    result = callback(key, old_value, new_value)
+                    if asyncio.iscoroutine(result):
+                        # 创建临时事件循环执行异步回调
+                        asyncio.run(result)
+                except Exception as e:
+                    logger.error(
+                        "Entry callback failed",
+                        key=key,
+                        error=str(e),
+                    )
+
+    async def _trigger_entry_callbacks_async(
+        self,
+        key: str,
+        old_value: Any,
+        new_value: Any,
+    ) -> None:
+        """触发条目变更回调（异步版本）"""
+        callbacks = self._entry_callbacks.get(key, [])
+
+        if not callbacks:
+            return
 
         for callback in callbacks:
             try:
-                callback(key, old_value, new_value)
+                result = callback(key, old_value, new_value)
+                if asyncio.iscoroutine(result):
+                    await result
             except Exception as e:
                 logger.error(
                     "Entry callback failed",

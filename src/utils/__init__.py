@@ -39,6 +39,7 @@ from .helpers import (
     truncate_text,
 )
 from .logging import get_logger, setup_logging
+from .text import clean_json_from_markdown
 
 __all__ = [
     # 配置
@@ -58,6 +59,7 @@ __all__ = [
     "filter_dict",
     "is_valid_email",
     "is_valid_url",
+    "clean_json_from_markdown",
     # 错误处理
     "AppError",
     "ValidationError",

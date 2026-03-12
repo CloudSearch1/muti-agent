@@ -7,7 +7,11 @@ Pi Agent 管理器
 - Agent 配置管理
 - Agent 能力注册和发现
 
-版本: 1.0.0
+版本: 2.0.0
+更新时间：2026-03-12
+修复问题：
+- 修复同步方法中调用 asyncio.create_task() 的问题
+- 提供异步和同步两种 API
 """
 
 import asyncio
@@ -61,6 +65,9 @@ class AgentManager:
         # 统计信息
         self._created_count = 0
         self._started_at: datetime | None = None
+
+        # 后台任务引用（防止被垃圾回收）
+        self._pending_tasks: set[asyncio.Task] = set()
 
         logger.info("AgentManager initialized", max_agents=max_agents)
 
@@ -281,7 +288,50 @@ class AgentManager:
 
     def set_agent_error(self, agent_id: str, error_message: str | None = None) -> bool:
         """
-        设置 Agent 为错误状态
+        设置 Agent 为错误状态（同步版本）
+
+        Args:
+            agent_id: Agent ID
+            error_message: 错误信息
+
+        Returns:
+            是否成功
+
+        注意：
+            此方法是同步的，回调会在后台异步执行。
+            如需等待回调完成，请使用 set_agent_error_async()。
+        """
+        agent = self._agents.get(agent_id)
+        if not agent:
+            return False
+
+        old_status = agent.status
+        agent.status = PiAgentStatus.ERROR
+        if error_message:
+            agent.metadata["last_error"] = error_message
+        agent.last_active_at = datetime.now()
+
+        logger.warning(
+            "Agent set error",
+            agent_id=agent_id,
+            error=error_message,
+        )
+
+        # 安全触发状态变更回调
+        if self._on_status_change:
+            self._trigger_callback_safe(
+                self._on_status_change, agent_id, old_status, agent.status
+            )
+
+        return True
+
+    async def set_agent_error_async(
+        self,
+        agent_id: str,
+        error_message: str | None = None,
+    ) -> bool:
+        """
+        设置 Agent 为错误状态（异步版本）
 
         Args:
             agent_id: Agent ID
@@ -308,13 +358,56 @@ class AgentManager:
 
         # 异步触发状态变更回调
         if self._on_status_change:
-            asyncio.create_task(
-                self._safe_callback(
-                    self._on_status_change, agent_id, old_status, agent.status
-                )
+            await self._safe_callback(
+                self._on_status_change, agent_id, old_status, agent.status
             )
 
         return True
+
+    def _trigger_callback_safe(self, callback: Callable, *args, **kwargs) -> None:
+        """
+        安全触发回调（自动检测同步/异步环境）
+
+        Args:
+            callback: 回调函数
+            *args: 回调参数
+            **kwargs: 回调关键字参数
+        """
+        try:
+            # 尝试获取运行中的事件循环
+            loop = asyncio.get_running_loop()
+
+            # 有事件循环，创建后台任务
+            async def _run_callback():
+                try:
+                    result = callback(*args, **kwargs)
+                    if asyncio.iscoroutine(result):
+                        await result
+                except Exception as e:
+                    logger.error(
+                        "Callback execution failed",
+                        error=str(e),
+                        callback=callback.__name__ if hasattr(callback, '__name__') else str(callback),
+                    )
+
+            task = loop.create_task(_run_callback())
+            # 保存任务引用，防止被垃圾回收
+            self._pending_tasks.add(task)
+            task.add_done_callback(self._pending_tasks.discard)
+
+        except RuntimeError:
+            # 没有运行的事件循环，在同步上下文中执行
+            try:
+                result = callback(*args, **kwargs)
+                if asyncio.iscoroutine(result):
+                    # 创建临时事件循环执行异步回调
+                    asyncio.run(result)
+            except Exception as e:
+                logger.error(
+                    "Callback execution failed (sync fallback)",
+                    error=str(e),
+                    callback=callback.__name__ if hasattr(callback, '__name__') else str(callback),
+                )
 
     def record_task_completion(
         self,

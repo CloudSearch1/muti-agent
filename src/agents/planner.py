@@ -2,6 +2,11 @@
 PlannerAgent - 规划师 Agent
 
 职责：任务分解、优先级排序、资源调度
+
+版本：2.0.0
+更新时间：2026-03-12
+增强功能：
+- 支持依赖注入 LLM Helper
 """
 
 from datetime import datetime
@@ -16,7 +21,7 @@ from ..core.models import (
     TaskPriority,
 )
 from .base import BaseAgent
-from .llm_helper import get_planner_llm
+from .llm_helper import AgentLLMHelper, get_planner_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -30,21 +35,36 @@ class PlannerAgent(BaseAgent):
     - 评估任务优先级和依赖关系
     - 分配任务给合适的 Agent
     - 监控整体进度并调整计划
+    
+    依赖注入支持：
+        # 方式1：使用默认 LLM Helper
+        agent = PlannerAgent()
+        
+        # 方式2：注入自定义 LLM Helper
+        custom_llm = AgentLLMHelper(...)
+        agent = PlannerAgent(llm_helper=custom_llm)
     """
 
     ROLE = AgentRole.PLANNER
 
-    def __init__(self, **kwargs):
+    def __init__(self, llm_helper: AgentLLMHelper | None = None, **kwargs):
+        """
+        初始化 Planner Agent
+
+        Args:
+            llm_helper: LLM 辅助实例（可选，用于依赖注入）
+            **kwargs: 其他配置参数
+        """
         super().__init__(**kwargs)
 
         # 规划师特有配置
         self.max_subtasks = kwargs.get("max_subtasks", 20)
         self.planning_model = kwargs.get("planning_model", "gpt-4")
 
-        # LLM 辅助
-        self.llm_helper = get_planner_llm()
+        # LLM 辅助（支持依赖注入）
+        self.llm_helper = llm_helper or get_planner_llm()
 
-        self.logger.info("PlannerAgent initialized")
+        self.logger.info("PlannerAgent initialized", use_injected_llm=llm_helper is not None)
 
     async def execute(self, task: Task) -> dict[str, Any]:
         """

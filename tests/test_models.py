@@ -121,3 +121,33 @@ class TestModels:
         assert "tasks_completed" in stats
         assert "tasks_failed" in stats
         assert "avg_execution_time" in stats
+
+    def test_agent_role_get_agent_class(self):
+        """测试 AgentRole 到 Agent 类的映射"""
+        # 测试所有角色的映射
+        assert AgentRole.get_agent_class(AgentRole.PLANNER).__name__ == "PlannerAgent"
+        assert AgentRole.get_agent_class(AgentRole.ARCHITECT).__name__ == "ArchitectAgent"
+        assert AgentRole.get_agent_class(AgentRole.CODER).__name__ == "CoderAgent"
+        assert AgentRole.get_agent_class(AgentRole.TESTER).__name__ == "TesterAgent"
+        assert AgentRole.get_agent_class(AgentRole.DOC_WRITER).__name__ == "DocWriterAgent"
+        assert AgentRole.get_agent_class(AgentRole.RESEARCHER).__name__ == "ResearchAgent"
+        assert AgentRole.get_agent_class(AgentRole.SENIOR_ARCHITECT).__name__ == "SeniorArchitectAgent"
+
+    def test_agent_role_get_all_roles(self):
+        """测试获取所有角色列表"""
+        roles = AgentRole.get_all_roles()
+        assert len(roles) == 7
+        assert AgentRole.PLANNER in roles
+        assert AgentRole.ARCHITECT in roles
+        assert AgentRole.CODER in roles
+        assert AgentRole.TESTER in roles
+        assert AgentRole.DOC_WRITER in roles
+        assert AgentRole.RESEARCHER in roles
+        assert AgentRole.SENIOR_ARCHITECT in roles
+
+    def test_agent_role_from_string(self):
+        """测试从字符串创建角色枚举"""
+        assert AgentRole.from_string("planner") == AgentRole.PLANNER
+        assert AgentRole.from_string("PLANNER") == AgentRole.PLANNER  # 大小写不敏感
+        assert AgentRole.from_string("Architect") == AgentRole.ARCHITECT
+        assert AgentRole.from_string("invalid_role") is None

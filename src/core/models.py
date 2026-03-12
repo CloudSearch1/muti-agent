@@ -30,6 +30,80 @@ class AgentRole(StrEnum):
     RESEARCHER = "researcher"
     SENIOR_ARCHITECT = "senior_architect"
 
+    @classmethod
+    def get_agent_class(cls, role: "AgentRole") -> type | None:
+        """
+        获取角色对应的 Agent 类
+
+        Args:
+            role: Agent 角色枚举值
+
+        Returns:
+            Agent 类，如果角色未找到则返回 None
+
+        使用示例:
+            from src.core.models import AgentRole
+
+            agent_class = AgentRole.get_agent_class(AgentRole.PLANNER)
+            if agent_class:
+                agent = agent_class()
+        """
+        # 延迟导入以避免循环依赖
+        from ..agents import (
+            ArchitectAgent,
+            CoderAgent,
+            DocWriterAgent,
+            PlannerAgent,
+            ResearchAgent,
+            SeniorArchitectAgent,
+            TesterAgent,
+        )
+
+        mapping = {
+            cls.PLANNER: PlannerAgent,
+            cls.ARCHITECT: ArchitectAgent,
+            cls.CODER: CoderAgent,
+            cls.TESTER: TesterAgent,
+            cls.DOC_WRITER: DocWriterAgent,
+            cls.RESEARCHER: ResearchAgent,
+            cls.SENIOR_ARCHITECT: SeniorArchitectAgent,
+        }
+        return mapping.get(role)
+
+    @classmethod
+    def get_all_roles(cls) -> list["AgentRole"]:
+        """
+        获取所有可用的角色列表
+
+        Returns:
+            角色列表
+        """
+        return [
+            cls.PLANNER,
+            cls.ARCHITECT,
+            cls.CODER,
+            cls.TESTER,
+            cls.DOC_WRITER,
+            cls.RESEARCHER,
+            cls.SENIOR_ARCHITECT,
+        ]
+
+    @classmethod
+    def from_string(cls, role_str: str) -> "AgentRole | None":
+        """
+        从字符串创建角色枚举
+
+        Args:
+            role_str: 角色字符串（如 "planner", "architect"）
+
+        Returns:
+            对应的角色枚举，如果未找到则返回 None
+        """
+        try:
+            return cls(role_str.lower())
+        except ValueError:
+            return None
+
 
 class AgentState(StrEnum):
     """Agent 状态枚举"""

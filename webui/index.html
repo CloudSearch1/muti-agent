@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="description" content="IntelliTeam - 智能研发协作平台">
+    <title>IntelliTeam - 智能研发协作平台</title>
+
+    <!-- DNS 预解析 -->
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://unpkg.com">
+
+    <!-- 预连接 -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Highlight.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/highlight.min.js"></script>
+
+    <!-- Chart.js (延迟加载) -->
+    <script>
+        window.loadChartJS = function() {
+            if (window.Chart) return Promise.resolve();
+            return new Promise(function(resolve, reject) {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        };
+    </script>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Tailwind 配置 -->
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gh: {
+                            bg: '#0d1117',
+                            canvas: '#161b22',
+                            elevated: '#21262d',
+                            border: '#30363d',
+                            text: '#8b949e',
+                            light: '#e6edf3',
+                            white: '#ffffff',
+                            blue: '#58a6ff',
+                            green: '#3fb950',
+                            yellow: '#d29922',
+                            red: '#f85149',
+                            purple: '#a371f7',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- 全局样式 -->
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 16px; line-height: 1.5; scroll-behavior: smooth; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+        }
+        
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+        
+        /* 加载动画 */
+        .loading-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        
+        /* 卡片悬停 */
+        .card-hover {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #30363d;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            border-color: #8b949e;
+        }
+        
+        /* 按钮样式 */
+        .btn-primary {
+            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+            color: #fff;
+            border: 1px solid rgba(46, 160, 67, 0.4);
+            border-radius: 6px;
+            padding: 6px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2ea043 0%, #3fb950 100%);
+            box-shadow: 0 4px 12px rgba(46, 160, 67, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #21262d;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 6px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: #30363d; border-color: #8b949e; }
+        
+        .btn-danger {
+            background: #da3633;
+            color: #fff;
+            border: 1px solid rgba(218, 54, 51, 0.4);
+            border-radius: 6px;
+            padding: 6px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-danger:hover { background: #f85149; }
+
+        /* 输入框 */
+        .gh-input {
+            width: 100%;
+            padding: 6px 12px;
+            font-size: 14px;
+            color: #e6edf3;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .gh-input:focus {
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2);
+            outline: none;
+        }
+        .gh-input::placeholder { color: #6e7681; }
+
+        /* 卡片 */
+        .gh-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+        }
+        .gh-card-header {
+            padding: 16px;
+            border-bottom: 1px solid #30363d;
+            font-weight: 600;
+        }
+        .gh-card-body { padding: 16px; }
+        
+        /* 徽章 */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-success { background: rgba(46, 160, 67, 0.15); color: #3fb950; }
+        .badge-warning { background: rgba(210, 153, 34, 0.15); color: #d29922; }
+        .badge-danger { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+        .badge-info { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }
+        .badge-neutral { background: rgba(110, 118, 129, 0.15); color: #8b949e; }
+
+        /* 工具栏 */
+        .gh-toolbar {
+            height: 64px;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+        }
+
+        /* 导航链接 */
+        .nav-link {
+            display: flex;
+            align-items: center;
+            height: 64px;
+            padding: 0 16px;
+            color: #8b949e;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .nav-link:hover { color: #e6edf3; border-color: #30363d; }
+        .nav-link.active { color: #fff; border-color: #f78166; }
+
+        /* 过渡动画 */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
+        
+        .slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
+        .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px); }
+    </style>
+</head>
+<body class="bg-gh-bg text-gh-light min-h-screen">
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="fixed inset-0 bg-gh-bg/95 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div class="text-center">
+                <i class="fas fa-circle-notch text-4xl text-gh-blue loading-spin mb-4"></i>
+                <p class="text-gh-text">加载中...</p>
+            </div>
+        </div>
+
+        <!-- 顶部导航 -->
+        <nav class="gh-toolbar sticky top-0 z-40">
+            <div class="flex items-center justify-between w-full max-w-7xl mx-auto">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <a href="#" class="flex items-center gap-3 mr-6">
+                        <div class="w-8 h-8 bg-gradient-to-br from-gh-green to-gh-blue rounded-lg flex items-center justify-center">
+                            <i class="fas fa-robot text-white text-sm"></i>
+                        </div>
+                        <span class="text-lg font-bold text-white">IntelliTeam</span>
+                    </a>
+                    
+                    <!-- 主导航 -->
+                    <div class="hidden md:flex">
+                        <button v-for="tab in tabs" :key="tab.id"
+                                @click="currentTab = tab.id"
+                                :class="['nav-link', currentTab === tab.id ? 'active' : '']">
+                            <i :class="tab.icon" class="mr-2"></i>{{ tab.name }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 右侧工具 -->
+                <div class="flex items-center gap-3">
+                    <!-- 搜索 -->
+                    <div class="hidden lg:flex items-center relative">
+                        <input v-model="searchQuery" @keyup.enter="handleSearch"
+                               type="text" placeholder="搜索..."
+                               class="w-48 h-8 pl-8 pr-4 text-sm bg-gh-bg border border-gh-border rounded-md text-white placeholder-gh-text focus:outline-none focus:border-gh-blue">
+                        <i class="fas fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-gh-text text-xs"></i>
+                    </div>
+
+                    <!-- 主题切换 -->
+                    <button @click="toggleTheme" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center text-gh-text hover:text-white transition">
+                        <i :class="isDark ? 'fas fa-sun' : 'fas fa-moon'" class="text-sm"></i>
+                    </button>
+
+                    <!-- 设置 -->
+                    <button @click="showSettings = true" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center text-gh-text hover:text-white transition">
+                        <i class="fas fa-cog text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 移动端导航 -->
+        <div class="md:hidden flex justify-around py-2 border-b border-gh-border bg-gh-canvas">
+            <button v-for="tab in tabs" :key="tab.id"
+                    @click="currentTab = tab.id"
+                    :class="['p-2 rounded-lg transition', currentTab === tab.id ? 'bg-gh-elevated text-white' : 'text-gh-text']">
+                <i :class="tab.icon"></i>
+            </button>
+        </div>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+            <!-- 仪表盘 -->
+            <dashboard-view v-if="currentTab === 'dashboard'" 
+                           :stats="stats" 
+                           :agents="agents"
+                           :tasks="recentTasks"
+                           @view-task="viewTaskDetail"
+                           @view-agent="viewAgentDetail"></dashboard-view>
+
+            <!-- 任务管理 -->
+            <tasks-view v-else-if="currentTab === 'tasks'"
+                       :tasks="tasks"
+                       @create-task="showCreateTask = true"
+                       @edit-task="editTask"
+                       @delete-task="deleteTask"
+                       @view-detail="viewTaskDetail"></tasks-view>
+
+            <!-- Agent管理 -->
+            <agents-view v-else-if="currentTab === 'agents'"
+                        :agents="agents"
+                        @view-detail="viewAgentDetail"></agents-view>
+
+            <!-- 工作流 -->
+            <workflows-view v-else-if="currentTab === 'workflows'"
+                           :workflows="workflows"></workflows-view>
+
+            <!-- 数据分析 -->
+            <analytics-view v-else-if="currentTab === 'analytics'"
+                           :agents="agents"
+                           :tasks="tasks"></analytics-view>
+
+            <!-- 技能管理 -->
+            <skills-view v-else-if="currentTab === 'skills'"
+                        :skills="skills"
+                        @create="showCreateSkill = true"
+                        @edit="editSkill"
+                        @toggle="toggleSkill"
+                        @delete="deleteSkill"></skills-view>
+
+            <!-- AI助手 -->
+            <ai-assistant-view v-else-if="currentTab === 'ai-assistant'"
+                              :settings="settings"></ai-assistant-view>
+        </main>
+
+        <!-- Toast 通知 -->
+        <transition-group name="slide-up">
+            <div v-for="toast in toasts" :key="toast.id"
+                 :class="['fixed bottom-6 right-6 px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 border', 
+                          toast.type === 'success' ? 'bg-gh-elevated border-gh-green text-gh-green' :
+                          toast.type === 'error' ? 'bg-gh-elevated border-gh-red text-gh-red' :
+                          'bg-gh-elevated border-gh-blue text-gh-blue']">
+                <i :class="toast.type === 'success' ? 'fas fa-check-circle' : toast.type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-info-circle'"></i>
+                <span class="text-sm">{{ toast.message }}</span>
+            </div>
+        </transition-group>
+    </div>
+
+    <!-- 模块化脚本 -->
+    <script type="module" src="static/js/app.js"></script>
+</body>
+</html>

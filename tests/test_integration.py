@@ -14,36 +14,41 @@ from src.agents.doc_writer import DocWriterAgent
 from src.agents.architect import ArchitectAgent
 from src.agents.planner import PlannerAgent
 from src.core.models import Task
-from src.core.executor import AgentExecutor, Workflow, WorkflowTask
+# 更新：从 workflow.py 导入，替代 executor.py
+from src.graph.workflow import (
+    AgentWorkflow,
+    WorkflowDefinition,
+    WorkflowTask,
+)
 
 
 class TestMultiAgentWorkflow:
     """测试多 Agent 协作流程"""
 
     @pytest.fixture
-    def executor(self):
-        """创建执行引擎"""
-        executor = AgentExecutor()
+    def workflow(self):
+        """创建工作流实例"""
+        workflow = AgentWorkflow()
 
         # 注册 Agent（使用模拟模式）
-        executor.register_agent("Planner", PlannerAgent())
-        executor.register_agent("Architect", ArchitectAgent())
-        executor.register_agent("Coder", CoderAgent())
-        executor.register_agent("Tester", TesterAgent())
-        executor.register_agent("DocWriter", DocWriterAgent())
+        workflow._agents["planner"] = PlannerAgent()
+        workflow._agents["architect"] = ArchitectAgent()
+        workflow._agents["coder"] = CoderAgent()
+        workflow._agents["tester"] = TesterAgent()
+        workflow._agents["doc_writer"] = DocWriterAgent()
 
-        return executor
+        return workflow
 
     @pytest.mark.asyncio
     @pytest.mark.skip(reason="集成测试需要 LLM 连接，在 CI 环境中跳过")
-    async def test_standard_workflow(self, executor):
+    async def test_standard_workflow(self, workflow):
         """测试标准研发工作流"""
-        # 创建工作流
-        workflow = executor.create_standard_workflow("Test Workflow")
+        # 创建工作流定义
+        workflow_def = workflow.create_standard_workflow("Test Workflow")
         
         # 执行工作流
-        result = await executor.execute_workflow(
-            workflow,
+        result = await workflow.execute_workflow_definition(
+            workflow_def,
             context={
                 "project_name": "Test Project",
                 "requirements": ["创建用户管理系统"],
@@ -55,54 +60,54 @@ class TestMultiAgentWorkflow:
         
         if result["status"] == "completed":
             # 验证每个 Agent 都执行了
-            assert "Planner" in result["results"]
-            assert "Architect" in result["results"]
-            assert "Coder" in result["results"]
-            assert "Tester" in result["results"]
-            assert "DocWriter" in result["results"]
+            assert "planner" in result["results"]
+            assert "architect" in result["results"]
+            assert "coder" in result["results"]
+            assert "tester" in result["results"]
+            assert "doc_writer" in result["results"]
     
     @pytest.mark.asyncio
-    async def test_parallel_tasks(self, executor):
+    async def test_parallel_tasks(self, workflow):
         """测试并行任务执行"""
-        workflow = Workflow(
+        workflow_def = WorkflowDefinition(
             name="Parallel Test",
             description="测试并行执行",
         )
         
         # 创建可以并行执行的任务
-        workflow.tasks = [
+        workflow_def.tasks = [
             WorkflowTask(
-                agent_name="Coder",
+                agent_name="coder",
                 task_description="实现模块 A",
                 dependencies=[],
             ),
             WorkflowTask(
-                agent_name="Coder",
+                agent_name="coder",
                 task_description="实现模块 B",
                 dependencies=[],  # 无依赖，可并行
             ),
             WorkflowTask(
-                agent_name="Tester",
+                agent_name="tester",
                 task_description="测试模块 A 和 B",
-                dependencies=[0, 1],  # 依赖前两个任务
+                dependencies=["coder"],  # 依赖前面的任务
             ),
         ]
         
-        result = await executor.execute_workflow(workflow)
+        result = await workflow.execute_workflow_definition(workflow_def)
         
         # 验证执行顺序
         assert result["status"] in ["completed", "failed"]
     
     @pytest.mark.asyncio
-    async def test_task_failure_handling(self, executor):
+    async def test_task_failure_handling(self, workflow):
         """测试任务失败处理"""
-        workflow = Workflow(
+        workflow_def = WorkflowDefinition(
             name="Failure Test",
             description="测试失败处理",
         )
         
         # 创建一个会失败的任务
-        workflow.tasks = [
+        workflow_def.tasks = [
             WorkflowTask(
                 agent_name="NonExistentAgent",  # 不存在的 Agent
                 task_description="这个任务会失败",
@@ -111,7 +116,7 @@ class TestMultiAgentWorkflow:
             ),
         ]
         
-        result = await executor.execute_workflow(workflow)
+        result = await workflow.execute_workflow_definition(workflow_def)
         
         # 验证失败被正确处理
         assert result["status"] == "failed"
@@ -122,16 +127,16 @@ class TestAgentIntegration:
     """测试 Agent 集成"""
     
     @pytest.fixture
-    def agents(self):
-        """创建 Agent 列表"""
+    def agents(self, mock_llm_helper):
+        """创建 Agent 列表，注入 mock LLM helper"""
         return {
-            "Coder": CoderAgent(),
-            "Tester": TesterAgent(),
-            "DocWriter": DocWriterAgent(),
+            "Coder": CoderAgent(llm_helper=mock_llm_helper),
+            "Tester": TesterAgent(llm_helper=mock_llm_helper),
+            "DocWriter": DocWriterAgent(llm_helper=mock_llm_helper),
         }
     
     @pytest.mark.asyncio
-    async def test_coder_to_tester_handoff(self, agents):
+    async def test_coder_to_tester_handoff(self, agents, mock_llm_helper):
         """测试 Coder 到 Tester 的交接"""
         # Coder 生成代码
         coder = agents["Coder"]
@@ -169,7 +174,7 @@ class TestAgentIntegration:
         assert "test_cases_created" in tester_result
     
     @pytest.mark.asyncio
-    async def test_coder_to_docwriter_handoff(self, agents):
+    async def test_coder_to_docwriter_handoff(self, agents, mock_llm_helper):
         """测试 Coder 到 DocWriter 的交接"""
         # Coder 生成代码
         coder = agents["Coder"]

@@ -1,0 +1,114 @@
+/**
+ * CSS 变量定义
+ * GitHub 风格设计系统
+ */
+
+:root {
+    /* 背景色 */
+    --gh-bg: #0d1117;
+    --gh-canvas: #161b22;
+    --gh-canvas-inset: #010409;
+    --gh-elevated: #21262d;
+    
+    /* 边框 */
+    --gh-border: #30363d;
+    --gh-border-muted: #21262d;
+    
+    /* 文字 */
+    --gh-text: #8b949e;
+    --gh-text-muted: #6e7681;
+    --gh-light: #e6edf3;
+    --gh-white: #ffffff;
+    
+    /* 强调色 */
+    --gh-blue: #58a6ff;
+    --gh-blue-muted: #388bfd;
+    
+    --gh-green: #3fb950;
+    --gh-green-muted: #2ea043;
+    
+    --gh-yellow: #d29922;
+    --gh-yellow-muted: #bb8009;
+    
+    --gh-red: #f85149;
+    --gh-red-muted: #da3633;
+    
+    --gh-purple: #a371f7;
+    --gh-pink: #f778ba;
+    
+    /* 功能色 */
+    --gh-accent: #f78166;
+    --gh-success: var(--gh-green);
+    --gh-warning: var(--gh-yellow);
+    --gh-danger: var(--gh-red);
+    --gh-info: var(--gh-blue);
+    
+    /* 阴影 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+    
+    /* 圆角 */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
+    --radius-full: 9999px;
+    
+    /* 间距 */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+    --space-10: 40px;
+    --space-12: 48px;
+    
+    /* 字体 */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    
+    /* 字体大小 */
+    --text-xs: 12px;
+    --text-sm: 14px;
+    --text-base: 16px;
+    --text-lg: 18px;
+    --text-xl: 20px;
+    --text-2xl: 24px;
+    
+    /* 行高 */
+    --leading-tight: 1.25;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.625;
+    
+    /* 过渡 */
+    --transition-fast: 150ms ease;
+    --transition-normal: 200ms ease;
+    --transition-slow: 300ms ease;
+    
+    /* Z-index */
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-modal: 500;
+    --z-popover: 600;
+    --z-tooltip: 700;
+}
+
+/* 浅色模式变量 */
+.light {
+    --gh-bg: #ffffff;
+    --gh-canvas: #f6f8fa;
+    --gh-canvas-inset: #f3f4f6;
+    --gh-elevated: #ffffff;
+    
+    --gh-border: #d0d7de;
+    --gh-border-muted: #d8dee4;
+    
+    --gh-text: #57606a;
+    --gh-text-muted: #6e7781;
+    --gh-light: #24292f;
+    --gh-white: #1f2328;
+}

@@ -2,6 +2,11 @@
 ArchitectAgent - 架构师 Agent
 
 职责：系统设计、技术选型、架构评审
+
+版本：2.0.0
+更新时间：2026-03-12
+增强功能：
+- 支持依赖注入 LLM Helper
 """
 
 from typing import Any
@@ -10,7 +15,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
-from .llm_helper import get_architect_llm
+from .llm_helper import AgentLLMHelper, get_architect_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -24,21 +29,36 @@ class ArchitectAgent(BaseAgent):
     - 技术栈选型
     - 接口设计
     - 架构评审和优化建议
+    
+    依赖注入支持：
+        # 方式1：使用默认 LLM Helper
+        agent = ArchitectAgent()
+        
+        # 方式2：注入自定义 LLM Helper
+        custom_llm = AgentLLMHelper(...)
+        agent = ArchitectAgent(llm_helper=custom_llm)
     """
 
     ROLE = AgentRole.ARCHITECT
 
-    def __init__(self, **kwargs):
+    def __init__(self, llm_helper: AgentLLMHelper | None = None, **kwargs):
+        """
+        初始化 Architect Agent
+
+        Args:
+            llm_helper: LLM 辅助实例（可选，用于依赖注入）
+            **kwargs: 其他配置参数
+        """
         super().__init__(**kwargs)
 
         # 架构师特有配置
         self.design_model = kwargs.get("design_model", "gpt-4")
         self.preferred_patterns = kwargs.get("preferred_patterns", [])
 
-        # LLM 辅助
-        self.llm_helper = get_architect_llm()
+        # LLM 辅助（支持依赖注入）
+        self.llm_helper = llm_helper or get_architect_llm()
 
-        self.logger.info("ArchitectAgent initialized")
+        self.logger.info("ArchitectAgent initialized", use_injected_llm=llm_helper is not None)
 
     async def execute(self, task: Task) -> dict[str, Any]:
         """
@@ -245,8 +265,9 @@ class ArchitectAgent(BaseAgent):
     async def _generate_component_diagram(self, components: list[dict[str, Any]]) -> str:
         """
         使用 LLM 生成组件图（Mermaid 格式）
-
-        TODO: 生成组件图
+        
+        根据组件列表生成可视化的架构组件图。
+        如果组件列表为空，返回占位图。
         """
         if not components:
             return "graph TD\n    A[无组件信息]"
@@ -311,7 +332,7 @@ class ArchitectAgent(BaseAgent):
         """
         使用 LLM 生成时序图（Mermaid 格式）
 
-        TODO: 生成时序图
+        根据交互信息生成可视化的时序图。
         """
         if not components:
             return "sequenceDiagram\n    participant 无组件信息"

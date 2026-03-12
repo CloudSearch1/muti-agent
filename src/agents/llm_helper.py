@@ -17,6 +17,7 @@ from tenacity import (
 )
 
 from ..llm.service import get_llm_service
+from ..utils.text import clean_json_from_markdown
 
 logger = structlog.get_logger(__name__)
 
@@ -149,15 +150,7 @@ class AgentLLMHelper:
         # 尝试解析 JSON
         try:
             # 清理可能的 markdown 代码块
-            cleaned = content.strip()
-            if cleaned.startswith("```json"):
-                cleaned = cleaned[7:]
-            elif cleaned.startswith("```"):
-                cleaned = cleaned[3:]
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3]
-            cleaned = cleaned.strip()
-
+            cleaned = clean_json_from_markdown(content)
             return json.loads(cleaned)
         except json.JSONDecodeError as e:
             logger.error(

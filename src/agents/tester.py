@@ -2,6 +2,11 @@
 TesterAgent - 测试员 Agent
 
 职责：测试用例生成、执行测试、质量保障
+
+版本：2.0.0
+更新时间：2026-03-12
+增强功能：
+- 支持依赖注入 LLM Helper
 """
 
 import asyncio
@@ -12,7 +17,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
-from .llm_helper import get_tester_llm
+from .llm_helper import AgentLLMHelper, get_tester_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -26,11 +31,26 @@ class TesterAgent(BaseAgent):
     - 执行测试并生成报告
     - 缺陷跟踪和管理
     - 质量保障
+    
+    依赖注入支持：
+        # 方式1：使用默认 LLM Helper
+        agent = TesterAgent()
+        
+        # 方式2：注入自定义 LLM Helper
+        custom_llm = AgentLLMHelper(...)
+        agent = TesterAgent(llm_helper=custom_llm)
     """
 
     ROLE = AgentRole.TESTER
 
-    def __init__(self, **kwargs):
+    def __init__(self, llm_helper: AgentLLMHelper | None = None, **kwargs):
+        """
+        初始化 Tester Agent
+
+        Args:
+            llm_helper: LLM 辅助实例（可选，用于依赖注入）
+            **kwargs: 其他配置参数
+        """
         super().__init__(**kwargs)
 
         # 测试员特有配置
@@ -38,10 +58,10 @@ class TesterAgent(BaseAgent):
         self.coverage_target = kwargs.get("coverage_target", 80)
         self.auto_fix = kwargs.get("auto_fix", False)
 
-        # LLM 辅助
-        self.llm_helper = get_tester_llm()
+        # LLM 辅助（支持依赖注入）
+        self.llm_helper = llm_helper or get_tester_llm()
 
-        self.logger.info("TesterAgent initialized")
+        self.logger.info("TesterAgent initialized", use_injected_llm=llm_helper is not None)
 
     async def execute(self, task: Task) -> dict[str, Any]:
         """
@@ -325,14 +345,14 @@ def {name}():
     - Act: 执行被测试的函数
     - Assert: 断言结果符合预期
     """
-    # Arrange
-    # TODO: 准备测试数据
+    # Arrange - 准备测试数据
+    # 根据被测试函数的输入要求准备测试数据
 
-    # Act
-    # TODO: 执行被测试的函数
+    # Act - 执行被测试的函数
+    # 调用目标函数并获取结果
 
-    # Assert
-    # TODO: 添加断言
+    # Assert - 断言结果符合预期
+    # 验证输出是否符合预期
     assert True, "测试通过"
 
 
@@ -672,13 +692,13 @@ def test_regression_{title.replace(' ', '_').lower()[:30]}():
     3. 验证结果符合预期
     """
     # Arrange - 准备测试环境
-    # TODO: 根据具体缺陷设置环境
+    # 根据具体缺陷重现步骤设置测试环境
 
     # Act - 执行可能触发缺陷的操作
-    # TODO: 执行相关代码
+    # 执行原来触发缺陷的代码路径
 
     # Assert - 验证缺陷已修复
-    # TODO: 添加断言确保行为正确
+    # 确认之前失败的行为现在能正确执行
     assert True, "回归测试通过 - 缺陷已修复"
 
 

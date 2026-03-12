@@ -2,6 +2,11 @@
 DocWriterAgent - 文档员 Agent
 
 职责：技术文档编写、API 文档生成、知识库维护
+
+版本：2.0.0
+更新时间：2026-03-12
+增强功能：
+- 支持依赖注入 LLM Helper
 """
 
 from datetime import datetime
@@ -11,7 +16,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
-from .llm_helper import get_doc_writer_llm
+from .llm_helper import AgentLLMHelper, get_doc_writer_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -25,11 +30,26 @@ class DocWriterAgent(BaseAgent):
     - 生成 API 文档
     - 维护知识库
     - 文档审查和更新
+    
+    依赖注入支持：
+        # 方式1：使用默认 LLM Helper
+        agent = DocWriterAgent()
+        
+        # 方式2：注入自定义 LLM Helper
+        custom_llm = AgentLLMHelper(...)
+        agent = DocWriterAgent(llm_helper=custom_llm)
     """
 
     ROLE = AgentRole.DOC_WRITER
 
-    def __init__(self, **kwargs):
+    def __init__(self, llm_helper: AgentLLMHelper | None = None, **kwargs):
+        """
+        初始化 DocWriter Agent
+
+        Args:
+            llm_helper: LLM 辅助实例（可选，用于依赖注入）
+            **kwargs: 其他配置参数
+        """
         super().__init__(**kwargs)
 
         # 文档员特有配置
@@ -37,10 +57,10 @@ class DocWriterAgent(BaseAgent):
         self.doc_format = kwargs.get("doc_format", "markdown")
         self.auto_generate = kwargs.get("auto_generate", True)
 
-        # LLM 辅助
-        self.llm_helper = get_doc_writer_llm()
+        # LLM 辅助（支持依赖注入）
+        self.llm_helper = llm_helper or get_doc_writer_llm()
 
-        self.logger.info("DocWriterAgent initialized")
+        self.logger.info("DocWriterAgent initialized", use_injected_llm=llm_helper is not None)
 
     async def execute(self, task: Task) -> dict[str, Any]:
         """

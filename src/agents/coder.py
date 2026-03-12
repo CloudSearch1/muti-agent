@@ -2,6 +2,11 @@
 CoderAgent - 代码工程师 Agent
 
 职责：代码编写、重构、代码审查
+
+版本：2.0.0
+更新时间：2026-03-12
+增强功能：
+- 支持依赖注入 LLM Helper
 """
 
 from typing import Any
@@ -10,7 +15,7 @@ import structlog
 
 from ..core.models import AgentRole, Task
 from .base import BaseAgent
-from .llm_helper import get_coder_llm
+from .llm_helper import AgentLLMHelper, get_coder_llm
 
 logger = structlog.get_logger(__name__)
 
@@ -24,11 +29,26 @@ class CoderAgent(BaseAgent):
     - 代码重构和优化
     - 代码审查
     - 技术债务管理
+    
+    依赖注入支持：
+        # 方式1：使用默认 LLM Helper
+        agent = CoderAgent()
+        
+        # 方式2：注入自定义 LLM Helper
+        custom_llm = AgentLLMHelper(...)
+        agent = CoderAgent(llm_helper=custom_llm)
     """
 
     ROLE = AgentRole.CODER
 
-    def __init__(self, **kwargs):
+    def __init__(self, llm_helper: AgentLLMHelper | None = None, **kwargs):
+        """
+        初始化 Coder Agent
+
+        Args:
+            llm_helper: LLM 辅助实例（可选，用于依赖注入）
+            **kwargs: 其他配置参数
+        """
         super().__init__(**kwargs)
 
         # 程序员特有配置
@@ -36,10 +56,10 @@ class CoderAgent(BaseAgent):
         self.preferred_language = kwargs.get("preferred_language", "python")
         self.code_style = kwargs.get("code_style", "pep8")
 
-        # LLM 辅助
-        self.llm_helper = get_coder_llm()
+        # LLM 辅助（支持依赖注入）
+        self.llm_helper = llm_helper or get_coder_llm()
 
-        self.logger.info("CoderAgent initialized")
+        self.logger.info("CoderAgent initialized", use_injected_llm=llm_helper is not None)
 
     async def execute(self, task: Task) -> dict[str, Any]:
         """
@@ -331,7 +351,7 @@ def {name}({param_str}):
     \"\"\"
     {desc}
     \"\"\"
-    # TODO: 实现具体逻辑
+    # 待实现：根据需求补充具体逻辑
     pass
 """)
 

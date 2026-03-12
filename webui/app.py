@@ -68,47 +68,151 @@ else:
 
 # ============ 响应缓存 ============
 
+# Redis 配置（可选）
+REDIS_URL = None  # 环境变量: os.environ.get("REDIS_URL")
+try:
+    import os
+    REDIS_URL = os.environ.get("REDIS_URL")
+except Exception:
+    pass
+
+
 class ResponseCache:
     """
-    内存缓存实现（生产环境建议升级为 Redis）
+    响应缓存实现
     
-    TODO: 
-    - 集成 Redis 作为缓存后端
-    - 支持多实例缓存共享
-    - 添加缓存预热和淘汰策略
+    支持：
+    - 内存缓存（默认，单实例）
+    - Redis 缓存（生产环境，多实例共享）
+    - 自动 TTL 过期
+    - 缓存预热和淘汰策略
     """
-    def __init__(self, ttl_seconds: int = 60):
+    
+    def __init__(self, ttl_seconds: int = 60, redis_url: str | None = None):
         self._cache: dict[str, dict] = {}
-        self._ttl = timedelta(seconds=ttl_seconds)
+        self._ttl = ttl_seconds
         self._hits = 0
         self._misses = 0
-        logger.info(f"响应缓存初始化完成，TTL={ttl_seconds}秒")
-
-    def get(self, key: str) -> dict | None:
+        
+        # Redis 客户端（可选）
+        self._redis = None
+        self._redis_url = redis_url or REDIS_URL
+        
+        # 尝试连接 Redis
+        if self._redis_url:
+            try:
+                import redis.asyncio as aioredis
+                self._redis = aioredis.from_url(
+                    self._redis_url,
+                    encoding="utf-8",
+                    decode_responses=True
+                )
+                logger.info(f"Redis 缓存已启用：{self._redis_url}")
+            except ImportError:
+                logger.warning("Redis 库未安装，使用内存缓存。安装：pip install redis")
+            except Exception as e:
+                logger.warning(f"Redis 连接失败，使用内存缓存：{e}")
+        
+        if not self._redis:
+            logger.info(f"内存缓存初始化完成，TTL={ttl_seconds}秒")
+    
+    async def get(self, key: str) -> dict | None:
+        """获取缓存"""
+        # Redis 模式
+        if self._redis:
+            try:
+                data = await self._redis.get(key)
+                if data:
+                    self._hits += 1
+                    import json
+                    return json.loads(data)
+                self._misses += 1
+                return None
+            except Exception as e:
+                logger.warning(f"Redis 读取失败：{e}")
+                # 降级到内存缓存
+        
+        # 内存缓存模式
         if key in self._cache:
             entry = self._cache[key]
             if datetime.now(timezone.utc).astimezone() < entry['expires']:
                 self._hits += 1
-                logger.debug(f"缓存命中：{key} (hits={self._hits}, misses={self._misses})")
+                logger.debug(f"缓存命中：{key}")
                 return entry['data']
             # 过期数据清理
             del self._cache[key]
-            logger.debug(f"缓存过期：{key}")
+        
         self._misses += 1
         return None
-
-    def set(self, key: str, data: dict):
+    
+    async def set(self, key: str, data: dict):
+        """设置缓存"""
+        # Redis 模式
+        if self._redis:
+            try:
+                import json
+                await self._redis.setex(
+                    key,
+                    self._ttl,
+                    json.dumps(data, default=str)
+                )
+                logger.debug(f"Redis 缓存设置：{key}")
+                return
+            except Exception as e:
+                logger.warning(f"Redis 写入失败：{e}")
+        
+        # 内存缓存模式
         self._cache[key] = {
             'data': data,
-            'expires': datetime.now(timezone.utc).astimezone() + self._ttl
+            'expires': datetime.now(timezone.utc).astimezone() + timedelta(seconds=self._ttl)
         }
-        logger.debug(f"缓存设置：{key}, 过期时间={self._ttl}")
-
-    def invalidate(self, key: str):
+        logger.debug(f"内存缓存设置：{key}")
+    
+    async def invalidate(self, key: str):
+        """使缓存失效"""
+        if self._redis:
+            try:
+                await self._redis.delete(key)
+            except Exception:
+                pass
+        
         if key in self._cache:
             del self._cache[key]
-            logger.debug(f"缓存失效：{key}")
-
+        logger.debug(f"缓存失效：{key}")
+    
+    async def warmup(self, keys: list[str], loader_func):
+        """
+        缓存预热
+        
+        Args:
+            keys: 需要预热的缓存键列表
+            loader_func: 数据加载函数
+        """
+        for key in keys:
+            try:
+                data = await loader_func(key)
+                if data:
+                    await self.set(key, data)
+                    logger.debug(f"缓存预热：{key}")
+            except Exception as e:
+                logger.warning(f"缓存预热失败 {key}: {e}")
+    
+    async def evict_expired(self):
+        """清理过期缓存（内存模式）"""
+        if self._redis:
+            return  # Redis 自动处理过期
+        
+        now = datetime.now(timezone.utc).astimezone()
+        expired_keys = [
+            k for k, v in self._cache.items()
+            if v['expires'] < now
+        ]
+        for key in expired_keys:
+            del self._cache[key]
+        
+        if expired_keys:
+            logger.debug(f"清理过期缓存：{len(expired_keys)} 个")
+    
     def get_stats(self) -> dict:
         """获取缓存统计信息"""
         total = self._hits + self._misses
@@ -117,9 +221,57 @@ class ResponseCache:
             "size": len(self._cache),
             "hits": self._hits,
             "misses": self._misses,
-            "hit_rate": f"{hit_rate:.2f}%"
+            "hit_rate": f"{hit_rate:.2f}%",
+            "backend": "redis" if self._redis else "memory"
         }
+    
+    async def close(self):
+        """关闭连接"""
+        if self._redis:
+            await self._redis.close()
 
+
+# 创建缓存实例（支持同步和异步接口）
+class SyncResponseCache:
+    """同步缓存包装器"""
+    
+    def __init__(self, cache: ResponseCache):
+        self._cache = cache
+    
+    def get(self, key: str) -> dict | None:
+        """同步获取（用于非异步上下文）"""
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            # 在异步上下文中，创建任务
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, self._cache.get(key))
+                return future.result()
+        except RuntimeError:
+            # 没有事件循环，直接运行
+            return asyncio.run(self._cache.get(key))
+    
+    def set(self, key: str, data: dict):
+        """同步设置"""
+        try:
+            loop = asyncio.get_running_loop()
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, self._cache.set(key, data))
+                future.result()
+        except RuntimeError:
+            asyncio.run(self._cache.set(key, data))
+    
+    def invalidate(self, key: str):
+        """同步失效"""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(self._cache.invalidate(key))
+
+
+# 全局缓存实例
 response_cache = ResponseCache(ttl_seconds=30)
 
 # ============ 数据模型 ============
@@ -1174,7 +1326,149 @@ class WebSocketManager:
             "connection_ids": list(self.active_connections.keys())
         }
 
+
+class AgentEventBus:
+    """
+    Agent 状态事件总线
+    
+    功能：
+    - 监听 Agent 状态变化
+    - 通过 WebSocket 广播状态更新
+    - 支持外部事件源接入
+    - 订阅/发布模式
+    """
+    
+    def __init__(self):
+        self._subscribers: list[callable] = []
+        self._agent_states: dict[str, dict] = {}
+        self._event_queue: asyncio.Queue = asyncio.Queue()
+        self._running = False
+        logger.info("Agent 事件总线初始化完成")
+    
+    def subscribe(self, callback: callable):
+        """订阅 Agent 状态变化"""
+        self._subscribers.append(callback)
+    
+    def unsubscribe(self, callback: callable):
+        """取消订阅"""
+        if callback in self._subscribers:
+            self._subscribers.remove(callback)
+    
+    async def publish(self, event_type: str, agent_name: str, data: dict):
+        """
+        发布 Agent 事件
+        
+        Args:
+            event_type: 事件类型 (status_change, task_complete, error, etc.)
+            agent_name: Agent 名称
+            data: 事件数据
+        """
+        event = {
+            "type": event_type,
+            "agent": agent_name,
+            "data": data,
+            "timestamp": datetime.now().isoformat()
+        }
+        await self._event_queue.put(event)
+        logger.debug(f"Agent 事件发布：{event_type} - {agent_name}")
+    
+    async def update_agent_status(self, agent_name: str, new_status: str, metadata: dict = None):
+        """
+        更新 Agent 状态并广播
+        
+        Args:
+            agent_name: Agent 名称
+            new_status: 新状态
+            metadata: 附加元数据
+        """
+        old_status = self._agent_states.get(agent_name, {}).get("status", "unknown")
+        
+        self._agent_states[agent_name] = {
+            "status": new_status,
+            "updated_at": datetime.now().isoformat(),
+            "metadata": metadata or {}
+        }
+        
+        await self.publish(
+            "status_change",
+            agent_name,
+            {
+                "old_status": old_status,
+                "new_status": new_status,
+                "metadata": metadata
+            }
+        )
+    
+    def get_agent_status(self, agent_name: str) -> dict | None:
+        """获取 Agent 当前状态"""
+        return self._agent_states.get(agent_name)
+    
+    async def start(self):
+        """启动事件处理循环"""
+        self._running = True
+        logger.info("Agent 事件总线启动")
+        
+        while self._running:
+            try:
+                event = await asyncio.wait_for(
+                    self._event_queue.get(),
+                    timeout=1.0
+                )
+                await self._dispatch_event(event)
+            except asyncio.TimeoutError:
+                continue
+            except Exception as e:
+                logger.error(f"事件处理错误：{e}")
+    
+    def stop(self):
+        """停止事件处理"""
+        self._running = False
+        logger.info("Agent 事件总线停止")
+    
+    async def _dispatch_event(self, event: dict):
+        """分发事件给所有订阅者"""
+        for callback in self._subscribers:
+            try:
+                result = callback(event)
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception as e:
+                logger.error(f"订阅者回调错误：{e}")
+    
+    async def connect_to_agent_manager(self):
+        """
+        连接到真实的 Agent 管理器
+        
+        从 src/pi/agent_manager.py 获取实时状态
+        """
+        try:
+            from src.pi.agent_manager import get_agent_manager
+            
+            agent_manager = get_agent_manager()
+            
+            # 注册状态变化回调
+            async def on_status_change(agent_id, old_status, new_status):
+                agent_info = agent_manager.get_agent(agent_id)
+                if agent_info:
+                    await self.update_agent_status(
+                        agent_info.name,
+                        new_status.value if hasattr(new_status, 'value') else str(new_status),
+                        {"agent_id": agent_id}
+                    )
+            
+            agent_manager._on_status_change = on_status_change
+            logger.info("已连接到 Agent 管理器")
+            
+        except ImportError:
+            logger.warning("Agent 管理器模块未找到，使用模拟数据")
+        except Exception as e:
+            logger.warning(f"连接 Agent 管理器失败：{e}")
+
+
+# 全局实例
 websocket_manager = WebSocketManager()
+agent_event_bus = AgentEventBus()
+
 
 async def websocket_endpoint(websocket: WebSocket):
     """
@@ -1182,7 +1476,7 @@ async def websocket_endpoint(websocket: WebSocket):
     
     功能:
     - 系统状态推送（5 秒间隔）
-    - Agent 状态实时更新
+    - Agent 状态实时更新（通过事件总线）
     - 心跳检测（30 秒间隔）
     - 断线自动清理
     """
@@ -1190,6 +1484,20 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket_manager.connect(websocket, client_id)
 
     last_heartbeat = datetime.now(timezone.utc).astimezone()
+    
+    # 订阅 Agent 事件
+    async def on_agent_event(event: dict):
+        await websocket.send_json({
+            "type": "agent_update",
+            "data": {
+                "name": event.get("agent"),
+                "status": event.get("data", {}).get("new_status"),
+                "event_type": event.get("type"),
+                "timestamp": event.get("timestamp")
+            }
+        })
+    
+    agent_event_bus.subscribe(on_agent_event)
 
     try:
         while True:
@@ -1206,17 +1514,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             })
 
-            # 随机更新 Agent 状态（模拟真实变化）
-            # TODO: 替换为真实的 Agent 状态事件总线
-            if random.random() < 0.3:
-                agent = random.choice(AGENTS_DATA)
-                old_status = agent["status"]
-                agent["status"] = "busy" if agent["status"] == "idle" else "idle"
-                logger.debug(f"Agent 状态变化：{agent['name']} {old_status} -> {agent['status']}")
-                await websocket.send_json({
-                    "type": "agent_update",
-                    "data": agent
-                })
+            # 处理事件总线中的事件
+            while not agent_event_bus._event_queue.empty():
+                try:
+                    event = agent_event_bus._event_queue.get_nowait()
+                    await on_agent_event(event)
+                except asyncio.QueueEmpty:
+                    break
 
             # 心跳检测
             if (now - last_heartbeat).total_seconds() >= websocket_manager.heartbeat_interval:

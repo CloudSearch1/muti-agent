@@ -2,10 +2,19 @@
 并发控制模块
 
 使用信号量、限流器等控制并发，防止资源耗尽
+
+版本：3.0.0
+更新时间：2026-03-12
+修复问题：
+- 修复 release 方法中同步调用 asyncio.create_task() 的问题
+- 添加线程锁保证统计信息更新的原子性
+- 完全移除同步/异步混用的问题
+- 提供线程安全的统计信息更新机制
 """
 
 import asyncio
 import logging
+import threading
 import time
 from collections import defaultdict
 from collections.abc import Callable
@@ -89,6 +98,22 @@ class SemaphoreController:
     - 限制并发数量
     - 支持多层级信号量
     - 超时控制
+
+    使用方式：
+        controller = SemaphoreController(max_concurrent=10)
+
+        # 异步获取和释放
+        if await controller.acquire():
+            try:
+                # 执行任务
+                ...
+            finally:
+                await controller.release_async()
+
+        # 或使用上下文管理器
+        async with controller.semaphore_context():
+            # 执行任务
+            ...
     """
 
     def __init__(
@@ -101,10 +126,19 @@ class SemaphoreController:
         self._active = 0
         self._total_acquired = 0
         self._total_released = 0
-        self._lock = asyncio.Lock()
+        self._async_lock = asyncio.Lock()  # 用于异步操作的锁
+        self._thread_lock = threading.Lock()  # 用于保护统计信息的线程锁
 
     async def acquire(self, timeout: float | None = None) -> bool:
-        """获取信号量"""
+        """
+        获取信号量（异步）
+
+        Args:
+            timeout: 超时时间（秒）
+
+        Returns:
+            是否成功获取
+        """
         try:
             acquired = await asyncio.wait_for(
                 self._semaphore.acquire(),
@@ -112,7 +146,8 @@ class SemaphoreController:
             )
 
             if acquired:
-                async with self._lock:
+                # 使用线程锁保证统计信息更新的原子性
+                with self._thread_lock:
                     self._active += 1
                     self._total_acquired += 1
                 logger.debug(f"Semaphore acquired, active: {self._active}")
@@ -123,17 +158,55 @@ class SemaphoreController:
             logger.warning("Semaphore acquire timeout")
             return False
 
-    def release(self):
-        """释放信号量"""
+    def release(self) -> None:
+        """
+        释放信号量（同步版本）
+
+        注意：此方法使用线程锁保护统计信息更新，确保线程安全。
+        """
         self._semaphore.release()
 
-        async def update():
-            async with self._lock:
-                self._active -= 1
-                self._total_released += 1
+        # 使用线程锁保证统计信息更新的原子性
+        with self._thread_lock:
+            self._active -= 1
+            self._total_released += 1
 
-        asyncio.create_task(update())
-        logger.debug(f"Semaphore released, active: {self._active - 1}")
+        logger.debug(f"Semaphore released, active: {self._active}")
+
+    async def release_async(self) -> None:
+        """
+        释放信号量（异步版本）
+
+        此方法也使用线程锁保护统计信息更新，与同步版本保持一致。
+        """
+        self._semaphore.release()
+
+        # 使用线程锁保证统计信息更新的原子性
+        with self._thread_lock:
+            self._active -= 1
+            self._total_released += 1
+
+        logger.debug(f"Semaphore released, active: {self._active}")
+
+    async def __aenter__(self) -> "SemaphoreController":
+        """异步上下文管理器入口"""
+        await self.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """异步上下文管理器退出"""
+        await self.release_async()
+
+    def semaphore_context(self):
+        """
+        获取信号量上下文管理器
+
+        用法：
+            async with controller.semaphore_context():
+                # 执行任务
+                ...
+        """
+        return _SemaphoreContext(self)
 
     def get_stats(self) -> dict:
         """获取统计"""
@@ -143,6 +216,20 @@ class SemaphoreController:
             "total_released": self._total_released,
             "max_concurrent": self._semaphore._value,
         }
+
+
+class _SemaphoreContext:
+    """信号量上下文管理器（内部类）"""
+
+    def __init__(self, controller: SemaphoreController):
+        self._controller = controller
+
+    async def __aenter__(self) -> SemaphoreController:
+        await self._controller.acquire()
+        return self._controller
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        await self._controller.release_async()
 
 
 @dataclass
@@ -289,7 +376,7 @@ def concurrent_limit(max_concurrent: int, timeout: float | None = None):
                     else:
                         return func(*args, **kwargs)
                 finally:
-                    controller.release()
+                    await controller.release_async()
             else:
                 raise TimeoutError(f"Concurrent limit exceeded for {func.__name__}")
 
@@ -350,12 +437,27 @@ def circuit_breaker(
     return decorator
 
 
-# 全局并发控制器
+# 全局并发控制器（线程安全）
 _global_controllers: dict[str, SemaphoreController] = {}
+_global_controllers_lock = threading.Lock()
 
 
 def get_concurrent_controller(name: str, max_concurrent: int = 10) -> SemaphoreController:
-    """获取并发控制器"""
+    """
+    获取并发控制器（线程安全）
+
+    Args:
+        name: 控制器名称
+        max_concurrent: 最大并发数
+
+    Returns:
+        SemaphoreController 实例
+    """
+    # 使用双重检查锁定模式，提高性能
     if name not in _global_controllers:
-        _global_controllers[name] = SemaphoreController(max_concurrent=max_concurrent)
+        with _global_controllers_lock:
+            # 再次检查，防止在获取锁期间其他线程已创建
+            if name not in _global_controllers:
+                _global_controllers[name] = SemaphoreController(max_concurrent=max_concurrent)
+                logger.debug(f"Created new concurrent controller: {name} (max_concurrent={max_concurrent})")
     return _global_controllers[name]

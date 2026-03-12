@@ -22,6 +22,7 @@ from typing import Any
 import structlog
 
 from ..config.settings import get_llm_settings
+from ..utils.text import clean_json_from_markdown
 
 logger = structlog.get_logger(__name__)
 
@@ -163,15 +164,48 @@ class BaseProvider(ABC):
 
     def __init__(self, timeout: int | None = None):
         self._timeout = timeout or self.DEFAULT_TIMEOUT
-        self._httpx = None
+        self._httpx_module = None
+        self._client: httpx.AsyncClient | None = None
 
     @property
     def httpx(self):
-        """延迟导入 httpx"""
-        if self._httpx is None:
+        """延迟导入 httpx 模块"""
+        if self._httpx_module is None:
             import httpx
-            self._httpx = httpx
-        return self._httpx
+            self._httpx_module = httpx
+        return self._httpx_module
+
+    async def get_client(self) -> httpx.AsyncClient:
+        """
+        获取共享的 HTTP 客户端实例
+        
+        使用连接池和 keep-alive 连接复用，避免每次请求都创建新的 TCP 连接
+        
+        Returns:
+            共享的 AsyncClient 实例
+        """
+        if self._client is None:
+            self._client = self.httpx.AsyncClient(
+                timeout=120.0,
+                limits=self.httpx.Limits(
+                    max_connections=100,
+                    max_keepalive_connections=20,
+                    keepalive_expiry=30.0
+                )
+            )
+            logger.debug("创建新的 HTTP 客户端连接池")
+        return self._client
+
+    async def close(self):
+        """
+        关闭 HTTP 客户端并释放资源
+        
+        应在应用关闭或不再使用 provider 时调用
+        """
+        if self._client:
+            await self._client.aclose()
+            self._client = None
+            logger.debug("HTTP 客户端连接池已关闭")
 
     @abstractmethod
     async def generate(
@@ -184,7 +218,6 @@ class BaseProvider(ABC):
         """生成文本"""
         pass
 
-    @abstractmethod
     async def generate_json(
         self,
         prompt: str,
@@ -192,8 +225,23 @@ class BaseProvider(ABC):
         max_tokens: int = 2048,
         **kwargs,
     ) -> dict[str, Any]:
-        """生成 JSON 格式响应"""
-        pass
+        """
+        生成 JSON 格式响应（通用实现）
+
+        子类可以重写此方法以提供特定实现。
+        """
+        json_prompt = f"{prompt}\n\n请以严格的 JSON 格式回复，不要包含其他文字。"
+        content = await self.generate(json_prompt, temperature, max_tokens, **kwargs)
+
+        try:
+            cleaned = self._clean_json_response(content)
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            raise LLMJSONError(
+                f"JSON 解析失败: {e}",
+                provider=self.NAME,
+                original_error=e,
+            ) from e
 
     @abstractmethod
     async def generate_stream(
@@ -206,6 +254,18 @@ class BaseProvider(ABC):
         """流式生成"""
         pass
 
+    def _clean_json_response(self, content: str) -> str:
+        """
+        清理 JSON 响应中的 markdown 标记
+
+        Args:
+            content: 原始响应内容
+
+        Returns:
+            清理后的 JSON 字符串
+        """
+        return clean_json_from_markdown(content)
+
     def _get_timeout(self, timeout: int | None = None) -> int:
         """获取超时配置"""
         if timeout:
@@ -215,6 +275,117 @@ class BaseProvider(ABC):
             return settings.timeout
         except Exception:
             return self._timeout
+
+    def _handle_api_error(self, response, provider_name: str) -> None:
+        """
+        处理 API 响应错误（公共方法）
+
+        Args:
+            response: httpx 响应对象
+            provider_name: 提供商名称
+
+        Raises:
+            LLMRateLimitError: 速率限制错误
+            LLMAPIError: API 服务错误
+        """
+        if response.status_code == 429:
+            retry_after = response.headers.get("retry-after")
+            raise LLMRateLimitError(
+                f"{provider_name} API 速率限制",
+                provider=provider_name,
+                retry_after=int(retry_after) if retry_after else None,
+            )
+
+        if response.status_code >= 500:
+            raise LLMAPIError(
+                f"{provider_name} API 服务错误: {response.status_code}",
+                provider=provider_name,
+            )
+
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            raise LLMAPIError(
+                f"{provider_name} API 调用失败: {e}",
+                provider=provider_name,
+                original_error=e,
+            ) from e
+
+    async def _make_request(
+        self,
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, Any],
+        provider_name: str,
+    ) -> dict[str, Any]:
+        """
+        发送 API 请求（公共方法）
+
+        Args:
+            url: 请求 URL
+            headers: 请求头
+            payload: 请求体
+            provider_name: 提供商名称
+
+        Returns:
+            JSON 响应数据
+
+        Raises:
+            LLMError: API 调用错误
+        """
+        client = await self.get_client()
+        response = await client.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self._get_timeout(),
+        )
+        self._handle_api_error(response, provider_name)
+        return response.json()
+
+    async def _stream_request(
+        self,
+        url: str,
+        headers: dict[str, str],
+        payload: dict[str, Any],
+    ) -> AsyncIterator[str]:
+        """
+        流式请求（公共方法 - OpenAI 风格）
+
+        Args:
+            url: 请求 URL
+            headers: 请求头
+            payload: 请求体
+
+        Yields:
+            内容片段
+        """
+        client = await self.get_client()
+        async with client.stream(
+            "POST",
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self._get_timeout(),
+        ) as response:
+            response.raise_for_status()
+
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data = line[6:]
+                    if data == "[DONE]":
+                        break
+
+                    try:
+                        chunk = json.loads(data)
+                        choice = chunk["choices"][0]
+                        delta = choice.get("delta", {})
+                        content = delta.get("content", "")
+
+                        if content:
+                            yield content
+                    except json.JSONDecodeError:
+                        continue
 
 
 # ============ OpenAI Provider ============
@@ -275,64 +446,12 @@ class OpenAIProvider(BaseProvider):
 
             logger.debug("调用 OpenAI API", model=self.model)
 
-            async with self.httpx.AsyncClient() as client:
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    json=payload,
-                    timeout=self._get_timeout(),
-                )
-
-                if response.status_code == 429:
-                    retry_after = response.headers.get("retry-after")
-                    raise LLMRateLimitError(
-                        "OpenAI API 速率限制",
-                        provider=self.NAME,
-                        retry_after=int(retry_after) if retry_after else None,
-                    )
-
-                if response.status_code >= 500:
-                    raise LLMAPIError(
-                        f"OpenAI API 服务错误: {response.status_code}",
-                        provider=self.NAME,
-                    )
-
-                try:
-                    response.raise_for_status()
-                except Exception as e:
-                    raise LLMAPIError(
-                        f"OpenAI API 调用失败: {e}",
-                        provider=self.NAME,
-                        original_error=e,
-                    ) from e
-
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                logger.debug("OpenAI API 调用成功", usage=data.get("usage", {}))
-                return content
+            data = await self._make_request(url, headers, payload, self.NAME)
+            content = data["choices"][0]["message"]["content"]
+            logger.debug("OpenAI API 调用成功", usage=data.get("usage", {}))
+            return content
 
         return await _retry_with_backoff(_call)
-
-    async def generate_json(
-        self,
-        prompt: str,
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
-        **kwargs,
-    ) -> dict[str, Any]:
-        """生成 JSON 格式响应"""
-        json_prompt = f"{prompt}\n\n请以严格的 JSON 格式回复，不要包含其他文字。"
-        content = await self.generate(json_prompt, temperature, max_tokens, **kwargs)
-
-        try:
-            cleaned = self._clean_json_response(content)
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            raise LLMJSONError(
-                f"JSON 解析失败: {e}",
-                provider=self.NAME,
-                original_error=e,
-            ) from e
 
     async def generate_stream(
         self,
@@ -359,43 +478,8 @@ class OpenAIProvider(BaseProvider):
 
         logger.debug("流式调用 OpenAI API", model=self.model)
 
-        async with self.httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self._get_timeout(),
-            ) as response:
-                response.raise_for_status()
-
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]
-                        if data == "[DONE]":
-                            break
-
-                        try:
-                            chunk = json.loads(data)
-                            choice = chunk["choices"][0]
-                            delta = choice.get("delta", {})
-                            content = delta.get("content", "")
-
-                            if content:
-                                yield content
-                        except json.JSONDecodeError:
-                            continue
-
-    def _clean_json_response(self, content: str) -> str:
-        """清理 JSON 响应中的 markdown 标记"""
-        cleaned = content.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        return cleaned.strip()
+        async for content in self._stream_request(url, headers, payload):
+            yield content
 
 
 # ============ Claude Provider ============
@@ -455,64 +539,12 @@ class ClaudeProvider(BaseProvider):
 
             logger.debug("调用 Claude API", model=self.model)
 
-            async with self.httpx.AsyncClient() as client:
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    json=payload,
-                    timeout=self._get_timeout(),
-                )
-
-                if response.status_code == 429:
-                    retry_after = response.headers.get("retry-after")
-                    raise LLMRateLimitError(
-                        "Claude API 速率限制",
-                        provider=self.NAME,
-                        retry_after=int(retry_after) if retry_after else None,
-                    )
-
-                if response.status_code >= 500:
-                    raise LLMAPIError(
-                        f"Claude API 服务错误: {response.status_code}",
-                        provider=self.NAME,
-                    )
-
-                try:
-                    response.raise_for_status()
-                except Exception as e:
-                    raise LLMAPIError(
-                        f"Claude API 调用失败: {e}",
-                        provider=self.NAME,
-                        original_error=e,
-                    ) from e
-
-                data = response.json()
-                content = data["content"][0]["text"]
-                logger.debug("Claude API 调用成功")
-                return content
+            data = await self._make_request(url, headers, payload, self.NAME)
+            content = data["content"][0]["text"]
+            logger.debug("Claude API 调用成功")
+            return content
 
         return await _retry_with_backoff(_call)
-
-    async def generate_json(
-        self,
-        prompt: str,
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
-        **kwargs,
-    ) -> dict[str, Any]:
-        """生成 JSON 格式响应"""
-        json_prompt = f"{prompt}\n\n请以严格的 JSON 格式回复，不要包含其他文字。"
-        content = await self.generate(json_prompt, temperature, max_tokens, **kwargs)
-
-        try:
-            cleaned = self._clean_json_response(content)
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            raise LLMJSONError(
-                f"JSON 解析失败: {e}",
-                provider=self.NAME,
-                original_error=e,
-            ) from e
 
     async def generate_stream(
         self,
@@ -539,40 +571,29 @@ class ClaudeProvider(BaseProvider):
 
         logger.debug("流式调用 Claude API", model=self.model)
 
-        async with self.httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self._get_timeout(),
-            ) as response:
-                response.raise_for_status()
+        client = await self.get_client()
+        async with client.stream(
+            "POST",
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self._get_timeout(),
+        ) as response:
+            response.raise_for_status()
 
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    data = line[6:]
 
-                        try:
-                            event = json.loads(data)
-                            if event.get("type") == "content_block_delta":
-                                delta = event.get("delta", {})
-                                text = delta.get("text", "")
-                                if text:
-                                    yield text
-                        except json.JSONDecodeError:
-                            continue
-
-    def _clean_json_response(self, content: str) -> str:
-        """清理 JSON 响应中的 markdown 标记"""
-        cleaned = content.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        return cleaned.strip()
+                    try:
+                        event = json.loads(data)
+                        if event.get("type") == "content_block_delta":
+                            delta = event.get("delta", {})
+                            text = delta.get("text", "")
+                            if text:
+                                yield text
+                    except json.JSONDecodeError:
+                        continue
 
 
 # ============ Azure OpenAI Provider ============
@@ -648,64 +669,12 @@ class AzureOpenAIProvider(BaseProvider):
 
             logger.debug("调用 Azure OpenAI API", deployment=self.deployment)
 
-            async with self.httpx.AsyncClient() as client:
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    json=payload,
-                    timeout=self._get_timeout(),
-                )
-
-                if response.status_code == 429:
-                    retry_after = response.headers.get("retry-after")
-                    raise LLMRateLimitError(
-                        "Azure OpenAI API 速率限制",
-                        provider=self.NAME,
-                        retry_after=int(retry_after) if retry_after else None,
-                    )
-
-                if response.status_code >= 500:
-                    raise LLMAPIError(
-                        f"Azure OpenAI API 服务错误: {response.status_code}",
-                        provider=self.NAME,
-                    )
-
-                try:
-                    response.raise_for_status()
-                except Exception as e:
-                    raise LLMAPIError(
-                        f"Azure OpenAI API 调用失败: {e}",
-                        provider=self.NAME,
-                        original_error=e,
-                    ) from e
-
-                data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                logger.debug("Azure OpenAI API 调用成功", usage=data.get("usage", {}))
-                return content
+            data = await self._make_request(url, headers, payload, self.NAME)
+            content = data["choices"][0]["message"]["content"]
+            logger.debug("Azure OpenAI API 调用成功", usage=data.get("usage", {}))
+            return content
 
         return await _retry_with_backoff(_call)
-
-    async def generate_json(
-        self,
-        prompt: str,
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
-        **kwargs,
-    ) -> dict[str, Any]:
-        """生成 JSON 格式响应"""
-        json_prompt = f"{prompt}\n\n请以严格的 JSON 格式回复，不要包含其他文字。"
-        content = await self.generate(json_prompt, temperature, max_tokens, **kwargs)
-
-        try:
-            cleaned = self._clean_json_response(content)
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            raise LLMJSONError(
-                f"JSON 解析失败: {e}",
-                provider=self.NAME,
-                original_error=e,
-            ) from e
 
     async def generate_stream(
         self,
@@ -731,43 +700,8 @@ class AzureOpenAIProvider(BaseProvider):
 
         logger.debug("流式调用 Azure OpenAI API", deployment=self.deployment)
 
-        async with self.httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                url,
-                headers=headers,
-                json=payload,
-                timeout=self._get_timeout(),
-            ) as response:
-                response.raise_for_status()
-
-                async for line in response.aiter_lines():
-                    if line.startswith("data: "):
-                        data = line[6:]
-                        if data == "[DONE]":
-                            break
-
-                        try:
-                            chunk = json.loads(data)
-                            choice = chunk["choices"][0]
-                            delta = choice.get("delta", {})
-                            content = delta.get("content", "")
-
-                            if content:
-                                yield content
-                        except json.JSONDecodeError:
-                            continue
-
-    def _clean_json_response(self, content: str) -> str:
-        """清理 JSON 响应中的 markdown 标记"""
-        cleaned = content.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        return cleaned.strip()
+        async for content in self._stream_request(url, headers, payload):
+            yield content
 
 
 # ============ 百炼（通义千问）Provider ============
@@ -830,64 +764,12 @@ class BailianProvider(BaseProvider):
 
             logger.debug("调用百炼 API", model=self.model)
 
-            async with self.httpx.AsyncClient() as client:
-                response = await client.post(
-                    url,
-                    headers=headers,
-                    json=payload,
-                    timeout=self._get_timeout(),
-                )
-
-                if response.status_code == 429:
-                    retry_after = response.headers.get("retry-after")
-                    raise LLMRateLimitError(
-                        "百炼 API 速率限制",
-                        provider=self.NAME,
-                        retry_after=int(retry_after) if retry_after else None,
-                    )
-
-                if response.status_code >= 500:
-                    raise LLMAPIError(
-                        f"百炼 API 服务错误: {response.status_code}",
-                        provider=self.NAME,
-                    )
-
-                try:
-                    response.raise_for_status()
-                except Exception as e:
-                    raise LLMAPIError(
-                        f"百炼 API 调用失败: {e}",
-                        provider=self.NAME,
-                        original_error=e,
-                    ) from e
-
-                data = response.json()
-                content = data["output"]["text"]
-                logger.debug("百炼 API 调用成功")
-                return content
+            data = await self._make_request(url, headers, payload, self.NAME)
+            content = data["output"]["text"]
+            logger.debug("百炼 API 调用成功")
+            return content
 
         return await _retry_with_backoff(_call)
-
-    async def generate_json(
-        self,
-        prompt: str,
-        temperature: float = 0.7,
-        max_tokens: int = 2048,
-        **kwargs,
-    ) -> dict[str, Any]:
-        """生成 JSON 格式响应"""
-        json_prompt = f"{prompt}\n\n请以严格的 JSON 格式回复，不要包含其他文字。"
-        content = await self.generate(json_prompt, temperature, max_tokens, **kwargs)
-
-        try:
-            cleaned = self._clean_json_response(content)
-            return json.loads(cleaned)
-        except json.JSONDecodeError as e:
-            raise LLMJSONError(
-                f"JSON 解析失败: {e}",
-                provider=self.NAME,
-                original_error=e,
-            ) from e
 
     async def generate_stream(
         self,
@@ -900,17 +782,6 @@ class BailianProvider(BaseProvider):
         # 百炼流式 API 格式不同，暂时 fallback 到普通调用
         content = await self.generate(prompt, temperature, max_tokens, **kwargs)
         yield content
-
-    def _clean_json_response(self, content: str) -> str:
-        """清理 JSON 响应中的 markdown 标记"""
-        cleaned = content.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        return cleaned.strip()
 
 
 # ============ 工厂类 ============
@@ -949,9 +820,19 @@ class LLMFactory:
         return list(cls._providers.keys())
 
     @classmethod
-    def clear(cls) -> None:
-        """清除所有已注册的提供商"""
+    async def clear(cls) -> None:
+        """
+        清除所有已注册的提供商并释放资源
+        
+        应在应用关闭时调用，以正确关闭所有 HTTP 连接
+        """
+        for provider in cls._providers.values():
+            try:
+                await provider.close()
+            except Exception as e:
+                logger.warning("关闭 provider 失败", provider=provider.NAME, error=str(e))
         cls._providers.clear()
+        logger.info("所有 LLM 提供商已清除")
 
 
 # ============ 初始化函数 ============
@@ -1007,3 +888,12 @@ async def llm_generate_stream(prompt: str, provider: str | None = None, **kwargs
     llm = get_llm(provider)
     async for chunk in llm.generate_stream(prompt, **kwargs):
         yield chunk
+
+
+async def cleanup_llm_providers() -> None:
+    """
+    清理所有 LLM 提供商资源
+    
+    应在应用关闭时调用，以正确关闭所有 HTTP 连接池
+    """
+    await LLMFactory.clear()

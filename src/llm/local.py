@@ -31,6 +31,7 @@ from .llm_provider import (
     LLMJSONError,
     _retry_with_backoff,
 )
+from ..utils.text import clean_json_from_markdown
 
 logger = structlog.get_logger(__name__)
 
@@ -92,22 +93,7 @@ def _clean_json_response(content: str) -> str:
     Returns:
         清理后的 JSON 字符串
     """
-    if not content:
-        return content
-
-    cleaned = content.strip()
-
-    # 移除 markdown 代码块标记
-    patterns = [
-        (r'^```json\s*', ''),
-        (r'^```\s*', ''),
-        (r'\s*```$', ''),
-    ]
-
-    for pattern, replacement in patterns:
-        cleaned = re.sub(pattern, replacement, cleaned, flags=re.MULTILINE)
-
-    return cleaned.strip()
+    return clean_json_from_markdown(content)
 
 
 def _extract_stream_content(line: str, provider: str) -> str | None:
