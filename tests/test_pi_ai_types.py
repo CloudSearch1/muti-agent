@@ -428,3 +428,128 @@ class TestEdgeCases:
         assert msg.text == "Let me help you."
         tool_calls = [c for c in msg.content if isinstance(c, ToolCall)]
         assert len(tool_calls) == 2
+
+    def test_tool_with_enum_in_properties(self):
+        """测试工具参数带 enum 属性"""
+        tool = Tool(
+            name="select_color",
+            description="Select a color",
+            parameters={
+                "color": ToolParameter(
+                    type="string",
+                    description="Color choice",
+                    enum=["red", "green", "blue"]
+                )
+            },
+            required=["color"]
+        )
+        openai_format = tool.to_openai_format()
+        assert "enum" in openai_format["function"]["parameters"]["properties"]["color"]
+        assert openai_format["function"]["parameters"]["properties"]["color"]["enum"] == ["red", "green", "blue"]
+
+        anthropic_format = tool.to_anthropic_format()
+        assert "enum" in anthropic_format["input_schema"]["properties"]["color"]
+
+    def test_assistant_message_with_tool_call_to_openai(self):
+        """测试带工具调用的助手消息转换为 OpenAI 格式"""
+        context = Context()
+        context.add_assistant_message([
+            TextContent(text="Let me check."),
+            ToolCall(id="call_123", name="bash", input={"command": "ls"})
+        ])
+
+        messages = context.to_openai_messages()
+        assert len(messages) == 1
+        assert messages[0]["role"] == "assistant"
+        # 消息应包含工具调用
+        assert "tool_calls" in messages[0]
+        assert messages[0]["tool_calls"][0]["function"]["name"] == "bash"
+
+    def test_tool_result_message_to_openai(self):
+        """测试工具结果消息转换为 OpenAI 格式"""
+        context = Context()
+        context.add_tool_result("call_123", "Command output")
+
+        messages = context.to_openai_messages()
+        assert len(messages) == 1
+        assert messages[0]["role"] == "tool"
+        assert messages[0]["tool_call_id"] == "call_123"
+        assert messages[0]["content"] == "Command output"
+
+    def test_user_message_with_image_to_anthropic(self):
+        """测试带图片的用户消息转换为 Anthropic 格式"""
+        context = Context()
+        context.add_user_message([
+            TextContent(text="What is this?"),
+            ImageContent(source={
+                "type": "base64",
+                "media_type": "image/png",
+                "data": "base64data"
+            })
+        ])
+
+        messages = context.to_anthropic_messages()
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        assert len(messages[0]["content"]) == 2
+        assert messages[0]["content"][0]["type"] == "text"
+        assert messages[0]["content"][1]["type"] == "image"
+
+    def test_assistant_message_with_thinking_to_anthropic(self):
+        """测试带思考内容的助手消息转换为 Anthropic 格式"""
+        from pi_python.ai.types import ThinkingContent
+
+        context = Context()
+        context.add_assistant_message([
+            ThinkingContent(thinking="Let me think about this..."),
+            TextContent(text="The answer is 42.")
+        ])
+
+        messages = context.to_anthropic_messages()
+        assert len(messages) == 1
+        assert messages[0]["role"] == "assistant"
+        assert len(messages[0]["content"]) == 2
+        assert messages[0]["content"][0]["type"] == "thinking"
+        assert messages[0]["content"][1]["type"] == "text"
+
+    def test_assistant_message_with_tool_call_to_anthropic(self):
+        """测试带工具调用的助手消息转换为 Anthropic 格式"""
+        context = Context()
+        context.add_assistant_message([
+            TextContent(text="Running command..."),
+            ToolCall(id="call_456", name="read_file", input={"path": "/tmp/test.txt"})
+        ])
+
+        messages = context.to_anthropic_messages()
+        assert len(messages) == 1
+        assert messages[0]["role"] == "assistant"
+        # 查找工具调用内容
+        tool_use_content = [c for c in messages[0]["content"] if c.get("type") == "tool_use"]
+        assert len(tool_use_content) == 1
+        assert tool_use_content[0]["name"] == "read_file"
+
+    def test_tool_result_message_to_anthropic(self):
+        """测试工具结果消息转换为 Anthropic 格式"""
+        context = Context()
+        context.add_tool_result("call_789", "File contents here")
+
+        messages = context.to_anthropic_messages()
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"][0]["type"] == "tool_result"
+        assert messages[0]["content"][0]["tool_use_id"] == "call_789"
+
+    def test_context_with_tools_to_openai_format(self):
+        """测试带工具的上下文转换为 OpenAI 格式"""
+        context = Context()
+        tool = Tool(
+            name="bash",
+            description="Execute bash command",
+            parameters={"command": ToolParameter(type="string", description="Command")}
+        )
+        context.tools.append(tool)
+        context.add_user_message("Hello")
+
+        # 验证工具存在
+        assert len(context.tools) == 1
+        assert context.tools[0].name == "bash"

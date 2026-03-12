@@ -117,6 +117,31 @@ class TestToolDecorator:
         assert tool_def.description == "Test tool"
         assert "arg" in tool_def.parameters
 
+    @pytest.mark.asyncio
+    async def test_tool_decorator_other_return_type(self):
+        """测试返回其他类型的工具（非字符串、非 ToolResult）"""
+        @tool("dict_tool", "Returns a dict", {})
+        async def dict_tool(tool_call_id, params, **kwargs):
+            return {"result": "value"}  # 返回字典而非字符串
+
+        result = await dict_tool.execute("call-1", {})
+
+        # 应该转换为字符串
+        assert isinstance(result, ToolResult)
+        assert "result" in result.content[0].text or "value" in result.content[0].text
+
+    @pytest.mark.asyncio
+    async def test_tool_decorator_with_enum_parameter(self):
+        """测试带 enum 参数的工具"""
+        @tool("select", "Select option", {
+            "option": {"type": "string", "enum": ["a", "b", "c"]}
+        })
+        async def select_tool(tool_call_id, params, **kwargs):
+            return f"Selected: {params.get('option')}"
+
+        tool_def = select_tool.to_tool()
+        assert tool_def.parameters["option"].enum == ["a", "b", "c"]
+
 
 # ===========================================
 # BashTool Tests
@@ -172,6 +197,28 @@ class TestBashTool:
 
         # 命令执行但返回非零退出码
         assert result.details.get("exit_code") != 0 or result.details.get("error")
+
+    @pytest.mark.asyncio
+    async def test_execute_timeout(self):
+        """测试命令超时"""
+        bash_tool = BashTool()
+
+        # 使用非常短的超时时间
+        result = await bash_tool.execute("call-1", {"command": "sleep 10", "timeout": 0.1})
+
+        # 应该返回超时错误
+        assert result.details.get("error") is True
+
+    @pytest.mark.asyncio
+    async def test_execute_exception(self):
+        """测试命令执行异常"""
+        bash_tool = BashTool()
+
+        # 模拟异常
+        with patch("asyncio.create_subprocess_shell", side_effect=OSError("Mock error")):
+            result = await bash_tool.execute("call-1", {"command": "echo test"})
+
+            assert result.details.get("error") is True
 
 
 # ===========================================
@@ -257,6 +304,25 @@ class TestReadFileTool:
 
         importlib.reload(tools_module)
 
+    @pytest.mark.asyncio
+    async def test_read_file_general_exception(self):
+        """测试读取文件时的一般异常"""
+        import importlib
+        import pi_python.agent.tools as tools_module
+
+        mock_aiofiles = MagicMock()
+        mock_aiofiles.open = MagicMock(side_effect=PermissionError("Permission denied"))
+
+        with patch.dict('sys.modules', {'aiofiles': mock_aiofiles}):
+            importlib.reload(tools_module)
+            tool = tools_module.ReadFileTool()
+
+            result = await tool.execute("call-1", {"path": "/some/file.txt"})
+
+            assert result.details.get("error") is True
+
+        importlib.reload(tools_module)
+
 
 # ===========================================
 # WriteFileTool Tests
@@ -312,6 +378,25 @@ class TestWriteFileTool:
                 assert "Successfully" in result.content[0].text
 
             importlib.reload(tools_module)
+
+    @pytest.mark.asyncio
+    async def test_write_file_exception(self):
+        """测试写入文件异常"""
+        import importlib
+        import pi_python.agent.tools as tools_module
+
+        mock_aiofiles = MagicMock()
+        mock_aiofiles.open = MagicMock(side_effect=PermissionError("Permission denied"))
+
+        with patch.dict('sys.modules', {'aiofiles': mock_aiofiles}):
+            importlib.reload(tools_module)
+            tool = tools_module.WriteFileTool()
+
+            result = await tool.execute("call-1", {"path": "/root/test.txt", "content": "test"})
+
+            assert result.details.get("error") is True
+
+        importlib.reload(tools_module)
 
 
 # ===========================================
@@ -375,6 +460,22 @@ class TestHTTPTool:
             })
 
             assert result.details.get("status_code") == 201
+
+    @pytest.mark.asyncio
+    async def test_http_exception(self):
+        """测试 HTTP 请求异常"""
+        tool = HTTPTool()
+
+        with patch("httpx.AsyncClient") as mock_client:
+            mock_context = MagicMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_context)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_context.request = AsyncMock(side_effect=Exception("Connection error"))
+            mock_client.return_value = mock_context
+
+            result = await tool.execute("call-1", {"url": "https://invalid.url"})
+
+            assert result.details.get("error") is True
 
 
 # ===========================================
