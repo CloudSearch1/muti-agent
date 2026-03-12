@@ -10,7 +10,7 @@ const DYNAMIC_CACHE = 'dynamic-v1';
 // 静态资源缓存（立即缓存）
 const STATIC_ASSETS = [
   '/',
-  '/index_v5.html',
+  '/index.html',
   '/manifest.json',
   '/static/js/error-handler.js',
   'https://cdn.tailwindcss.com',

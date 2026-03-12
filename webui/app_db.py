@@ -232,7 +232,7 @@ def agent_to_dict(agent: AgentModel) -> dict:
 async def root():
     """返回主页面"""
     from starlette.responses import HTMLResponse
-    with open("webui/index_v5.html", encoding="utf-8") as f:
+    with open("webui/index.html", encoding="utf-8") as f:
         content = f.read()
     return HTMLResponse(content=content, media_type="text/html; charset=utf-8")
 

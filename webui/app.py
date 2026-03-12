@@ -324,11 +324,11 @@ async def root():
     """返回主页面"""
     from starlette.responses import HTMLResponse
 
-    index_file = WEBUI_DIR / "index_v5.html"
+    index_file = WEBUI_DIR / "index.html"
     if not index_file.exists():
         logger.error(f"主页面文件不存在：{index_file}")
         return HTMLResponse(
-            content="<html><body><h1>Web UI not found</h1><p>Please check webui/index_v5.html exists</p></body></html>",
+            content="<html><body><h1>Web UI not found</h1><p>Please check webui/index.html exists</p></body></html>",
             status_code=500
         )
 
