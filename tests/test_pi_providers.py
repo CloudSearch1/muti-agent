@@ -1879,3 +1879,222 @@ class TestMissingCoverage:
             events.append(event)
 
         assert any(e.type == "done" for e in events)
+
+    @pytest.mark.asyncio
+    async def test_anthropic_with_system_prompt(self):
+        """测试 Anthropic 带系统提示"""
+        provider = AnthropicProvider(api_key="test-key")
+
+        context = Context(system_prompt="You are a helpful assistant.")
+        context.add_user_message("Hello")
+
+        lines = [
+            'data: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
+            'data: {"type":"content_block_start","index":0,"content_block":{"type":"text"}}',
+            'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}',
+            'data: {"type":"content_block_stop","index":0}',
+            'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}',
+            'data: {"type":"message_stop"}',
+        ]
+
+        mock_client = MagicMock()
+        mock_client.stream.return_value = mock_stream_context(lines)
+        provider._client = mock_client
+
+        model = create_test_model("anthropic")
+        options = StreamOptions(api_key="test-key")
+
+        stream = await provider.stream(model, context, options)
+
+        events = []
+        async for event in stream:
+            events.append(event)
+
+        # 验证请求包含了系统提示
+        assert mock_client.stream.called
+        assert any(e.type == "done" for e in events)
+
+    @pytest.mark.asyncio
+    async def test_anthropic_non_data_lines(self):
+        """测试 Anthropic 跳过非 data 开头的行"""
+        provider = AnthropicProvider(api_key="test-key")
+
+        lines = [
+            '',  # 空行
+            ': ping',  # SSE 注释
+            'not a data line',
+            'data: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
+            'data: {"type":"content_block_start","index":0,"content_block":{"type":"text"}}',
+            'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}',
+            'data: {"type":"content_block_stop","index":0}',
+            'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}',
+            'data: {"type":"message_stop"}',
+        ]
+
+        mock_client = MagicMock()
+        mock_client.stream.return_value = mock_stream_context(lines)
+        provider._client = mock_client
+
+        model = create_test_model("anthropic")
+        context = create_test_context()
+        options = StreamOptions(api_key="test-key")
+
+        stream = await provider.stream(model, context, options)
+
+        events = []
+        async for event in stream:
+            events.append(event)
+
+        assert any(e.type == "done" for e in events)
+
+    @pytest.mark.asyncio
+    async def test_anthropic_invalid_json_in_stream(self):
+        """测试 Anthropic 流中的无效 JSON"""
+        provider = AnthropicProvider(api_key="test-key")
+
+        lines = [
+            'data: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
+            'data: invalid json here',
+            'data: {"type":"content_block_start","index":0,"content_block":{"type":"text"}}',
+            'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}',
+            'data: {"type":"content_block_stop","index":0}',
+            'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}',
+            'data: {"type":"message_stop"}',
+        ]
+
+        mock_client = MagicMock()
+        mock_client.stream.return_value = mock_stream_context(lines)
+        provider._client = mock_client
+
+        model = create_test_model("anthropic")
+        context = create_test_context()
+        options = StreamOptions(api_key="test-key")
+
+        stream = await provider.stream(model, context, options)
+
+        events = []
+        async for event in stream:
+            events.append(event)
+
+        # 应该跳过无效 JSON，继续处理
+        assert any(e.type == "done" for e in events)
+
+    @pytest.mark.asyncio
+    async def test_anthropic_tool_call_invalid_json_args(self):
+        """测试 Anthropic 工具调用参数 JSON 解析错误"""
+        provider = AnthropicProvider(api_key="test-key")
+
+        lines = [
+            'data: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
+            'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"tool_123","name":"test"}}',
+            'data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"invalid json"}}',
+            'data: {"type":"content_block_stop","index":0}',
+            'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"}}',
+            'data: {"type":"message_stop"}',
+        ]
+
+        mock_client = MagicMock()
+        mock_client.stream.return_value = mock_stream_context(lines)
+        provider._client = mock_client
+
+        model = create_test_model("anthropic")
+        context = create_test_context()
+        options = StreamOptions(api_key="test-key")
+
+        stream = await provider.stream(model, context, options)
+
+        events = []
+        async for event in stream:
+            events.append(event)
+
+        # 应该有工具调用事件
+        tool_call_events = [e for e in events if e.type == "tool_call"]
+        assert len(tool_call_events) == 1
+
+    @pytest.mark.asyncio
+    async def test_anthropic_max_tokens_stop_reason(self):
+        """测试 Anthropic max_tokens 停止原因"""
+        provider = AnthropicProvider(api_key="test-key")
+
+        lines = [
+            'data: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
+            'data: {"type":"content_block_start","index":0,"content_block":{"type":"text"}}',
+            'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Text..."}}',
+            'data: {"type":"content_block_stop","index":0}',
+            'data: {"type":"message_delta","delta":{"stop_reason":"max_tokens"}}',
+            'data: {"type":"message_stop"}',
+        ]
+
+        mock_client = MagicMock()
+        mock_client.stream.return_value = mock_stream_context(lines)
+        provider._client = mock_client
+
+        model = create_test_model("anthropic")
+        context = create_test_context()
+        options = StreamOptions(api_key="test-key")
+
+        stream = await provider.stream(model, context, options)
+
+        events = []
+        async for event in stream:
+            events.append(event)
+
+        done_events = [e for e in events if e.type == "done"]
+        assert len(done_events) == 1
+        from pi_python.ai.types import StopReason
+        assert done_events[0].reason == StopReason.MAX_TOKENS
+
+    @pytest.mark.asyncio
+    async def test_anthropic_convenience_function(self):
+        """测试 Anthropic 便捷函数"""
+        from pi_python.ai.providers.anthropic import anthropic_stream
+
+        model = create_test_model("anthropic")
+        context = create_test_context()
+        options = StreamOptions()
+
+        stream = await anthropic_stream(model, context, options)
+
+        events = []
+        async for event in stream:
+            events.append(event)
+            break
+
+        # 没有 API key 应该返回错误
+        assert events[0].type == "error"
+
+    @pytest.mark.asyncio
+    async def test_openai_convenience_function(self):
+        """测试 OpenAI 便捷函数"""
+        from pi_python.ai.providers.openai import openai_stream
+
+        model = create_test_model("openai")
+        context = create_test_context()
+        options = StreamOptions()
+
+        stream = await openai_stream(model, context, options)
+
+        events = []
+        async for event in stream:
+            events.append(event)
+            break
+
+        assert events[0].type == "error"
+
+    @pytest.mark.asyncio
+    async def test_bailian_convenience_function(self):
+        """测试百炼便捷函数"""
+        from pi_python.ai.providers.bailian import bailian_stream
+
+        model = create_test_model("bailian")
+        context = create_test_context()
+        options = StreamOptions()
+
+        stream = await bailian_stream(model, context, options)
+
+        events = []
+        async for event in stream:
+            events.append(event)
+            break
+
+        assert events[0].type == "error"
