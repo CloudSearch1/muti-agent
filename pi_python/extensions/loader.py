@@ -7,11 +7,14 @@ PI-Python 扩展加载器
 from __future__ import annotations
 
 import importlib.util
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from .api import ExtensionAPI, ExtensionContext
+
+logger = logging.getLogger(__name__)
 
 
 class ExtensionLoader:
@@ -83,7 +86,7 @@ class ExtensionLoader:
             return True
 
         except Exception as e:
-            print(f"Failed to load extension {name}: {e}")
+            logger.error("Failed to load extension %s: %s", name, e)
             return False
 
     def load_all(
@@ -153,11 +156,11 @@ def create_builtin_extensions() -> dict[str, Callable]:
 
         @pi.on("tool_execution_start")
         async def log_tool_start(event, ctx):
-            print(f"[Tool] {event.tool_name}({event.args})")
+            logger.info("[Tool] %s(%s)", event.tool_name, event.args)
 
         @pi.on("tool_execution_end")
         async def log_tool_end(event, ctx):
-            print(f"[Tool] {event.tool_name} completed")
+            logger.info("[Tool] %s completed", event.tool_name)
 
     extensions["logging"] = logging_extension
 

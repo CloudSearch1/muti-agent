@@ -165,17 +165,20 @@ class Tool(BaseModel):
     parameters: dict[str, ToolParameter] = Field(default_factory=dict)
     required: list[str] = Field(default_factory=list)
 
-    def to_openai_format(self) -> dict[str, Any]:
-        """转换为 OpenAI 格式"""
+    def _build_properties(self) -> dict[str, Any]:
+        """构建参数属性字典"""
         properties = {}
         for name, param in self.parameters.items():
-            prop = {"type": param.type}
+            prop: dict[str, Any] = {"type": param.type}
             if param.description:
                 prop["description"] = param.description
             if param.enum:
                 prop["enum"] = param.enum
             properties[name] = prop
+        return properties
 
+    def to_openai_format(self) -> dict[str, Any]:
+        """转换为 OpenAI 格式"""
         return {
             "type": "function",
             "function": {
@@ -183,7 +186,7 @@ class Tool(BaseModel):
                 "description": self.description,
                 "parameters": {
                     "type": "object",
-                    "properties": properties,
+                    "properties": self._build_properties(),
                     "required": self.required,
                 }
             }
@@ -191,27 +194,110 @@ class Tool(BaseModel):
 
     def to_anthropic_format(self) -> dict[str, Any]:
         """转换为 Anthropic 格式"""
-        properties = {}
-        for name, param in self.parameters.items():
-            prop = {"type": param.type}
-            if param.description:
-                prop["description"] = param.description
-            if param.enum:
-                prop["enum"] = param.enum
-            properties[name] = prop
-
         return {
             "name": self.name,
             "description": self.description,
             "input_schema": {
                 "type": "object",
-                "properties": properties,
+                "properties": self._build_properties(),
                 "required": self.required,
             }
         }
 
 
 # ============ 上下文 ============
+
+def _extract_text_content(content: list[Content]) -> str:
+    """提取文本内容"""
+    return " ".join(c.text for c in content if isinstance(c, TextContent))
+
+
+def _convert_user_message_to_openai(msg: UserMessage) -> dict[str, Any]:
+    """转换用户消息为 OpenAI 格式"""
+    text = _extract_text_content(msg.content)
+    return {"role": "user", "content": text}
+
+
+def _convert_assistant_message_to_openai(msg: AssistantMessage) -> dict[str, Any]:
+    """转换助手消息为 OpenAI 格式"""
+    content_parts = []
+    tool_calls = []
+
+    for c in msg.content:
+        if isinstance(c, TextContent):
+            content_parts.append(c.text)
+        elif isinstance(c, ToolCall):
+            tool_calls.append({
+                "id": c.id,
+                "type": "function",
+                "function": {
+                    "name": c.name,
+                    "arguments": c.input
+                }
+            })
+        # OpenAI 不支持 thinking，跳过
+
+    assistant_msg: dict[str, Any] = {"role": "assistant"}
+    if content_parts:
+        assistant_msg["content"] = " ".join(content_parts)
+    if tool_calls:
+        assistant_msg["tool_calls"] = tool_calls
+
+    return assistant_msg
+
+
+def _convert_tool_result_to_openai(msg: ToolResultMessage) -> dict[str, Any]:
+    """转换工具结果消息为 OpenAI 格式"""
+    text = _extract_text_content(msg.content)
+    return {
+        "role": "tool",
+        "tool_call_id": msg.tool_call_id,
+        "content": text
+    }
+
+
+def _convert_user_message_to_anthropic(msg: UserMessage) -> dict[str, Any]:
+    """转换用户消息为 Anthropic 格式"""
+    content = []
+    for c in msg.content:
+        if isinstance(c, TextContent):
+            content.append({"type": "text", "text": c.text})
+        elif isinstance(c, ImageContent):
+            content.append({"type": "image", "source": c.source})
+    return {"role": "user", "content": content}
+
+
+def _convert_assistant_message_to_anthropic(msg: AssistantMessage) -> dict[str, Any]:
+    """转换助手消息为 Anthropic 格式"""
+    content = []
+    for c in msg.content:
+        if isinstance(c, TextContent):
+            content.append({"type": "text", "text": c.text})
+        elif isinstance(c, ThinkingContent):
+            content.append({"type": "thinking", "thinking": c.thinking})
+        elif isinstance(c, ToolCall):
+            content.append({
+                "type": "tool_use",
+                "id": c.id,
+                "name": c.name,
+                "input": c.input
+            })
+    return {"role": "assistant", "content": content}
+
+
+def _convert_tool_result_to_anthropic(msg: ToolResultMessage) -> dict[str, Any]:
+    """转换工具结果消息为 Anthropic 格式"""
+    content = [{"type": "text", "text": c.text}
+               for c in msg.content if isinstance(c, TextContent)]
+    return {
+        "role": "user",
+        "content": [{
+            "type": "tool_result",
+            "tool_use_id": msg.tool_call_id,
+            "content": content
+        }]
+    }
+
 
 class Context(BaseModel):
     """LLM 调用上下文"""
@@ -257,51 +343,11 @@ class Context(BaseModel):
 
         for msg in self.messages:
             if isinstance(msg, UserMessage):
-                # 简化处理：只取文本
-                text = " ".join(
-                    c.text for c in msg.content
-                    if isinstance(c, TextContent)
-                )
-                result.append({"role": "user", "content": text})
-
+                result.append(_convert_user_message_to_openai(msg))
             elif isinstance(msg, AssistantMessage):
-                content_parts = []
-                tool_calls = []
-
-                for c in msg.content:
-                    if isinstance(c, TextContent):
-                        content_parts.append(c.text)
-                    elif isinstance(c, ToolCall):
-                        tool_calls.append({
-                            "id": c.id,
-                            "type": "function",
-                            "function": {
-                                "name": c.name,
-                                "arguments": c.input
-                            }
-                        })
-                    elif isinstance(c, ThinkingContent):
-                        # OpenAI 不支持 thinking，跳过
-                        pass
-
-                assistant_msg = {"role": "assistant"}
-                if content_parts:
-                    assistant_msg["content"] = " ".join(content_parts)
-                if tool_calls:
-                    assistant_msg["tool_calls"] = tool_calls
-
-                result.append(assistant_msg)
-
+                result.append(_convert_assistant_message_to_openai(msg))
             elif isinstance(msg, ToolResultMessage):
-                text = " ".join(
-                    c.text for c in msg.content
-                    if isinstance(c, TextContent)
-                )
-                result.append({
-                    "role": "tool",
-                    "tool_call_id": msg.tool_call_id,
-                    "content": text
-                })
+                result.append(_convert_tool_result_to_openai(msg))
 
         return result
 
@@ -311,49 +357,11 @@ class Context(BaseModel):
 
         for msg in self.messages:
             if isinstance(msg, UserMessage):
-                content = []
-                for c in msg.content:
-                    if isinstance(c, TextContent):
-                        content.append({"type": "text", "text": c.text})
-                    elif isinstance(c, ImageContent):
-                        content.append({
-                            "type": "image",
-                            "source": c.source
-                        })
-
-                result.append({"role": "user", "content": content})
-
+                result.append(_convert_user_message_to_anthropic(msg))
             elif isinstance(msg, AssistantMessage):
-                content = []
-                for c in msg.content:
-                    if isinstance(c, TextContent):
-                        content.append({"type": "text", "text": c.text})
-                    elif isinstance(c, ThinkingContent):
-                        content.append({"type": "thinking", "thinking": c.thinking})
-                    elif isinstance(c, ToolCall):
-                        content.append({
-                            "type": "tool_use",
-                            "id": c.id,
-                            "name": c.name,
-                            "input": c.input
-                        })
-
-                result.append({"role": "assistant", "content": content})
-
+                result.append(_convert_assistant_message_to_anthropic(msg))
             elif isinstance(msg, ToolResultMessage):
-                content = []
-                for c in msg.content:
-                    if isinstance(c, TextContent):
-                        content.append({"type": "text", "text": c.text})
-
-                result.append({
-                    "role": "user",
-                    "content": [{
-                        "type": "tool_result",
-                        "tool_use_id": msg.tool_call_id,
-                        "content": content
-                    }]
-                })
+                result.append(_convert_tool_result_to_anthropic(msg))
 
         return result
 

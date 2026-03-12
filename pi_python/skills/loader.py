@@ -188,12 +188,9 @@ class SkillLoader:
         return skill_files
 
 
-def create_builtin_skills() -> list[Skill]:
-    """创建内置技能"""
-    skills = []
-
-    # 代码审查技能
-    code_review = Skill(
+def _create_code_review_skill() -> Skill:
+    """创建代码审查技能"""
+    return Skill(
         name="Code Review",
         description="审查代码变更并提供反馈",
         triggers=["代码审查", "review", "审查代码"],
@@ -209,10 +206,11 @@ def create_builtin_skills() -> list[Skill]:
             "Review PR #123"
         ]
     )
-    skills.append(code_review)
 
-    # 调试技能
-    debug = Skill(
+
+def _create_debug_skill() -> Skill:
+    """创建调试技能"""
+    return Skill(
         name="Debug",
         description="帮助调试代码问题",
         triggers=["调试", "debug", "报错", "错误"],
@@ -228,10 +226,11 @@ def create_builtin_skills() -> list[Skill]:
             "Debug this error"
         ]
     )
-    skills.append(debug)
 
-    # 文档生成技能
-    docs = Skill(
+
+def _create_docs_skill() -> Skill:
+    """创建文档生成技能"""
+    return Skill(
         name="Generate Documentation",
         description="为代码生成文档",
         triggers=["生成文档", "文档", "documentation", "docstring"],
@@ -247,6 +246,12 @@ def create_builtin_skills() -> list[Skill]:
             "Generate docs for this module"
         ]
     )
-    skills.append(docs)
 
-    return skills
+
+def create_builtin_skills() -> list[Skill]:
+    """创建内置技能"""
+    return [
+        _create_code_review_skill(),
+        _create_debug_skill(),
+        _create_docs_skill(),
+    ]

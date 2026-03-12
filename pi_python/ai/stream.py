@@ -213,87 +213,79 @@ class EventBuilder:
     """事件构建器"""
 
     @staticmethod
+    def _create_event(
+        event_type: str,
+        content_index: int | None = None,
+        delta: str | None = None,
+        tool_call: ToolCall | None = None,
+        partial_tool_call: dict[str, Any] | None = None,
+        reason: StopReason | None = None,
+        message: AssistantMessage | None = None,
+        error: str | None = None,
+        usage: dict[str, int] | None = None,
+    ) -> AssistantMessageEvent:
+        """创建事件的通用方法"""
+        return AssistantMessageEvent(
+            type=event_type,
+            content_index=content_index,
+            delta=delta,
+            tool_call=tool_call,
+            partial_tool_call=partial_tool_call,
+            reason=reason,
+            message=message,
+            error=error,
+            usage=usage,
+        )
+
+    @staticmethod
     def start() -> AssistantMessageEvent:
         """创建开始事件"""
-        return AssistantMessageEvent(type="start")
+        return EventBuilder._create_event("start")
 
     @staticmethod
     def text_start(index: int) -> AssistantMessageEvent:
         """创建文本开始事件"""
-        return AssistantMessageEvent(
-            type="text_start",
-            content_index=index
-        )
+        return EventBuilder._create_event("text_start", content_index=index)
 
     @staticmethod
     def text_delta(index: int, delta: str) -> AssistantMessageEvent:
         """创建文本增量事件"""
-        return AssistantMessageEvent(
-            type="text_delta",
-            content_index=index,
-            delta=delta
-        )
+        return EventBuilder._create_event("text_delta", content_index=index, delta=delta)
 
     @staticmethod
     def text_end(index: int, content: str) -> AssistantMessageEvent:
         """创建文本结束事件"""
-        return AssistantMessageEvent(
-            type="text_end",
-            content_index=index,
-            delta=content
-        )
+        return EventBuilder._create_event("text_end", content_index=index, delta=content)
 
     @staticmethod
     def thinking_start(index: int) -> AssistantMessageEvent:
         """创建思考开始事件"""
-        return AssistantMessageEvent(
-            type="thinking_start",
-            content_index=index
-        )
+        return EventBuilder._create_event("thinking_start", content_index=index)
 
     @staticmethod
     def thinking_delta(index: int, delta: str) -> AssistantMessageEvent:
         """创建思考增量事件"""
-        return AssistantMessageEvent(
-            type="thinking_delta",
-            content_index=index,
-            delta=delta
-        )
+        return EventBuilder._create_event("thinking_delta", content_index=index, delta=delta)
 
     @staticmethod
     def thinking_end(index: int, content: str) -> AssistantMessageEvent:
         """创建思考结束事件"""
-        return AssistantMessageEvent(
-            type="thinking_end",
-            content_index=index,
-            delta=content
-        )
+        return EventBuilder._create_event("thinking_end", content_index=index, delta=content)
 
     @staticmethod
     def tool_call_start(index: int, partial: dict) -> AssistantMessageEvent:
         """创建工具调用开始事件"""
-        return AssistantMessageEvent(
-            type="tool_call_start",
-            content_index=index,
-            partial_tool_call=partial
-        )
+        return EventBuilder._create_event("tool_call_start", content_index=index, partial_tool_call=partial)
 
     @staticmethod
     def tool_call_delta(index: int, delta: str) -> AssistantMessageEvent:
         """创建工具调用增量事件"""
-        return AssistantMessageEvent(
-            type="tool_call_delta",
-            content_index=index,
-            delta=delta
-        )
+        return EventBuilder._create_event("tool_call_delta", content_index=index, delta=delta)
 
     @staticmethod
     def tool_call_end(tool_call: ToolCall) -> AssistantMessageEvent:
         """创建工具调用结束事件"""
-        return AssistantMessageEvent(
-            type="tool_call",
-            tool_call=tool_call
-        )
+        return EventBuilder._create_event("tool_call", tool_call=tool_call)
 
     @staticmethod
     def done(
@@ -302,18 +294,9 @@ class EventBuilder:
         usage: dict[str, int] | None = None
     ) -> AssistantMessageEvent:
         """创建完成事件"""
-        return AssistantMessageEvent(
-            type="done",
-            reason=reason,
-            message=message,
-            usage=usage
-        )
+        return EventBuilder._create_event("done", reason=reason, message=message, usage=usage)
 
     @staticmethod
     def error(error: str, reason: StopReason = StopReason.ERROR) -> AssistantMessageEvent:
         """创建错误事件"""
-        return AssistantMessageEvent(
-            type="error",
-            reason=reason,
-            error=error
-        )
+        return EventBuilder._create_event("error", reason=reason, error=error)
