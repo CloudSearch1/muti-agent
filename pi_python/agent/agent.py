@@ -227,7 +227,7 @@ class Agent:
         """处理流式事件"""
         content: list[Any] = []
         current_text = ""
-        usage = {}
+        _usage = {}
 
         async for event in event_stream:
             if self._abort_controller.is_set():
@@ -257,7 +257,7 @@ class Agent:
                     content.insert(0, TextContent(text=current_text))
 
                 if event.usage:
-                    usage = event.usage
+                    _usage = event.usage
 
                 return AssistantMessage(content=content)
 

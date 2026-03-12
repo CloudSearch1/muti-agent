@@ -164,7 +164,7 @@ class OpenAIProvider(BaseProvider):
                 if content_parts:
                     content.append(TextContent(text="".join(content_parts)))
 
-                for idx, tc in sorted(tool_calls.items()):
+                for _idx, tc in sorted(tool_calls.items()):
                     try:
                         args = json.loads(tc["arguments"])
                     except json.JSONDecodeError:

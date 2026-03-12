@@ -18,6 +18,7 @@ from .types import (
     Model,
     StopReason,
     TextContent,
+    ThinkingContent,
     ToolCall,
 )
 
@@ -72,7 +73,7 @@ class AssistantMessageEventStream:
         content: list[Content] = []
         current_text = ""
         current_thinking = ""
-        usage = {}
+        _usage = {}
 
         async for event in self:
             if event.type == "text_delta":
@@ -92,7 +93,7 @@ class AssistantMessageEventStream:
             elif event.type == "error":
                 raise RuntimeError(event.error or "Unknown error")
             if event.usage:
-                usage = event.usage
+                _usage = event.usage
 
         return AssistantMessage(content=content)
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -66,7 +66,7 @@ class ToolCall(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict)
 
 
-Content = Union[TextContent, ImageContent, ThinkingContent, ToolCall]
+Content = TextContent | ImageContent | ThinkingContent | ToolCall
 
 
 # ============ 消息类型 ============
@@ -106,7 +106,7 @@ class ToolResultMessage(BaseModel):
     timestamp: float = Field(default_factory=lambda: time.time())
 
 
-Message = Union[UserMessage, AssistantMessage, ToolResultMessage]
+Message = UserMessage | AssistantMessage | ToolResultMessage
 
 
 def parse_message(data: dict[str, Any]) -> Message:
