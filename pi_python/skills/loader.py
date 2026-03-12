@@ -9,7 +9,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -24,7 +23,7 @@ class Skill:
     triggers: list[str] = field(default_factory=list)
     steps: list[str] = field(default_factory=list)
     examples: list[str] = field(default_factory=list)
-    path: Optional[Path] = None
+    path: Path | None = None
     raw_content: str = ""
 
     def matches(self, text: str) -> bool:
@@ -109,7 +108,7 @@ class SkillLoader:
         return match.group(1).strip() if match else "Unknown"
 
     @staticmethod
-    def _extract_section(content: str, heading: str) -> Optional[str]:
+    def _extract_section(content: str, heading: str) -> str | None:
         """提取章节内容"""
         # 支持中英文
         patterns = [

@@ -7,13 +7,11 @@ PI-Python 流式 API
 from __future__ import annotations
 
 import asyncio
-import json
-import time
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, Optional
+from typing import Any
 
 from .types import (
-    ApiType,
     AssistantMessage,
     Content,
     Context,
@@ -21,7 +19,6 @@ from .types import (
     StopReason,
     TextContent,
     ToolCall,
-    ToolResultMessage,
 )
 
 
@@ -30,17 +27,17 @@ class AssistantMessageEvent:
     """流式事件"""
     type: str
     # text_delta / thinking_delta
-    content_index: Optional[int] = None
-    delta: Optional[str] = None
+    content_index: int | None = None
+    delta: str | None = None
     # tool_call
-    tool_call: Optional[ToolCall] = None
-    partial_tool_call: Optional[dict[str, Any]] = None
+    tool_call: ToolCall | None = None
+    partial_tool_call: dict[str, Any] | None = None
     # done / error
-    reason: Optional[StopReason] = None
-    message: Optional[AssistantMessage] = None
-    error: Optional[str] = None
+    reason: StopReason | None = None
+    message: AssistantMessage | None = None
+    error: str | None = None
     # usage
-    usage: Optional[dict[str, int]] = None
+    usage: dict[str, int] | None = None
 
 
 class AssistantMessageEventStream:
@@ -103,12 +100,12 @@ class AssistantMessageEventStream:
 @dataclass
 class StreamOptions:
     """流式调用选项"""
-    api_key: Optional[str] = None
+    api_key: str | None = None
     timeout: int = 60
     temperature: float = 0.7
     max_tokens: int = 4096
     reasoning: str = "off"  # off, low, medium, high
-    thinking_budget: Optional[int] = None
+    thinking_budget: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -122,7 +119,7 @@ def register_provider(name: str, provider_cls: Callable) -> None:
     ModelRegistry.register_provider(name, provider_cls)
 
 
-def get_provider(name: str) -> Optional[Callable]:
+def get_provider(name: str) -> Callable | None:
     """获取提供商"""
     return ModelRegistry.get_provider(name)
 
@@ -130,7 +127,7 @@ def get_provider(name: str) -> Optional[Callable]:
 async def stream(
     model: Model,
     context: Context,
-    options: Optional[StreamOptions] = None,
+    options: StreamOptions | None = None,
 ) -> AssistantMessageEventStream:
     """
     流式调用 LLM
@@ -157,9 +154,9 @@ async def stream(
 async def stream_simple(
     model: Model,
     context: Context,
-    options: Optional[StreamOptions] = None,
+    options: StreamOptions | None = None,
     reasoning: str = "off",
-    thinking_budgets: Optional[dict[str, int]] = None,
+    thinking_budgets: dict[str, int] | None = None,
 ) -> AssistantMessageEventStream:
     """
     简化流式调用（带推理支持）
@@ -192,7 +189,7 @@ async def stream_simple(
 async def complete(
     model: Model,
     context: Context,
-    options: Optional[StreamOptions] = None,
+    options: StreamOptions | None = None,
 ) -> AssistantMessage:
     """
     完成调用（非流式）
@@ -301,7 +298,7 @@ class EventBuilder:
     def done(
         reason: StopReason,
         message: AssistantMessage,
-        usage: Optional[dict[str, int]] = None
+        usage: dict[str, int] | None = None
     ) -> AssistantMessageEvent:
         """创建完成事件"""
         return AssistantMessageEvent(

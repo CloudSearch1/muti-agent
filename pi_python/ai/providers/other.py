@@ -7,12 +7,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from typing import Any, Optional
-
-import httpx
+from typing import Any
 
 from ..stream import AssistantMessageEventStream, EventBuilder, StreamOptions
-from ..types import AssistantMessage, Content, Context, Model, StopReason, TextContent
+from ..types import AssistantMessage, Context, Model, StopReason, TextContent
 from .base import BaseProvider
 
 
@@ -310,6 +308,7 @@ class VLLMProvider(BaseProvider):
 
 # 注册所有提供商
 from ..model import register_provider
+
 
 async def google_stream(model: Model, context: Context, options: StreamOptions) -> AssistantMessageEventStream:
     return await GoogleProvider().stream(model, context, options)

@@ -7,7 +7,6 @@ PI-Python 技能注册表
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from .loader import Skill, SkillLoader
 
@@ -29,7 +28,7 @@ class SkillRegistry:
             return True
         return False
 
-    def get(self, name: str) -> Optional[Skill]:
+    def get(self, name: str) -> Skill | None:
         """获取技能"""
         return self._skills.get(name)
 
@@ -113,7 +112,7 @@ class SkillRegistry:
 
 
 # 全局技能注册表
-_global_registry: Optional[SkillRegistry] = None
+_global_registry: SkillRegistry | None = None
 
 
 def get_skill_registry() -> SkillRegistry:

@@ -4,48 +4,45 @@ PI-Python: Python 版 AI Agent 工具包
 基于 pi-mono 架构设计，提供统一的 LLM API 和 Agent 运行时
 """
 
+from .agent import (
+    Agent,
+    AgentEvent,
+    AgentEventType,
+    AgentState,
+    AgentTool,
+    Session,
+    ToolResult,
+)
 from .ai import (
     # 类型
     ApiType,
+    AssistantMessage,
+    Content,
+    Context,
+    ImageContent,
+    Message,
+    Model,
+    ModelCost,
     StopReason,
     TextContent,
-    ImageContent,
     ThinkingContent,
-    ToolCall,
-    Content,
-    UserMessage,
-    AssistantMessage,
-    ToolResultMessage,
-    Message,
-    ModelCost,
-    Model,
     Tool,
-    Context,
+    ToolCall,
+    ToolResultMessage,
+    UserMessage,
+    complete,
     # 函数
     get_model,
-    stream,
-    stream_simple,
-    complete,
     get_provider,
     register_provider,
+    stream,
+    stream_simple,
 )
-
-from .agent import (
-    Agent,
-    AgentState,
-    AgentEvent,
-    AgentEventType,
-    AgentTool,
-    ToolResult,
-    Session,
-)
-
 from .extensions import (
     ExtensionAPI,
-    ExtensionLoader,
     ExtensionContext,
+    ExtensionLoader,
 )
-
 from .skills import (
     Skill,
     SkillLoader,

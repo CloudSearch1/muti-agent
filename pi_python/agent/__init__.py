@@ -6,8 +6,8 @@ PI-Python Agent 模块
 
 from .agent import Agent, AgentState
 from .events import AgentEvent, AgentEventType
-from .tools import AgentTool, ToolResult, tool
 from .session import Session
+from .tools import AgentTool, ToolResult, tool
 
 __all__ = [
     "Agent",

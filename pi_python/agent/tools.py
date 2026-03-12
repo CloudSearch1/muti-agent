@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Awaitable, Callable, Optional
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from ..ai import Content, TextContent, Tool
 
@@ -17,7 +18,7 @@ class ToolResult:
     def __init__(
         self,
         content: str | list[Content] = "",
-        details: Optional[dict[str, Any]] = None
+        details: dict[str, Any] | None = None
     ):
         if isinstance(content, str):
             content = [TextContent(text=content)]
@@ -53,9 +54,9 @@ class AgentTool(ABC):
         self,
         tool_call_id: str,
         params: dict[str, Any],
-        signal: Optional[asyncio.CancelledError] = None,
-        on_update: Optional[Callable[[ToolResult], Awaitable[None]]] = None,
-        context: Optional[dict[str, Any]] = None,
+        signal: asyncio.CancelledError | None = None,
+        on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ToolResult:
         """
         执行工具
@@ -96,8 +97,8 @@ class AgentTool(ABC):
 def tool(
     name: str,
     description: str,
-    parameters: Optional[dict[str, dict[str, Any]]] = None,
-    required: Optional[list[str]] = None,
+    parameters: dict[str, dict[str, Any]] | None = None,
+    required: list[str] | None = None,
 ):
     """
     装饰器：将函数转换为工具
@@ -120,9 +121,9 @@ def tool(
                 self,
                 tool_call_id: str,
                 params: dict[str, Any],
-                signal: Optional[asyncio.CancelledError] = None,
-                on_update: Optional[Callable[[ToolResult], Awaitable[None]]] = None,
-                context: Optional[dict[str, Any]] = None,
+                signal: asyncio.CancelledError | None = None,
+                on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
+                context: dict[str, Any] | None = None,
             ) -> ToolResult:
                 result = await func(tool_call_id, params, signal=signal, context=context)
 
@@ -162,9 +163,9 @@ class BashTool(AgentTool):
         self,
         tool_call_id: str,
         params: dict[str, Any],
-        signal: Optional[asyncio.CancelledError] = None,
-        on_update: Optional[Callable[[ToolResult], Awaitable[None]]] = None,
-        context: Optional[dict[str, Any]] = None,
+        signal: asyncio.CancelledError | None = None,
+        on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ToolResult:
         command = params["command"]
         timeout = params.get("timeout", 30)
@@ -189,7 +190,7 @@ class BashTool(AgentTool):
                 command=command
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             return ToolResult.error(f"Command timed out after {timeout}s")
 
@@ -215,16 +216,16 @@ class ReadFileTool(AgentTool):
         self,
         tool_call_id: str,
         params: dict[str, Any],
-        signal: Optional[asyncio.CancelledError] = None,
-        on_update: Optional[Callable[[ToolResult], Awaitable[None]]] = None,
-        context: Optional[dict[str, Any]] = None,
+        signal: asyncio.CancelledError | None = None,
+        on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ToolResult:
         import aiofiles
 
         path = params["path"]
 
         try:
-            async with aiofiles.open(path, "r") as f:
+            async with aiofiles.open(path) as f:
                 content = await f.read()
 
             return ToolResult.text(
@@ -261,9 +262,9 @@ class WriteFileTool(AgentTool):
         self,
         tool_call_id: str,
         params: dict[str, Any],
-        signal: Optional[asyncio.CancelledError] = None,
-        on_update: Optional[Callable[[ToolResult], Awaitable[None]]] = None,
-        context: Optional[dict[str, Any]] = None,
+        signal: asyncio.CancelledError | None = None,
+        on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ToolResult:
         import aiofiles
 
@@ -315,9 +316,9 @@ class HTTPTool(AgentTool):
         self,
         tool_call_id: str,
         params: dict[str, Any],
-        signal: Optional[asyncio.CancelledError] = None,
-        on_update: Optional[Callable[[ToolResult], Awaitable[None]]] = None,
-        context: Optional[dict[str, Any]] = None,
+        signal: asyncio.CancelledError | None = None,
+        on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
+        context: dict[str, Any] | None = None,
     ) -> ToolResult:
         import httpx
 

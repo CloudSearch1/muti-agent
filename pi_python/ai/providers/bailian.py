@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -25,7 +25,6 @@ from ..types import (
     Model,
     StopReason,
     TextContent,
-    ToolCall,
 )
 from .base import BaseProvider
 
@@ -38,8 +37,8 @@ class BailianProvider(BaseProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
         timeout: int = 60,
     ):
         super().__init__(timeout=timeout)

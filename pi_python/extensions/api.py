@@ -6,12 +6,13 @@ PI-Python 扩展 API
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any
 
-from ..agent import Agent, AgentEvent
-from ..agent.tools import AgentTool
+from ..agent import Agent
 from ..agent.session import Session
+from ..agent.tools import AgentTool
 
 
 @dataclass
@@ -29,7 +30,7 @@ class ExtensionAPI:
     提供扩展访问 Agent 核心功能的能力
     """
 
-    def __init__(self, agent: Agent, context: Optional[ExtensionContext] = None):
+    def __init__(self, agent: Agent, context: ExtensionContext | None = None):
         self._agent = agent
         self._context = context
         self._event_handlers: dict[str, list[Callable]] = {}
@@ -39,7 +40,7 @@ class ExtensionAPI:
     def on(
         self,
         event: str,
-        handler: Optional[Callable] = None
+        handler: Callable | None = None
     ) -> Callable:
         """
         注册事件处理器
@@ -99,8 +100,8 @@ class ExtensionAPI:
         self,
         name: str,
         description: str,
-        parameters: Optional[dict] = None,
-        required: Optional[list[str]] = None,
+        parameters: dict | None = None,
+        required: list[str] | None = None,
     ) -> Callable:
         """
         装饰器：注册工具
@@ -157,6 +158,6 @@ class ExtensionAPI:
         """获取 Agent 实例"""
         return self._agent
 
-    def get_context(self) -> Optional[ExtensionContext]:
+    def get_context(self) -> ExtensionContext | None:
         """获取扩展上下文"""
         return self._context

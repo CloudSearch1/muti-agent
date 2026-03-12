@@ -6,18 +6,17 @@ PI-Python 与现有系统的集成适配器
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Optional
+from collections.abc import AsyncIterator
+from typing import Any
 
 from .ai import (
     Context,
     Model,
+    complete,
     get_model,
     stream,
-    complete,
-    TextContent,
 )
 from .ai.stream import StreamOptions
-from .ai.types import AssistantMessageEvent
 
 
 class LLMProviderAdapter:
@@ -31,7 +30,7 @@ class LLMProviderAdapter:
         self,
         provider: str,
         model_id: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
     ):
         """
         初始化适配器
@@ -44,7 +43,7 @@ class LLMProviderAdapter:
         self.provider = provider
         self.model_id = model_id
         self.api_key = api_key
-        self._model: Optional[Model] = None
+        self._model: Model | None = None
 
     @property
     def model(self) -> Model:
@@ -137,7 +136,7 @@ class LLMFactoryAdapter:
         cls._providers[name] = provider
 
     @classmethod
-    def get(cls, name: str) -> Optional[LLMProviderAdapter]:
+    def get(cls, name: str) -> LLMProviderAdapter | None:
         """获取提供商"""
         return cls._providers.get(name)
 
@@ -167,7 +166,7 @@ class LLMFactoryAdapter:
 
 # 便捷函数（兼容现有接口）
 
-async def llm_generate(prompt: str, provider: Optional[str] = None, **kwargs) -> str:
+async def llm_generate(prompt: str, provider: str | None = None, **kwargs) -> str:
     """便捷函数：生成文本"""
     if provider:
         p = LLMFactoryAdapter.get(provider)
@@ -180,7 +179,7 @@ async def llm_generate(prompt: str, provider: Optional[str] = None, **kwargs) ->
     return await p.generate(prompt, **kwargs)
 
 
-async def llm_generate_json(prompt: str, provider: Optional[str] = None, **kwargs) -> dict[str, Any]:
+async def llm_generate_json(prompt: str, provider: str | None = None, **kwargs) -> dict[str, Any]:
     """便捷函数：生成 JSON"""
     if provider:
         p = LLMFactoryAdapter.get(provider)
@@ -195,7 +194,7 @@ async def llm_generate_json(prompt: str, provider: Optional[str] = None, **kwarg
 
 async def llm_generate_stream(
     prompt: str,
-    provider: Optional[str] = None,
+    provider: str | None = None,
     **kwargs
 ) -> AsyncIterator[str]:
     """便捷函数：流式生成"""

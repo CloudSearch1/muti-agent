@@ -4,7 +4,7 @@ PI-Python Agent 事件系统
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..ai import Message
 
@@ -36,17 +36,17 @@ class AgentEvent:
     type: AgentEventType
 
     # 消息相关
-    message: Optional[Message] = None
-    delta: Optional[str] = None
+    message: Message | None = None
+    delta: str | None = None
 
     # 工具相关
-    tool_call_id: Optional[str] = None
-    tool_name: Optional[str] = None
-    args: Optional[dict[str, Any]] = None
-    result: Optional[Any] = None
+    tool_call_id: str | None = None
+    tool_name: str | None = None
+    args: dict[str, Any] | None = None
+    result: Any | None = None
 
     # 错误相关
-    error: Optional[str] = None
+    error: str | None = None
 
     # 元数据
     timestamp: float = field(default_factory=lambda: __import__('time').time())

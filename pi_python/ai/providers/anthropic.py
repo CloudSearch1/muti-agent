@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -39,7 +39,7 @@ class AnthropicProvider(BaseProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         timeout: int = 120,
     ):
         super().__init__(timeout=timeout)
@@ -122,7 +122,7 @@ class AnthropicProvider(BaseProvider):
                 content: list[Content] = []
                 current_text = ""
                 current_thinking = ""
-                current_tool: Optional[dict[str, Any]] = None
+                current_tool: dict[str, Any] | None = None
                 usage: dict[str, int] = {}
                 stop_reason = "end_turn"
 
@@ -241,6 +241,7 @@ class AnthropicProvider(BaseProvider):
 
 # 注册提供商
 from ..model import register_provider
+
 
 async def anthropic_stream(model: Model, context: Context, options: StreamOptions) -> AssistantMessageEventStream:
     provider = AnthropicProvider()

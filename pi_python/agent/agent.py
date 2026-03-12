@@ -7,8 +7,9 @@ PI-Python Agent 类
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any
 
 from ..ai import (
     AssistantMessage,
@@ -24,7 +25,7 @@ from ..ai import (
 from ..ai.stream import AssistantMessageEventStream, StreamOptions
 from .events import AgentEvent, AgentEventType
 from .session import Session
-from .tools import AgentTool, ToolResult
+from .tools import AgentTool
 
 
 @dataclass
@@ -36,10 +37,10 @@ class AgentState:
     tools: list[AgentTool] = field(default_factory=list)
     messages: list[Message] = field(default_factory=list)
     is_streaming: bool = False
-    stream_message: Optional[AssistantMessage] = None
+    stream_message: AssistantMessage | None = None
     pending_tool_calls: set[str] = field(default_factory=set)
-    error: Optional[str] = None
-    session: Optional[Session] = None
+    error: str | None = None
+    session: Session | None = None
 
 
 class Agent:
@@ -56,8 +57,8 @@ class Agent:
     def __init__(
         self,
         initial_state: AgentState,
-        convert_to_llm: Optional[Callable[[list[Message]], list[Message]]] = None,
-        transform_context: Optional[Callable[[Context], Awaitable[Context]]] = None,
+        convert_to_llm: Callable[[list[Message]], list[Message]] | None = None,
+        transform_context: Callable[[Context], Awaitable[Context]] | None = None,
         steering_mode: str = "one-at-a-time",
         follow_up_mode: str = "one-at-a-time",
     ):
@@ -222,7 +223,7 @@ class Agent:
     async def _process_stream(
         self,
         event_stream: AssistantMessageEventStream
-    ) -> Optional[AssistantMessage]:
+    ) -> AssistantMessage | None:
         """处理流式事件"""
         content: list[Any] = []
         current_text = ""

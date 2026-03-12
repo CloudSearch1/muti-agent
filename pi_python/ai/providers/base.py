@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -25,7 +25,7 @@ class BaseProvider(ABC):
 
     def __init__(self, timeout: int | None = None):
         self._timeout = timeout or self.DEFAULT_TIMEOUT
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -60,7 +60,7 @@ class BaseProvider(ABC):
         """
         pass
 
-    def _get_api_key(self, options: StreamOptions, env_var: str) -> Optional[str]:
+    def _get_api_key(self, options: StreamOptions, env_var: str) -> str | None:
         """获取 API Key"""
         if options.api_key:
             return options.api_key

@@ -8,10 +8,9 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import Any, Literal, Optional, Union
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, Field
-
 
 # ============ API 类型 ============
 
@@ -154,9 +153,9 @@ class Model(BaseModel):
 class ToolParameter(BaseModel):
     """工具参数"""
     type: str
-    description: Optional[str] = None
-    enum: Optional[list[str]] = None
-    default: Optional[Any] = None
+    description: str | None = None
+    enum: list[str] | None = None
+    default: Any | None = None
 
 
 class Tool(BaseModel):
@@ -216,7 +215,7 @@ class Tool(BaseModel):
 
 class Context(BaseModel):
     """LLM 调用上下文"""
-    system_prompt: Optional[str] = None
+    system_prompt: str | None = None
     messages: list[Message] = Field(default_factory=list)
     tools: list[Tool] = Field(default_factory=list)
 

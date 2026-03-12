@@ -6,7 +6,7 @@ PI-Python 模型注册和管理
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 
 from .types import ApiType, Model, ModelCost
 
@@ -29,18 +29,18 @@ class ModelRegistry:
         cls._providers[name] = provider_fn
 
     @classmethod
-    def get_model(cls, provider: str, model_id: str) -> Optional[Model]:
+    def get_model(cls, provider: str, model_id: str) -> Model | None:
         """获取模型"""
         key = f"{provider}/{model_id}"
         return cls._models.get(key)
 
     @classmethod
-    def get_provider(cls, name: str) -> Optional[Callable]:
+    def get_provider(cls, name: str) -> Callable | None:
         """获取提供商函数"""
         return cls._providers.get(name)
 
     @classmethod
-    def list_models(cls, provider: Optional[str] = None) -> list[Model]:
+    def list_models(cls, provider: str | None = None) -> list[Model]:
         """列出模型"""
         models = list(cls._models.values())
         if provider:
@@ -78,12 +78,12 @@ def get_model(provider: str, model_id: str) -> Model:
     return model
 
 
-def get_provider(name: str) -> Optional[Callable]:
+def get_provider(name: str) -> Callable | None:
     """获取提供商函数"""
     return ModelRegistry.get_provider(name)
 
 
-def list_models(provider: Optional[str] = None) -> list[Model]:
+def list_models(provider: str | None = None) -> list[Model]:
     """列出模型"""
     return ModelRegistry.list_models(provider)
 

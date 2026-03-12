@@ -7,8 +7,9 @@ PI-Python 扩展加载器
 from __future__ import annotations
 
 import importlib.util
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from .api import ExtensionAPI, ExtensionContext
 
@@ -41,7 +42,7 @@ class ExtensionLoader:
         self,
         path: Path,
         api: ExtensionAPI,
-        context: Optional[ExtensionContext] = None
+        context: ExtensionContext | None = None
     ) -> bool:
         """
         加载扩展
@@ -88,7 +89,7 @@ class ExtensionLoader:
     def load_all(
         self,
         api: ExtensionAPI,
-        context: Optional[ExtensionContext] = None
+        context: ExtensionContext | None = None
     ) -> int:
         """
         加载所有扩展

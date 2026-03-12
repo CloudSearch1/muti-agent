@@ -10,7 +10,7 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ..ai import Message, parse_message
 
@@ -25,7 +25,7 @@ class Session:
     - 自动压缩
     """
 
-    def __init__(self, path: Optional[Path] = None):
+    def __init__(self, path: Path | None = None):
         """
         初始化会话
 
@@ -74,7 +74,7 @@ class Session:
         if not path.exists():
             return session
 
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -116,7 +116,7 @@ class Session:
         self._branches[name] = branch
         return branch
 
-    def get_branch(self, name: str) -> Optional[Session]:
+    def get_branch(self, name: str) -> Session | None:
         """获取分支"""
         return self._branches.get(name)
 
@@ -158,14 +158,14 @@ class Session:
 
         return session
 
-    def get_last_user_message(self) -> Optional[Message]:
+    def get_last_user_message(self) -> Message | None:
         """获取最后一条用户消息"""
         for msg in reversed(self.messages):
             if msg.role == "user":
                 return msg
         return None
 
-    def get_last_assistant_message(self) -> Optional[Message]:
+    def get_last_assistant_message(self) -> Message | None:
         """获取最后一条助手消息"""
         for msg in reversed(self.messages):
             if msg.role == "assistant":
@@ -222,7 +222,7 @@ class SessionManager:
         path = self.sessions_dir / f"{name}.jsonl"
         return Session.load(path)
 
-    def create_session(self, name: Optional[str] = None) -> Session:
+    def create_session(self, name: str | None = None) -> Session:
         """创建新会话"""
         if name is None:
             name = f"session_{int(time.time())}"
@@ -240,7 +240,7 @@ class SessionManager:
 
         return False
 
-    def get_recent_session(self) -> Optional[Session]:
+    def get_recent_session(self) -> Session | None:
         """获取最近的会话"""
         sessions = self.list_sessions()
 

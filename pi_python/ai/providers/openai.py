@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -19,7 +19,6 @@ from ..stream import (
     StreamOptions,
 )
 from ..types import (
-    ApiType,
     AssistantMessage,
     Content,
     Context,
@@ -39,8 +38,8 @@ class OpenAIProvider(BaseProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
         timeout: int = 60,
     ):
         super().__init__(timeout=timeout)
@@ -198,6 +197,7 @@ class OpenAIProvider(BaseProvider):
 
 # 注册提供商
 from ..model import register_provider
+
 
 async def openai_stream(model: Model, context: Context, options: StreamOptions) -> AssistantMessageEventStream:
     provider = OpenAIProvider()
