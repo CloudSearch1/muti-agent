@@ -220,6 +220,26 @@ class TestBashTool:
 
             assert result.details.get("error") is True
 
+    @pytest.mark.asyncio
+    async def test_execute_timeout_kill_process(self):
+        """测试命令超时时杀死进程"""
+        bash_tool = BashTool()
+
+        # 创建 mock 进程
+        mock_proc = AsyncMock()
+        mock_proc.communicate = AsyncMock(side_effect=TimeoutError())
+        mock_proc.kill = MagicMock()
+        mock_proc.returncode = None
+
+        with patch("asyncio.create_subprocess_shell", return_value=mock_proc):
+            with patch("asyncio.wait_for", side_effect=TimeoutError()):
+                result = await bash_tool.execute("call-1", {"command": "sleep 100", "timeout": 0.1})
+
+                # 验证调用了 kill
+                mock_proc.kill.assert_called_once()
+                assert result.details.get("error") is True
+                assert "timed out" in result.content[0].text
+
 
 # ===========================================
 # ReadFileTool Tests
