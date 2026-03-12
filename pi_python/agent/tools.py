@@ -13,13 +13,28 @@ from ..ai import Content, TextContent, Tool
 
 
 class ToolResult:
-    """工具执行结果"""
+    """
+    工具执行结果类。
+
+    封装工具执行的返回结果，支持文本内容或结构化内容。
+
+    Attributes:
+        content: 结果内容，可以是字符串或 Content 对象列表
+        details: 附加详情字典
+    """
 
     def __init__(
         self,
         content: str | list[Content] = "",
         details: dict[str, Any] | None = None
     ):
+        """
+        初始化工具结果。
+
+        Args:
+            content: 结果内容，字符串会自动转换为 TextContent 列表
+            details: 附加详情字典
+        """
         if isinstance(content, str):
             content = [TextContent(text=content)]
         self.content = content
@@ -27,12 +42,29 @@ class ToolResult:
 
     @classmethod
     def text(cls, text: str, **details) -> ToolResult:
-        """创建文本结果"""
+        """
+        创建文本结果的类方法。
+
+        Args:
+            text: 文本内容
+            **details: 附加详情键值对
+
+        Returns:
+            ToolResult: 包含文本内容的结果实例
+        """
         return cls(content=text, details=details)
 
     @classmethod
     def error(cls, error: str) -> ToolResult:
-        """创建错误结果"""
+        """
+        创建错误结果的类方法。
+
+        Args:
+            error: 错误信息
+
+        Returns:
+            ToolResult: 包含错误信息的结果实例
+        """
         return cls(content=f"Error: {error}", details={"error": True})
 
 
@@ -74,7 +106,12 @@ class AgentTool(ABC):
         pass
 
     def to_tool(self) -> Tool:
-        """转换为 LLM 工具定义"""
+        """
+        将工具转换为 LLM 可识别的工具定义。
+
+        Returns:
+            Tool: LLM 工具定义对象
+        """
         from ..ai import ToolParameter
 
         parameters = {}
@@ -101,9 +138,20 @@ def tool(
     required: list[str] | None = None,
 ):
     """
-    装饰器：将函数转换为工具
+    装饰器：将函数转换为 AgentTool 实例。
 
-    Usage:
+    用于快速创建工具，无需继承 AgentTool 类。
+
+    Args:
+        name: 工具名称
+        description: 工具描述
+        parameters: 参数定义字典，每个参数包含 type、description 等
+        required: 必需参数名称列表
+
+    Returns:
+        Callable: 返回一个装饰器函数
+
+    Example:
         @tool("greet", "Greet someone", {"name": {"type": "string"}})
         async def greet(tool_call_id, params, **kwargs):
             return f"Hello, {params['name']}!"

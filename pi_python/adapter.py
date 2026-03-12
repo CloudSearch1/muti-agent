@@ -40,9 +40,9 @@ class LLMProviderAdapter:
             model_id: 模型 ID
             api_key: API Key（可选，默认从环境变量读取）
         """
-        self.provider = provider
-        self.model_id = model_id
-        self.api_key = api_key
+        self.provider: str = provider
+        self.model_id: str = model_id
+        self.api_key: str | None = api_key
         self._model: Model | None = None
 
     @property
@@ -57,7 +57,7 @@ class LLMProviderAdapter:
         prompt: str,
         temperature: float = 0.7,
         max_tokens: int = 2048,
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         """生成文本"""
         context = Context()
@@ -77,7 +77,7 @@ class LLMProviderAdapter:
         prompt: str,
         temperature: float = 0.7,
         max_tokens: int = 2048,
-        **kwargs,
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """生成 JSON"""
         import json
@@ -102,7 +102,7 @@ class LLMProviderAdapter:
         prompt: str,
         temperature: float = 0.7,
         max_tokens: int = 2048,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncIterator[str]:
         """流式生成"""
         context = Context()
@@ -123,9 +123,16 @@ class LLMProviderAdapter:
 
 class LLMFactoryAdapter:
     """
-    LLM 工厂适配器
+    LLM 工厂适配器。
 
-    兼容现有 src/llm/llm_provider.LLMFactory 接口
+    兼容现有 src/llm/llm_provider.LLMFactory 接口。
+
+    Note:
+        此类是向后兼容层，用于适配现有的 LLM 接口。
+        底层使用 pi_python.ai.model.ModelRegistry 管理模型。
+        区别：
+        - LLMFactoryAdapter: 管理 LLMProviderAdapter 实例（高级 API）
+        - ModelRegistry: 管理 Model 实例和提供商函数（低级 API）
     """
 
     _providers: dict[str, LLMProviderAdapter] = {}
@@ -166,7 +173,7 @@ class LLMFactoryAdapter:
 
 # 便捷函数（兼容现有接口）
 
-async def llm_generate(prompt: str, provider: str | None = None, **kwargs) -> str:
+async def llm_generate(prompt: str, provider: str | None = None, **kwargs: Any) -> str:
     """便捷函数：生成文本"""
     if provider:
         p = LLMFactoryAdapter.get(provider)
@@ -179,7 +186,7 @@ async def llm_generate(prompt: str, provider: str | None = None, **kwargs) -> st
     return await p.generate(prompt, **kwargs)
 
 
-async def llm_generate_json(prompt: str, provider: str | None = None, **kwargs) -> dict[str, Any]:
+async def llm_generate_json(prompt: str, provider: str | None = None, **kwargs: Any) -> dict[str, Any]:
     """便捷函数：生成 JSON"""
     if provider:
         p = LLMFactoryAdapter.get(provider)
@@ -195,7 +202,7 @@ async def llm_generate_json(prompt: str, provider: str | None = None, **kwargs) 
 async def llm_generate_stream(
     prompt: str,
     provider: str | None = None,
-    **kwargs
+    **kwargs: Any
 ) -> AsyncIterator[str]:
     """便捷函数：流式生成"""
     if provider:

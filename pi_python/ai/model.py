@@ -6,13 +6,26 @@ PI-Python 模型注册和管理
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from .types import ApiType, Model, ModelCost
 
+if TYPE_CHECKING:
+    from .stream import AssistantMessageEventStream
+    from .types import Context, StreamOptions
+
 
 class ModelRegistry:
-    """模型注册表"""
+    """
+    模型注册表。
+
+    管理模型和提供商的注册、发现和获取。
+
+    Attributes:
+        _models: 已注册的模型字典
+        _providers: 已注册的提供商函数字典
+    """
 
     _models: dict[str, Model] = {}
     _providers: dict[str, Callable] = {}
