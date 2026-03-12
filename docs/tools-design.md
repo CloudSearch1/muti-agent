@@ -217,14 +217,127 @@ TOOLS_CONFIG = {
 | 浏览器 | Playwright | Selenium/Playwright |
 | 沙箱 | 内置 sandbox | Docker/可选 |
 
-## 12. 参考文档
+## 12. 补充工具规范
+
+### 12.1 gateway 工具
+
+- **功能**: restart/config.schema.lookup/config.get/config.apply/config.patch/update.run
+- **权限**: 高权限操作，需要用户明确同意
+
+### 12.2 sessions_* / agents_list
+
+- **功能**: 会话列举、历史、跨会话发送、spawn、状态查询
+- **限制**: agents_list 需受 allowAgents 限制
+- **沙箱**: 沙箱场景下需遵守会话可见性钳制逻辑
+
+### 12.3 通用参数约定
+
+- **Gateway 类工具**（canvas/nodes/cron）统一支持：gatewayUrl/gatewayToken/timeoutMs
+- **安全要求**: 当设置了 gatewayUrl，必须显式提供 gatewayToken（不继承隐式环境凭据）
+- **Browser 统一支持**: profile/target/node
+
+## 13. 循环检测与护栏
+
+### 13.1 配置
+
+- 默认可关闭；开启后使用 warningThreshold/criticalThreshold/globalCircuitBreakerThreshold/historySize
+- 检测器必须至少包含：genericRepeat、knownPollNoProgress、pingPong
+- 支持 agent 级覆盖
+
+### 13.2 检测策略
+
+| 检测器 | 描述 |
+|--------|------|
+| genericRepeat | 通用重复检测 |
+| knownPollNoProgress | 无进展轮询检测 |
+| pingPong | 乒乓消息检测 |
+
+## 14. 安全与合规要求
+
+### 14.1 高风险动作
+
+- **节点运行、摄像头、录屏**必须在明确用户同意后执行
+- **媒体类调用**前先做 status/describe 或权限检查
+
+### 14.2 Web 抓取安全
+
+- 必须具备私网拦截
+- 重定向重检
+- 大小限制与缓存策略
+
+## 15. 推荐编排流（Python 运行时默认 playbook）
+
+### 15.1 Browser 流程
+
+```
+status/start -> snapshot -> act -> screenshot
+```
+
+### 15.2 Canvas 流程
+
+```
+present -> a2ui_push(optional) -> snapshot
+```
+
+### 15.3 Nodes 流程
+
+```
+status -> describe -> notify/run/camera/screen
+```
+
+## 16. 配置映射建议（Python）
+
+将 JSON 配置映射为 Pydantic 模型：
+
+```python
+from pydantic import BaseModel
+from typing import Optional, List, Dict
+
+class ToolsConfig(BaseModel):
+    profile: str = "coding"
+    allow: List[str] = []
+    deny: List[str] = []
+    byProvider: Dict[str, ProviderScopedPolicy] = {}
+    loopDetection: Optional[LoopDetectionConfig] = None
+    web: Optional[WebConfig] = None
+    elevated: Optional[ElevatedConfig] = None
+
+class AgentToolsConfig(BaseModel):
+    """Agent 级工具配置（仅覆盖，不反向污染全局）"""
+    profile: Optional[str] = None
+    allow: Optional[List[str]] = None
+    deny: Optional[List[str]] = None
+    byProvider: Optional[Dict[str, ProviderScopedPolicy]] = None
+
+class ProviderScopedPolicy(BaseModel):
+    """Provider 定向策略（只做收窄）"""
+    profile: Optional[str] = None
+    allow: Optional[List[str]] = None
+    deny: Optional[List[str]] = None
+```
+
+该映射是工程实现建议，语义约束来自 OpenClaw 文档。
+
+## 17. 验收清单（Definition of Done）
+
+- [ ] 策略优先级与 group 展开结果可单测验证
+- [ ] 同一输入下，系统提示工具列表与 API schema 工具列表一致
+- [ ] exec/process 背景任务生命周期可回归测试
+- [ ] web_fetch SSRF 与重定向防护可安全测试
+- [ ] 循环检测阈值触发与中断策略可观测
+- [ ] 会话/agent 可见性边界（sessions_*, agents_list）可验证
+
+## 18. 参考文档
 
 - https://docs.openclaw.ai/tools/exec
 - https://docs.openclaw.ai/automation/hooks
 - https://docs.openclaw.ai/concepts/tools
+- https://docs.openclaw.ai/tools/gateway
+- https://docs.openclaw.ai/tools/sessions
 
 ---
 
-文档版本: 1.0
+文档版本: 1.1
 创建日期: 2026-03-12
+更新日期: 2026-03-12
 对齐版本: OpenClaw 文档 (2026-03-12)
