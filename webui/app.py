@@ -23,6 +23,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy import func, select
 
 # 获取项目根目录和 webui 目录的绝对路径
 # 这样无论从哪个目录启动，都能正确找到文件
@@ -1236,21 +1237,164 @@ async def chat(request: ChatRequest):
         }
 
 
+@app.get("/api/v1/chat/sessions")
+async def get_chat_sessions(
+    limit: int = 20,
+    offset: int = 0
+):
+    """获取会话列表（支持分页）"""
+    if not DATABASE_ENABLED:
+        # 降级到内存模式
+        sessions = list(CHAT_HISTORY.keys())
+        return {
+            "sessions": [{"session_id": sid, "message_count": len(CHAT_HISTORY[sid])} for sid in sessions[offset:offset+limit]],
+            "total": len(sessions),
+            "has_more": offset + limit < len(sessions)
+        }
+    
+    try:
+        async for db in get_db_session():
+            sessions = await crud.get_chat_sessions(db, limit=limit, offset=offset)
+            
+            # 获取总数量
+            count_result = await db.execute(
+                select(func.count(func.distinct(ChatMessageModel.session_id)))
+            )
+            total = count_result.scalar() or 0
+            
+            return {
+                "sessions": sessions,
+                "total": total,
+                "has_more": offset + limit < total
+            }
+    except Exception as e:
+        logger.error(f"获取会话列表失败：{e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/v1/chat/history/{session_id}")
-async def get_chat_history(session_id: str):
-    """获取聊天历史"""
-    return {
-        "session_id": session_id,
-        "messages": CHAT_HISTORY.get(session_id, [])
-    }
+async def get_chat_history(
+    session_id: str,
+    limit: int = 50,
+    offset: int = 0
+):
+    """获取聊天历史（支持分页）"""
+    if not DATABASE_ENABLED:
+        # 降级到内存模式
+        messages = CHAT_HISTORY.get(session_id, [])
+        return {
+            "session_id": session_id,
+            "messages": messages[offset:offset+limit],
+            "total": len(messages),
+            "has_more": offset + limit < len(messages)
+        }
+    
+    try:
+        async for db in get_db_session():
+            messages = await crud.get_chat_messages_by_session(
+                db, session_id, limit=limit, offset=offset
+            )
+            
+            # 获取总数量
+            count_result = await db.execute(
+                select(func.count(ChatMessageModel.id)).where(
+                    ChatMessageModel.session_id == session_id
+                )
+            )
+            total = count_result.scalar() or 0
+            
+            return {
+                "session_id": session_id,
+                "messages": [msg.to_dict() for msg in messages],
+                "total": total,
+                "has_more": offset + limit < total
+            }
+    except Exception as e:
+        logger.error(f"获取聊天历史失败 (session={session_id}): {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.delete("/api/v1/chat/history/{session_id}")
-async def clear_chat_history(session_id: str):
-    """清除聊天历史"""
-    if session_id in CHAT_HISTORY:
-        del CHAT_HISTORY[session_id]
-    return {"status": "success", "message": "聊天历史已清除"}
+@app.post("/api/v1/chat/messages")
+async def create_chat_message(message_data: dict):
+    """保存新消息到数据库"""
+    session_id = message_data.get("session_id")
+    role = message_data.get("role")
+    content = message_data.get("content")
+    metadata = message_data.get("metadata", {})
+    
+    if not session_id or not role or not content:
+        raise HTTPException(status_code=400, detail="缺少必要字段：session_id, role, content")
+    
+    if not DATABASE_ENABLED:
+        # 降级到内存模式
+        if session_id not in CHAT_HISTORY:
+            CHAT_HISTORY[session_id] = []
+        
+        message = {
+            "id": len(CHAT_HISTORY[session_id]) + 1,
+            "session_id": session_id,
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now().isoformat(),
+            "metadata": metadata
+        }
+        CHAT_HISTORY[session_id].append(message)
+        return message
+    
+    try:
+        async for db in get_db_session():
+            message = await crud.create_chat_message(
+                db,
+                session_id=session_id,
+                role=role,
+                content=content,
+                metadata=metadata
+            )
+            return message.to_dict()
+    except Exception as e:
+        logger.error(f"保存消息失败：{e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/v1/chat/sessions/{session_id}")
+async def delete_chat_session(session_id: str):
+    """删除会话及其所有消息"""
+    if not DATABASE_ENABLED:
+        # 降级到内存模式
+        if session_id in CHAT_HISTORY:
+            del CHAT_HISTORY[session_id]
+        return {"status": "success", "message": "会话已删除", "session_id": session_id}
+    
+    try:
+        async for db in get_db_session():
+            deleted = await crud.delete_chat_session(db, session_id)
+            if not deleted:
+                raise HTTPException(status_code=404, detail="会话不存在")
+            return {"status": "success", "message": "会话已删除", "session_id": session_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"删除会话失败 (session={session_id}): {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/chat/stats")
+async def get_chat_stats():
+    """获取聊天统计信息"""
+    if not DATABASE_ENABLED:
+        return {
+            "total_sessions": len(CHAT_HISTORY),
+            "total_messages": sum(len(msgs) for msgs in CHAT_HISTORY.values()),
+            "messages_by_role": {}
+        }
+    
+    try:
+        async for db in get_db_session():
+            stats = await crud.get_chat_stats(db)
+            return stats
+    except Exception as e:
+        logger.error(f"获取聊天统计失败：{e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/v1/health")

@@ -197,6 +197,25 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2" role="toolbar" aria-label="聊天操作">
+                            <!-- 会话选择器 -->
+                            <div class="relative" v-if="sessions.length > 0">
+                                <select @change="switchToSession($event.target.value)" 
+                                        :value="currentSessionId"
+                                        class="bg-gh-bg border border-gh-border rounded-lg px-2 py-1.5 text-xs text-gh-light focus:outline-none focus:border-gh-blue"
+                                        aria-label="选择会话">
+                                    <option value="" disabled>选择会话...</option>
+                                    <option v-for="session in sessions" :key="session.session_id" 
+                                            :value="session.session_id">
+                                        {{ session.message_count }}条消息 - {{ formatDate(session.last_message_at, 'MM-DD HH:mm') }}
+                                    </option>
+                                </select>
+                            </div>
+                            <!-- 新建会话按钮 -->
+                            <button @click="createNewSession" 
+                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-gh-text hover:text-white hover:bg-gh-elevated transition" 
+                                    title="新建会话" aria-label="新建会话">
+                                <i class="fas fa-plus text-sm" aria-hidden="true"></i>
+                            </button>
                             <button @click="exportChat" class="w-8 h-8 rounded-lg flex items-center justify-center text-gh-text hover:text-white hover:bg-gh-elevated transition" 
                                     title="导出对话" aria-label="导出对话">
                                 <i class="fas fa-download text-sm" aria-hidden="true"></i>
@@ -219,6 +238,26 @@
                          aria-label="聊天消息"
                          aria-live="polite"
                          @scroll="handleScroll">
+                        <!-- 加载更多指示器 -->
+                        <div v-if="messagesLoading && messagesOffset > 0" 
+                             class="flex justify-center py-2"
+                             aria-label="加载中">
+                            <div class="flex gap-1" aria-hidden="true">
+                                <span class="w-2 h-2 rounded-full bg-gh-text animate-bounce" style="animation-delay: 0s"></span>
+                                <span class="w-2 h-2 rounded-full bg-gh-text animate-bounce" style="animation-delay: 0.1s"></span>
+                                <span class="w-2 h-2 rounded-full bg-gh-text animate-bounce" style="animation-delay: 0.2s"></span>
+                            </div>
+                        </div>
+                        
+                        <!-- 加载更多提示 -->
+                        <div v-if="hasMoreMessages && !messagesLoading" 
+                             class="text-center text-xs text-gh-text py-2 cursor-pointer hover:text-gh-blue"
+                             @click="loadMoreMessages"
+                             role="button"
+                             aria-label="加载更多消息">
+                            <i class="fas fa-chevron-up mr-1" aria-hidden="true"></i>
+                            加载更多历史消息
+                        </div>
                         <!-- 空状态 -->
                         <div v-if="messages.length === 0" class="h-full flex flex-col items-center justify-center text-gh-text">
                             <div class="w-20 h-20 rounded-full bg-gh-elevated flex items-center justify-center mb-4" aria-hidden="true">
@@ -768,7 +807,52 @@
             },
             healthCheck: () => request('/api/v1/health', { cache: true }),
             exportTasks: (format = 'json') => request(`/api/v1/export/tasks?format=${format}`),
-            clearCache
+            clearCache,
+            
+            // ============ 聊天持久化 API ============
+            
+            /**
+             * 获取会话列表
+             */
+            getChatSessions: (limit = 20, offset = 0) => 
+                request(`/api/v1/chat/sessions?limit=${limit}&offset=${offset}`),
+            
+            /**
+             * 获取聊天历史（支持分页）
+             */
+            getChatHistory: (sessionId, limit = 50, offset = 0) => 
+                request(`/api/v1/chat/history/${sessionId}?limit=${limit}&offset=${offset}`),
+            
+            /**
+             * 保存消息
+             */
+            saveChatMessage: (messageData) => 
+                request('/api/v1/chat/messages', { 
+                    method: 'POST', 
+                    data: messageData 
+                }),
+            
+            /**
+             * 批量保存消息
+             */
+            saveChatMessagesBatch: (messages) => 
+                request('/api/v1/chat/messages/batch', { 
+                    method: 'POST', 
+                    data: messages 
+                }),
+            
+            /**
+             * 删除会话
+             */
+            deleteChatSession: (sessionId) => 
+                request(`/api/v1/chat/sessions/${sessionId}`, { 
+                    method: 'DELETE' 
+                }),
+            
+            /**
+             * 获取聊天统计
+             */
+            getChatStats: () => request('/api/v1/chat/stats')
         };
         
         // ============ Vue Application ============
@@ -788,6 +872,16 @@
                         attachments: [],
                         loading: false,
                         error: null,
+                        
+                        // 会话管理
+                        currentSessionId: null,
+                        sessions: [],
+                        sessionsLoading: false,
+                        messagesLoading: false,
+                        messagesOffset: 0,
+                        messagesLimit: 50,
+                        hasMoreMessages: false,
+                        saveMessageDebounceTimer: null,
                         
                         // WebSocket 相关
                         wsConnected: false,
@@ -990,6 +1084,177 @@
                         }
                     },
                     
+                    // ============ 会话管理 ============
+                    
+                    /**
+                     * 生成会话 ID
+                     */
+                    generateSessionId() {
+                        const timestamp = new Date().getTime();
+                        const randomId = Math.random().toString(36).substring(2, 8);
+                        return `session_${timestamp}_${randomId}`;
+                    },
+                    
+                    /**
+                     * 加载会话列表
+                     */
+                    async loadChatSessions() {
+                        this.sessionsLoading = true;
+                        try {
+                            const data = await api.getChatSessions(20, 0);
+                            this.sessions = data.sessions || [];
+                            console.log('[AIAssistant] 会话列表已加载:', this.sessions.length);
+                        } catch (e) {
+                            console.error('[AIAssistant] 加载会话列表失败:', e);
+                            this.sessions = [];
+                        } finally {
+                            this.sessionsLoading = false;
+                        }
+                    },
+                    
+                    /**
+                     * 创建新会话
+                     */
+                    createNewSession() {
+                        this.currentSessionId = this.generateSessionId();
+                        this.messages = [];
+                        this.messagesOffset = 0;
+                        this.hasMoreMessages = false;
+                        console.log('[AIAssistant] 创建新会话:', this.currentSessionId);
+                        
+                        // 刷新会话列表
+                        this.loadChatSessions();
+                    },
+                    
+                    /**
+                     * 加载指定会话的消息历史
+                     */
+                    async loadChatHistory(sessionId, append = false) {
+                        if (!sessionId) {
+                            console.warn('[AIAssistant] 会话 ID 为空');
+                            return;
+                        }
+                        
+                        this.messagesLoading = true;
+                        try {
+                            const data = await api.getChatHistory(
+                                sessionId, 
+                                this.messagesLimit, 
+                                this.messagesOffset
+                            );
+                            
+                            const newMessages = data.messages || [];
+                            
+                            if (append) {
+                                // 加载更多历史消息，插入到前面
+                                this.messages = [...newMessages, ...this.messages];
+                            } else {
+                                this.messages = newMessages;
+                            }
+                            
+                            this.hasMoreMessages = data.has_more || false;
+                            console.log(`[AIAssistant] 加载消息：${newMessages.length}条，总计：${this.messages.length}条`);
+                            
+                            // 滚动到底部（如果不是加载更多）
+                            if (!append) {
+                                this.$nextTick(() => {
+                                    this.scrollToBottom();
+                                });
+                            }
+                        } catch (e) {
+                            console.error('[AIAssistant] 加载消息历史失败:', e);
+                            this.error = '加载消息失败：' + e.message;
+                        } finally {
+                            this.messagesLoading = false;
+                        }
+                    },
+                    
+                    /**
+                     * 加载更多历史消息
+                     */
+                    async loadMoreMessages() {
+                        if (!this.hasMoreMessages || this.messagesLoading) {
+                            return;
+                        }
+                        
+                        this.messagesOffset += this.messagesLimit;
+                        await this.loadChatHistory(this.currentSessionId, true);
+                    },
+                    
+                    /**
+                     * 保存消息到数据库
+                     */
+                    async saveMessageToDatabase(message) {
+                        if (!this.currentSessionId) {
+                            console.warn('[AIAssistant] 会话 ID 为空，无法保存消息');
+                            return;
+                        }
+                        
+                        // 使用防抖避免频繁保存
+                        if (this.saveMessageDebounceTimer) {
+                            clearTimeout(this.saveMessageDebounceTimer);
+                        }
+                        
+                        this.saveMessageDebounceTimer = setTimeout(async () => {
+                            try {
+                                const messageData = {
+                                    session_id: this.currentSessionId,
+                                    role: message.role,
+                                    content: message.content,
+                                    metadata: {
+                                        model: message.model || null,
+                                        time: message.time
+                                    }
+                                };
+                                
+                                await api.saveChatMessage(messageData);
+                                console.log('[AIAssistant] 消息已保存:', message.role);
+                            } catch (e) {
+                                console.error('[AIAssistant] 保存消息失败:', e);
+                                // 不显示错误，避免打扰用户
+                            }
+                        }, 500); // 500ms 防抖
+                    },
+                    
+                    /**
+                     * 删除当前会话
+                     */
+                    async deleteCurrentSession() {
+                        if (!this.currentSessionId) {
+                            return;
+                        }
+                        
+                        if (!confirm('确定要删除当前会话吗？此操作不可恢复。')) {
+                            return;
+                        }
+                        
+                        try {
+                            await api.deleteChatSession(this.currentSessionId);
+                            console.log('[AIAssistant] 会话已删除:', this.currentSessionId);
+                            
+                            // 创建新会话
+                            this.createNewSession();
+                            await this.loadChatSessions();
+                        } catch (e) {
+                            console.error('[AIAssistant] 删除会话失败:', e);
+                            alert('删除失败：' + e.message);
+                        }
+                    },
+                    
+                    /**
+                     * 切换到指定会话
+                     */
+                    async switchToSession(sessionId) {
+                        if (!sessionId || sessionId === this.currentSessionId) {
+                            return;
+                        }
+                        
+                        this.currentSessionId = sessionId;
+                        this.messagesOffset = 0;
+                        await this.loadChatHistory(sessionId, false);
+                        await this.loadChatSessions(); // 刷新会话列表
+                    },
+                    
                     // Agent 管理
                     selectAgent(agent) {
                         if (!agent) {
@@ -1020,11 +1285,16 @@
                             return;
                         }
                         
-                        this.messages.push({
+                        const userMessage = {
                             role: 'user',
                             content: message,
                             time: new Date()
-                        });
+                        };
+                        
+                        this.messages.push(userMessage);
+                        
+                        // 保存到数据库
+                        this.saveMessageToDatabase(userMessage);
                         
                         this.inputMessage = '';
                         this.error = null;
@@ -1139,6 +1409,14 @@
                         
                         this.loading = false;
                         this.scrollToBottom();
+                        
+                        // 保存 AI 响应到数据库
+                        if (this.messages[aiMessageIndex]) {
+                            this.saveMessageToDatabase(this.messages[aiMessageIndex]);
+                        }
+                        
+                        // 刷新会话列表（更新最新消息时间）
+                        this.loadChatSessions();
                     },
                     
                     // 快速操作
@@ -1166,17 +1444,20 @@
                         
                         this.error = null;
                         this.inputMessage = lastUserMessage.content;
+                        
+                        // 重试时带一点延迟，避免请求过快
+                        await new Promise(resolve => setTimeout(resolve, 500));
                         await this.sendMessage();
                     },
                     
-                    clearChat() {
+                    async clearChat() {
                         if (this.messages.length === 0) {
                             return;
                         }
                         
                         if (confirm('确定要清空对话历史吗？此操作不可恢复。')) {
-                            this.messages = [];
-                            this.error = null;
+                            // 删除当前会话
+                            await this.deleteCurrentSession();
                             console.log('[AIAssistant] 对话已清空');
                         }
                     },
@@ -1252,8 +1533,14 @@
                         this._autoResizeDebounced(event.target);
                     },
                     
-                    handleScroll() {
-                        // 节流处理
+                    handleScroll(event) {
+                        const container = event.target;
+                        const scrollTop = container.scrollTop;
+                        
+                        // 当滚动到顶部附近时，加载更多消息
+                        if (scrollTop < 100 && this.hasMoreMessages && !this.messagesLoading) {
+                            this.loadMoreMessages();
+                        }
                     },
                     
                     scrollToBottom() {
@@ -1369,6 +1656,19 @@
                     this.loadAgents();
                     this.loadTasks();
                     this.loadSettings();
+                    
+                    // 初始化聊天会话
+                    this.loadChatSessions();
+                    
+                    // 尝试从 URL 参数加载会话 ID，否则创建新会话
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const sessionIdFromUrl = urlParams.get('session');
+                    if (sessionIdFromUrl) {
+                        this.currentSessionId = sessionIdFromUrl;
+                        this.loadChatHistory(sessionIdFromUrl, false);
+                    } else {
+                        this.createNewSession();
+                    }
                     
                     // 建立 WebSocket 连接
                     this.connectWebSocket();

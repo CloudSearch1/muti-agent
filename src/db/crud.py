@@ -11,7 +11,7 @@ from datetime import datetime
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import AgentModel, TaskModel, WorkflowModel
+from .models import AgentModel, ChatMessageModel, TaskModel, WorkflowModel
 
 logger = logging.getLogger(__name__)
 
@@ -325,3 +325,146 @@ async def complete_workflow(
         logger.info(f"完成工作流：{workflow_id}")
 
     return workflow
+
+
+# ============ Chat Message CRUD ============
+
+async def get_chat_sessions(db: AsyncSession, limit: int = 100, offset: int = 0) -> list[dict]:
+    """
+    获取会话列表（按最新消息时间排序）
+
+    返回会话 ID 和最新消息时间
+    """
+    from sqlalchemy import func
+
+    result = await db.execute(
+        select(
+            ChatMessageModel.session_id,
+            func.max(ChatMessageModel.timestamp).label("last_message_at"),
+            func.count(ChatMessageModel.id).label("message_count"),
+        )
+        .group_by(ChatMessageModel.session_id)
+        .order_by(func.max(ChatMessageModel.timestamp).desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    rows = result.all()
+    return [
+        {
+            "session_id": row.session_id,
+            "last_message_at": row.last_message_at.isoformat() if row.last_message_at else None,
+            "message_count": row.message_count,
+        }
+        for row in rows
+    ]
+
+
+async def get_chat_messages_by_session(
+    db: AsyncSession,
+    session_id: str,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[ChatMessageModel]:
+    """获取指定会话的消息历史"""
+    result = await db.execute(
+        select(ChatMessageModel)
+        .where(ChatMessageModel.session_id == session_id)
+        .order_by(ChatMessageModel.timestamp.asc())
+        .offset(offset)
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
+async def create_chat_message(
+    db: AsyncSession,
+    session_id: str,
+    role: str,
+    content: str,
+    metadata: dict | None = None,
+) -> ChatMessageModel:
+    """创建新消息"""
+    message = ChatMessageModel(
+        session_id=session_id,
+        role=role,
+        content=content,
+        meta=metadata or {},
+        timestamp=datetime.now(),
+    )
+    db.add(message)
+    await db.commit()
+    await db.refresh(message)
+    logger.info(f"创建聊天消息：session={session_id}, role={role}")
+    return message
+
+
+async def delete_chat_session(db: AsyncSession, session_id: str) -> bool:
+    """删除会话及其所有消息"""
+    result = await db.execute(
+        delete(ChatMessageModel).where(ChatMessageModel.session_id == session_id)
+    )
+    await db.commit()
+    deleted = result.rowcount > 0
+    if deleted:
+        logger.info(f"删除会话：{session_id}")
+    return deleted
+
+
+async def get_chat_message_by_id(
+    db: AsyncSession,
+    message_id: int,
+) -> ChatMessageModel | None:
+    """根据 ID 获取消息"""
+    result = await db.execute(
+        select(ChatMessageModel).where(ChatMessageModel.id == message_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def update_chat_message_metadata(
+    db: AsyncSession,
+    message_id: int,
+    metadata: dict,
+) -> ChatMessageModel | None:
+    """更新消息元数据"""
+    message = await get_chat_message_by_id(db, message_id)
+    if not message:
+        return None
+
+    message.meta = metadata
+    await db.commit()
+    await db.refresh(message)
+    return message
+
+
+async def get_chat_stats(db: AsyncSession) -> dict:
+    """获取聊天统计"""
+    from sqlalchemy import func
+
+    # 总会话数
+    sessions_result = await db.execute(
+        select(func.count(func.distinct(ChatMessageModel.session_id)))
+    )
+    total_sessions = sessions_result.scalar() or 0
+
+    # 总消息数
+    messages_result = await db.execute(
+        select(func.count(ChatMessageModel.id))
+    )
+    total_messages = messages_result.scalar() or 0
+
+    # 按角色统计
+    role_result = await db.execute(
+        select(
+            ChatMessageModel.role,
+            func.count(ChatMessageModel.id).label("count"),
+        )
+        .group_by(ChatMessageModel.role)
+    )
+    role_stats = {row.role: row.count for row in role_result.all()}
+
+    return {
+        "total_sessions": total_sessions,
+        "total_messages": total_messages,
+        "messages_by_role": role_stats,
+    }

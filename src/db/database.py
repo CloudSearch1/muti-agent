@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, TypeVar
 
-from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String, Text, event, select
+from sqlalchemy import Boolean, Column, DateTime, Float, Index, Integer, String, Text, event, select, JSON
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.pool import NullPool
@@ -121,6 +121,36 @@ class SkillModel(Base):
     enabled = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.now)  # 索引在 __table_args__ 中定义
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class ChatMessageModel(Base):
+    """聊天消息模型"""
+
+    __tablename__ = "chat_messages"
+
+    __table_args__ = (
+        Index("ix_cm_session_id", "session_id"),
+        Index("ix_cm_timestamp", "timestamp"),
+        Index("ix_cm_session_timestamp", "session_id", "timestamp"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String(100), nullable=False, index=True, comment="会话 ID")
+    role = Column(String(20), nullable=False, comment="角色：user/assistant/system")
+    content = Column(Text, nullable=False, comment="消息内容")
+    timestamp = Column(DateTime, default=datetime.now, index=True, comment="消息时间戳")
+    meta = Column("metadata", JSON, default={}, comment="元数据（JSON 格式）")
+
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "role": self.role,
+            "content": self.content,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "metadata": self.meta or {},
+        }
 
 
 # ============ 性能监控 ============

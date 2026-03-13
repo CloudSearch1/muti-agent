@@ -5,6 +5,7 @@ API 路由
 from fastapi import APIRouter
 
 from .agent import router as agent_router
+from .chat import router as chat_router
 from .event_sourcing import router as event_sourcing_router
 from .llm import router as llm_router
 from .local_llm import router as local_llm_router
@@ -28,3 +29,4 @@ router.include_router(local_llm_router, tags=["Local LLM"])
 router.include_router(pi_router, prefix="/pi", tags=["pi"])
 router.include_router(settings_router, tags=["settings"])
 router.include_router(tools_router, tags=["tools"])
+router.include_router(chat_router, tags=["chat"])

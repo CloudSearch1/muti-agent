@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.db.database import Base
-from src.db.models import TaskModel, AgentModel, WorkflowModel
+from src.db.models import TaskModel, AgentModel, WorkflowModel, ChatMessageModel
 
 # Alembic Config
 config = context.config
