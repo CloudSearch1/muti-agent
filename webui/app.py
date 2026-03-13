@@ -452,7 +452,7 @@ async def get_static_images(filename: str):
 async def get_stats():
     """获取系统统计（带缓存）"""
     cache_key = "stats"
-    cached = response_cache.get(cache_key)
+    cached = await response_cache.get(cache_key)
     if cached:
         return cached
 
@@ -462,7 +462,7 @@ async def get_stats():
         "completionRate": 93,
         "timestamp": datetime.now().isoformat()
     }
-    response_cache.set(cache_key, data)
+    await response_cache.set(cache_key, data)
     return data
 
 
@@ -480,11 +480,11 @@ async def get_agents():
 async def get_tasks():
     """获取任务列表（带缓存）"""
     cache_key = "tasks"
-    cached = response_cache.get(cache_key)
+    cached = await response_cache.get(cache_key)
     if cached:
         return cached
 
-    response_cache.set(cache_key, TASKS_DATA)
+    await response_cache.set(cache_key, TASKS_DATA)
     return TASKS_DATA
 
 
@@ -550,8 +550,8 @@ async def create_task(task: dict):
     }
     TASKS_DATA.insert(0, new_task)
     # 清除缓存
-    response_cache.invalidate("tasks")
-    response_cache.invalidate("stats")
+    await response_cache.invalidate("tasks")
+    await response_cache.invalidate("stats")
     return {"status": "success", "message": "任务创建成功", "taskId": new_task["id"]}
 
 
@@ -561,8 +561,8 @@ async def delete_task(task_id: int):
     global TASKS_DATA
     TASKS_DATA = [t for t in TASKS_DATA if t["id"] != task_id]
     # 清除缓存
-    response_cache.invalidate("tasks")
-    response_cache.invalidate("stats")
+    await response_cache.invalidate("tasks")
+    await response_cache.invalidate("stats")
     return {"status": "success", "message": "任务已删除"}
 
 
