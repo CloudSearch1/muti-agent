@@ -17,6 +17,7 @@ from .api.docs import setup_openapi_docs
 from .api.middleware import setup_middlewares
 from .api.routes import router as api_router
 from .api.routes.knowledge import router as knowledge_router
+from .api.routes.tools import router as tools_router
 from .api.security import setup_security_middleware
 from .monitoring.health import init_health_checks
 from .utils.exceptions import register_exception_handlers
@@ -107,6 +108,9 @@ def create_app(config_name: str = "production") -> FastAPI:
 
     # 注册知识库路由
     app.include_router(knowledge_router, prefix="/api/v1")
+
+    # 注册工具系统路由
+    app.include_router(tools_router, prefix="/api/v1")
 
     # Prometheus 指标
     @app.get("/metrics", include_in_schema=False)

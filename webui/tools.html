@@ -2,10 +2,20 @@
 <html lang="zh-CN" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1117">
     <title>工具系统 - IntelliTeam</title>
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Tailwind 配置 -->
     <script>
         window.tailwind = window.tailwind || {};
         window.tailwind.config = {
@@ -20,128 +30,590 @@
                             border: '#30363d',
                             text: '#6A737D',
                             light: '#e6edf3',
+                            white: '#ffffff',
                             blue: '#0366D6',
                             green: '#33BB22',
-                            red: '#DA3633'
+                            yellow: '#F0C744',
+                            red: '#DA3633',
+                            purple: '#8957e5'
                         }
                     }
                 }
             }
-        };
+        }
     </script>
+
     <style>
-        body { background: #0d1117; color: #e6edf3; }
-        .nav-link { padding: 8px 16px; border-radius: 6px; transition: all 0.2s; }
-        .nav-link:hover { background: rgba(255,255,255,0.1); }
-        .nav-link.active { background: rgba(3,102,214,0.2); color: #58a6ff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 16px; line-height: 1.5; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; background: #0d1117; color: #e6edf3; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+        .loading-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .card-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid #30363d; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); border-color: #6A737D; }
+        .gh-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; }
+        .nav-link { display: flex; align-items: center; height: 64px; padding: 0 16px; color: #8b949e; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; }
+        .nav-link:hover { color: #e6edf3; border-color: #30363d; }
+        .nav-link.active { color: #fff; border-color: #f78166; }
+        .gh-toolbar { height: 64px; background-color: #161b22; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 40; }
+        .btn-primary { background-color: #238636; color: #ffffff; padding: 8px 16px; border-radius: 6px; font-weight: 500; transition: all 0.2s; border: 1px solid rgba(240, 246, 252, 0.1); }
+        .btn-primary:hover { background-color: #2ea043; }
+        .btn-secondary { background-color: #21262d; color: #e6edf3; padding: 8px 16px; border-radius: 6px; font-weight: 500; transition: all 0.2s; border: 1px solid #30363d; }
+        .btn-secondary:hover { background-color: #30363d; border-color: #8b949e; }
+        .gh-input { background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; color: #e6edf3; width: 100%; transition: all 0.2s; }
+        .gh-input:focus { outline: none; border-color: #0366D6; box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.3); }
+        .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 2em; font-size: 12px; font-weight: 500; }
+        .badge-success { background: rgba(51, 187, 34, 0.15); color: #3fb950; border: 1px solid rgba(51, 187, 34, 0.4); }
+        .badge-warning { background: rgba(240, 199, 68, 0.15); color: #d29922; border: 1px solid rgba(240, 199, 68, 0.4); }
+        .badge-danger { background: rgba(218, 54, 51, 0.15); color: #f85149; border: 1px solid rgba(218, 54, 51, 0.4); }
+        .badge-neutral { background: rgba(110, 118, 129, 0.15); color: #8b949e; border: 1px solid rgba(110, 118, 129, 0.4); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: #161b22; border: 1px solid #30363d; border-radius: 12px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .code-block { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; font-family: 'Courier New', monospace; font-size: 13px; overflow-x: auto; }
         .tool-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; transition: all 0.2s; }
-        .tool-card:hover { border-color: #6A737D; transform: translateY(-2px); }
+        .tool-card:hover { border-color: #6A737D; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-    <!-- 顶部导航栏 -->
-    <nav class="bg-gh-canvas border-b border-gh-border sticky top-0 z-50">
-        <div class="container mx-auto px-4">
-            <div class="flex items-center justify-between h-16">
-                <a href="index.html" class="flex items-center space-x-3 text-white font-semibold hover:opacity-80">
-                    <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
-                        <i class="fas fa-robot"></i>
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="fixed inset-0 bg-gh-bg/95 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div class="text-center">
+                <i class="fas fa-circle-notch text-4xl text-gh-blue loading-spin mb-4"></i>
+                <p class="text-gh-text">加载中...</p>
+            </div>
+        </div>
+
+        <!-- 顶部导航栏 -->
+        <nav class="gh-toolbar px-4 py-0">
+            <div class="flex items-center justify-between w-full h-full">
+                <div class="flex items-center h-full">
+                    <a href="/" class="flex items-center h-full px-3 hover:bg-white/5 transition">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
+                                <i class="fas fa-robot text-lg text-white"></i>
+                            </div>
+                            <span class="text-lg font-semibold text-white tracking-tight">IntelliTeam</span>
+                        </div>
+                    </a>
+                    <div class="h-6 w-px bg-gh-border mx-2"></div>
+                    <div class="hidden md:flex items-center h-full">
+                        <a href="/" class="nav-link"><i class="fas fa-home mr-2 text-xs"></i>仪表盘</a>
+                        <a href="/tasks" class="nav-link"><i class="fas fa-tasks mr-2 text-xs"></i>任务</a>
+                        <a href="/agents" class="nav-link"><i class="fas fa-users mr-2 text-xs"></i>Agent</a>
+                        <a href="/workflows" class="nav-link"><i class="fas fa-project-diagram mr-2 text-xs"></i>工作流</a>
+                        <a href="/analytics" class="nav-link"><i class="fas fa-chart-line mr-2 text-xs"></i>分析</a>
+                        <a href="/skills" class="nav-link"><i class="fas fa-puzzle-piece mr-2 text-xs"></i>技能</a>
+                        <a href="/tools" class="nav-link active"><i class="fas fa-toolbox mr-2 text-xs"></i>工具</a>
+                        <a href="/ai-assistant" class="nav-link"><i class="fas fa-robot mr-2 text-xs"></i>AI 助手</a>
                     </div>
-                    <span>IntelliTeam</span>
-                </a>
-                <div class="hidden md:flex items-center space-x-2">
-                    <a href="index.html" class="nav-link text-sm"><i class="fas fa-home mr-2"></i>首页</a>
-                    <a href="tools.html" class="nav-link active text-sm"><i class="fas fa-toolbox mr-2"></i>工具系统</a>
-                    <a href="agent-monitor.html" class="nav-link text-sm"><i class="fas fa-desktop mr-2"></i>Agent 监控</a>
-                    <a href="log-viewer.html" class="nav-link text-sm"><i class="fas fa-file-alt mr-2"></i>日志查看</a>
-                    <a href="task-manager.html" class="nav-link text-sm"><i class="fas fa-tasks mr-2"></i>任务管理</a>
-                    <a href="workflow-viz.html" class="nav-link text-sm"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
-                    <a href="ai-assistant.html" class="nav-link text-sm"><i class="fas fa-comments mr-2"></i>AI 助手</a>
                 </div>
-                <button class="md:hidden text-gh-text hover:text-white">
-                    <i class="fas fa-bars text-xl"></i>
+                <div class="flex items-center h-full gap-2">
+                    <button @click="refreshTools" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition text-gh-text hover:text-white" title="刷新">
+                        <i :class="['fas fa-sync-alt text-sm', loading ? 'loading-spin' : '']"></i>
+                    </button>
+                    <button @click="toggleDarkMode" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition text-gh-text hover:text-white">
+                        <i :class="isDark ? 'fas fa-sun' : 'fas fa-moon'" class="text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <!-- 页面标题 -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-white flex items-center gap-3">
+                        <i class="fas fa-toolbox text-gh-blue"></i>
+                        工具系统
+                    </h1>
+                    <p class="text-gh-text mt-1">共 {{ tools.length }} 个工具 · {{ enabledCount }} 个已启用</p>
+                </div>
+                <div class="flex gap-2">
+                    <button @click="showProcesses = true" class="btn-secondary flex items-center gap-2">
+                        <i class="fas fa-microchip"></i>
+                        <span class="hidden sm:inline">进程管理</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 搜索和过滤 -->
+            <div class="gh-card p-4 mb-6">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1 relative">
+                        <input v-model="searchQuery" 
+                               type="text" 
+                               placeholder="搜索工具..."
+                               class="gh-input pl-10">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gh-text"></i>
+                    </div>
+                    <select v-model="filterCategory" class="gh-input w-full sm:w-48">
+                        <option value="">所有分类</option>
+                        <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                    </select>
+                    <select v-model="filterStatus" class="gh-input w-full sm:w-40">
+                        <option value="">所有状态</option>
+                        <option value="enabled">已启用</option>
+                        <option value="disabled">已禁用</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 工具卡片网格 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div v-for="tool in filteredTools" :key="tool.name"
+                     class="tool-card card-hover group">
+                    <div class="flex items-start justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-gh-elevated flex items-center justify-center border border-gh-border">
+                                <i :class="getToolIcon(tool.category)" class="text-lg" :style="{color: getCategoryColor(tool.category)}"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-white">{{ tool.name }}</h3>
+                                <p class="text-xs text-gh-text">{{ tool.category }}</p>
+                            </div>
+                        </div>
+                        <span :class="['badge', tool.enabled ? 'badge-success' : 'badge-neutral']">
+                            {{ tool.enabled ? '启用' : '禁用' }}
+                        </span>
+                    </div>
+                    
+                    <p class="text-sm text-gh-text mb-4 line-clamp-2">{{ tool.description }}</p>
+                    
+                    <div class="flex items-center gap-2 pt-3 border-t border-gh-border">
+                        <button @click="openToolDetail(tool)" 
+                                class="flex-1 btn-secondary text-sm py-1.5">
+                            <i class="fas fa-info-circle mr-1"></i>详情
+                        </button>
+                        <button @click="openToolExecute(tool)" 
+                                class="flex-1 btn-primary text-sm py-1.5">
+                            <i class="fas fa-play mr-1"></i>执行
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-if="filteredTools.length === 0" class="text-center py-16">
+                <div class="w-16 h-16 mx-auto bg-gh-elevated rounded-full flex items-center justify-center mb-4">
+                    <i class="fas fa-toolbox text-2xl text-gh-text"></i>
+                </div>
+                <p class="text-gh-text mb-4">暂无工具</p>
+                <button @click="refreshTools" class="btn-primary">
+                    <i class="fas fa-sync-alt mr-2"></i>刷新列表
                 </button>
             </div>
-        </div>
-    </nav>
+        </main>
 
-    <!-- 主内容 -->
-    <main class="flex-1 container mx-auto px-4 py-6">
-        <h1 class="text-2xl font-semibold text-white mb-6"><i class="fas fa-toolbox mr-3 text-gh-blue"></i>工具系统</h1>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="tool-card">
-                <div class="flex items-center mb-3">
-                    <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-terminal text-gh-blue"></i>
+        <!-- 工具详情模态框 -->
+        <div v-if="showDetail && selectedTool" class="modal-overlay" @click.self="showDetail = false">
+            <div class="modal-content">
+                <div class="p-6 border-b border-gh-border">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-semibold text-white flex items-center gap-3">
+                            <i :class="getToolIcon(selectedTool.category)" :style="{color: getCategoryColor(selectedTool.category)}"></i>
+                            {{ selectedTool.name }}
+                        </h2>
+                        <button @click="showDetail = false" class="text-gh-text hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-                    <h3 class="font-semibold text-white">终端工具</h3>
                 </div>
-                <p class="text-sm text-gh-text mb-4">执行 shell 命令，管理服务器</p>
-                <button class="btn-primary text-sm px-4 py-2 bg-gh-blue hover:bg-blue-600 rounded">打开</button>
-            </div>
+                <div class="p-6">
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gh-text mb-2">描述</h3>
+                        <p class="text-white">{{ selectedTool.description }}</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gh-text mb-2">参数</h3>
+                        <div v-if="selectedTool.parameters && selectedTool.parameters.length > 0" class="space-y-2">
+                            <div v-for="param in selectedTool.parameters" :key="param.name" 
+                                 class="gh-card p-3">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="font-medium text-white">{{ param.name }}</span>
+                                    <span :class="['badge', param.required ? 'badge-warning' : 'badge-neutral']">
+                                        {{ param.required ? '必填' : '可选' }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gh-text">{{ param.description }}</p>
+                                <p class="text-xs text-gh-text mt-1">类型：{{ param.type }}</p>
+                            </div>
+                        </div>
+                        <p v-else class="text-gh-text">无参数</p>
+                    </div>
 
-            <div class="tool-card">
-                <div class="flex items-center mb-3">
-                    <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-database text-green-400"></i>
+                    <div v-if="selectedTool.examples && selectedTool.examples.length > 0">
+                        <h3 class="text-sm font-medium text-gh-text mb-2">示例</h3>
+                        <div class="space-y-2">
+                            <div v-for="(example, idx) in selectedTool.examples" :key="idx" 
+                                 class="code-block">
+                                <pre>{{ JSON.stringify(example, null, 2) }}</pre>
+                            </div>
+                        </div>
                     </div>
-                    <h3 class="font-semibold text-white">数据库管理</h3>
                 </div>
-                <p class="text-sm text-gh-text mb-4">查看和管理数据库连接</p>
-                <button class="btn-primary text-sm px-4 py-2 bg-gh-blue hover:bg-blue-600 rounded">打开</button>
-            </div>
-
-            <div class="tool-card">
-                <div class="flex items-center mb-3">
-                    <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-network-wired text-purple-400"></i>
-                    </div>
-                    <h3 class="font-semibold text-white">网络工具</h3>
+                <div class="p-6 border-t border-gh-border flex justify-end gap-2">
+                    <button @click="showDetail = false" class="btn-secondary">关闭</button>
+                    <button @click="openToolExecute(selectedTool); showDetail = false" class="btn-primary">
+                        <i class="fas fa-play mr-2"></i>执行工具
+                    </button>
                 </div>
-                <p class="text-sm text-gh-text mb-4">网络诊断和配置工具</p>
-                <button class="btn-primary text-sm px-4 py-2 bg-gh-blue hover:bg-blue-600 rounded">打开</button>
-            </div>
-
-            <div class="tool-card">
-                <div class="flex items-center mb-3">
-                    <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-file-code text-yellow-400"></i>
-                    </div>
-                    <h3 class="font-semibold text-white">代码编辑器</h3>
-                </div>
-                <p class="text-sm text-gh-text mb-4">在线编辑和预览代码</p>
-                <button class="btn-primary text-sm px-4 py-2 bg-gh-blue hover:bg-blue-600 rounded">打开</button>
-            </div>
-
-            <div class="tool-card">
-                <div class="flex items-center mb-3">
-                    <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-shield-alt text-red-400"></i>
-                    </div>
-                    <h3 class="font-semibold text-white">安全工具</h3>
-                </div>
-                <p class="text-sm text-gh-text mb-4">安全扫描和漏洞检测</p>
-                <button class="btn-primary text-sm px-4 py-2 bg-gh-blue hover:bg-blue-600 rounded">打开</button>
-            </div>
-
-            <div class="tool-card">
-                <div class="flex items-center mb-3">
-                    <div class="w-10 h-10 bg-gh-elevated rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-cog text-gh-text"></i>
-                    </div>
-                    <h3 class="font-semibold text-white">系统设置</h3>
-                </div>
-                <p class="text-sm text-gh-text mb-4">配置系统参数和选项</p>
-                <button class="btn-primary text-sm px-4 py-2 bg-gh-blue hover:bg-blue-600 rounded">打开</button>
             </div>
         </div>
-    </main>
 
-    <footer class="bg-gh-canvas border-t border-gh-border py-4 mt-8">
-        <div class="container mx-auto px-4 text-center text-sm text-gh-text">
-            IntelliTeam 工具系统 © 2026
+        <!-- 工具执行模态框 -->
+        <div v-if="showExecute && selectedTool" class="modal-overlay" @click.self="showExecute = false">
+            <div class="modal-content">
+                <div class="p-6 border-b border-gh-border">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-semibold text-white flex items-center gap-3">
+                            <i class="fas fa-play-circle text-gh-blue"></i>
+                            执行：{{ selectedTool.name }}
+                        </h2>
+                        <button @click="showExecute = false" class="text-gh-text hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div v-if="selectedTool.parameters && selectedTool.parameters.length > 0" class="space-y-4 mb-4">
+                        <div v-for="param in selectedTool.parameters" :key="param.name">
+                            <label class="block text-sm font-medium text-gh-text mb-2">
+                                {{ param.name }}
+                                <span v-if="param.required" class="text-gh-red">*</span>
+                            </label>
+                            <input v-model="executeParams[param.name]"
+                                   :type="getInputType(param.type)"
+                                   :placeholder="param.description"
+                                   class="gh-input">
+                            <p v-if="param.default !== null && param.default !== undefined" 
+                               class="text-xs text-gh-text mt-1">默认值：{{ param.default }}</p>
+                        </div>
+                    </div>
+                    <div v-else class="text-gh-text mb-4">此工具无需参数</div>
+
+                    <!-- 执行结果 -->
+                    <div v-if="executeResult" class="mb-4">
+                        <h3 class="text-sm font-medium text-gh-text mb-2">执行结果</h3>
+                        <div :class="['gh-card p-4', executeResult.success ? 'border-green-500/30' : 'border-red-500/30']">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i :class="['fas', executeResult.success ? 'fa-check-circle text-green-500' : 'fa-times-circle text-red-500']"></i>
+                                <span :class="executeResult.success ? 'text-green-500' : 'text-red-500'">
+                                    {{ executeResult.success ? '执行成功' : '执行失败' }}
+                                </span>
+                                <span class="text-xs text-gh-text ml-auto">{{ executeResult.execution_time }}s</span>
+                            </div>
+                            <div class="code-block bg-gh-bg">
+                                <pre>{{ JSON.stringify(executeResult.data || executeResult.error, null, 2) }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gh-border flex justify-end gap-2">
+                    <button @click="showExecute = false" class="btn-secondary">关闭</button>
+                    <button @click="executeTool" :disabled="executing" class="btn-primary flex items-center gap-2">
+                        <i v-if="executing" class="fas fa-circle-notch loading-spin"></i>
+                        <i v-else class="fas fa-play"></i>
+                        {{ executing ? '执行中...' : '执行' }}
+                    </button>
+                </div>
+            </div>
         </div>
-    </footer>
+
+        <!-- 进程管理模态框 -->
+        <div v-if="showProcesses" class="modal-overlay" @click.self="showProcesses = false">
+            <div class="modal-content">
+                <div class="p-6 border-b border-gh-border">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-xl font-semibold text-white flex items-center gap-3">
+                            <i class="fas fa-microchip text-gh-purple"></i>
+                            后台进程
+                        </h2>
+                        <button @click="showProcesses = false" class="text-gh-text hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <p class="text-gh-text">共 {{ processes.length }} 个进程</p>
+                        <button @click="loadProcesses" class="btn-secondary text-sm">
+                            <i class="fas fa-sync-alt mr-1"></i>刷新
+                        </button>
+                    </div>
+                    
+                    <div v-if="processes.length > 0" class="space-y-2">
+                        <div v-for="proc in processes" :key="proc.session_id" 
+                             class="gh-card p-4 flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="font-medium text-white">{{ proc.session_id }}</span>
+                                    <span :class="['badge', getStatusBadge(proc.status)]">
+                                        {{ proc.status }}
+                                    </span>
+                                </div>
+                                <p class="text-xs text-gh-text">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    {{ formatTime(proc.created_at) }}
+                                </p>
+                            </div>
+                            <button @click="killProcess(proc.session_id)" 
+                                    class="btn-secondary text-sm text-gh-red hover:bg-gh-red/10">
+                                <i class="fas fa-stop mr-1"></i>终止
+                            </button>
+                        </div>
+                    </div>
+                    <div v-else class="text-center py-8 text-gh-text">
+                        <i class="fas fa-microchip text-3xl mb-2"></i>
+                        <p>暂无运行中的进程</p>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-gh-border flex justify-end">
+                    <button @click="showProcesses = false" class="btn-secondary">关闭</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <footer class="bg-gh-canvas border-t border-gh-border py-4 mt-8">
+            <div class="container mx-auto px-4 text-center text-sm text-gh-text">
+                IntelliTeam 工具系统 © 2026
+            </div>
+        </footer>
+    </div>
+
+    <script type="module">
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    loading: false,
+                    executing: false,
+                    isDark: true,
+                    tools: [],
+                    categories: [],
+                    processes: [],
+                    searchQuery: '',
+                    filterCategory: '',
+                    filterStatus: '',
+                    showDetail: false,
+                    showExecute: false,
+                    showProcesses: false,
+                    selectedTool: null,
+                    executeParams: {},
+                    executeResult: null,
+                    API_BASE: '/api/v1'
+                };
+            },
+            computed: {
+                enabledCount() {
+                    return this.tools.filter(t => t.enabled).length;
+                },
+                filteredTools() {
+                    let result = [...this.tools];
+                    
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        result = result.filter(t => 
+                            t.name.toLowerCase().includes(query) ||
+                            t.description.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    if (this.filterCategory) {
+                        result = result.filter(t => t.category === this.filterCategory);
+                    }
+                    
+                    if (this.filterStatus === 'enabled') {
+                        result = result.filter(t => t.enabled);
+                    } else if (this.filterStatus === 'disabled') {
+                        result = result.filter(t => !t.enabled);
+                    }
+                    
+                    return result;
+                }
+            },
+            mounted() {
+                this.loadDarkMode();
+                this.loadTools();
+                this.loadCategories();
+            },
+            methods: {
+                async loadTools() {
+                    this.loading = true;
+                    try {
+                        const res = await fetch(`${this.API_BASE}/tools`);
+                        const data = await res.json();
+                        this.tools = data.tools || [];
+                    } catch (e) {
+                        console.error('加载工具失败:', e);
+                        // 使用模拟数据
+                        this.tools = [
+                            { name: 'exec', description: '执行 shell 命令', category: 'system', enabled: true, parameters: [{ name: 'cmd', type: 'string', description: '要执行的命令', required: true }] },
+                            { name: 'web_search', description: '搜索互联网信息', category: 'web', enabled: true, parameters: [{ name: 'query', type: 'string', description: '搜索关键词', required: true }] },
+                            { name: 'web_fetch', description: '抓取网页内容', category: 'web', enabled: true, parameters: [{ name: 'url', type: 'string', description: '网页 URL', required: true }] },
+                            { name: 'file_read', description: '读取文件内容', category: 'file', enabled: true, parameters: [{ name: 'path', type: 'string', description: '文件路径', required: true }] },
+                            { name: 'file_write', description: '写入文件内容', category: 'file', enabled: true, parameters: [{ name: 'path', type: 'string', description: '文件路径', required: true }, { name: 'content', type: 'string', description: '文件内容', required: true }] },
+                            { name: 'git_status', description: '查看 Git 状态', category: 'git', enabled: true, parameters: [] },
+                        ];
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                async loadCategories() {
+                    try {
+                        const res = await fetch(`${this.API_BASE}/tools/categories`);
+                        const data = await res.json();
+                        this.categories = data.categories || [];
+                    } catch (e) {
+                        this.categories = ['system', 'web', 'file', 'git', 'general'];
+                    }
+                },
+                async loadProcesses() {
+                    try {
+                        const res = await fetch(`${this.API_BASE}/tools/processes`);
+                        const data = await res.json();
+                        this.processes = data.processes || [];
+                    } catch (e) {
+                        console.error('加载进程失败:', e);
+                        this.processes = [];
+                    }
+                },
+                async openToolDetail(tool) {
+                    this.selectedTool = tool;
+                    this.showDetail = true;
+                    
+                    // 尝试获取详细工具信息
+                    try {
+                        const res = await fetch(`${this.API_BASE}/tools/name/${tool.name}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            this.selectedTool = data;
+                        }
+                    } catch (e) {
+                        console.log('无法获取工具详情，使用基本信息');
+                    }
+                },
+                openToolExecute(tool) {
+                    this.selectedTool = tool;
+                    this.showExecute = true;
+                    this.executeParams = {};
+                    this.executeResult = null;
+                    
+                    // 初始化参数默认值
+                    if (tool.parameters) {
+                        tool.parameters.forEach(p => {
+                            if (p.default !== null && p.default !== undefined) {
+                                this.executeParams[p.name] = p.default;
+                            }
+                        });
+                    }
+                },
+                async executeTool() {
+                    this.executing = true;
+                    this.executeResult = null;
+                    
+                    try {
+                        const res = await fetch(`${this.API_BASE}/tools/execute`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                tool_name: this.selectedTool.name,
+                                params: this.executeParams
+                            })
+                        });
+                        
+                        const data = await res.json();
+                        this.executeResult = data;
+                    } catch (e) {
+                        this.executeResult = {
+                            success: false,
+                            error: e.message,
+                            execution_time: 0
+                        };
+                    } finally {
+                        this.executing = false;
+                    }
+                },
+                async killProcess(sessionId) {
+                    if (!confirm(`确定要终止进程 ${sessionId} 吗？`)) return;
+                    
+                    try {
+                        await fetch(`${this.API_BASE}/tools/processes/${sessionId}/kill`, { method: 'POST' });
+                        await this.loadProcesses();
+                    } catch (e) {
+                        alert('终止进程失败：' + e.message);
+                    }
+                },
+                refreshTools() {
+                    this.loadTools();
+                    this.loadCategories();
+                },
+                getToolIcon(category) {
+                    const icons = {
+                        'system': 'fas fa-terminal',
+                        'web': 'fas fa-globe',
+                        'file': 'fas fa-file',
+                        'git': 'fas fa-code-branch',
+                        'search': 'fas fa-search',
+                        'memory': 'fas fa-brain',
+                        'general': 'fas fa-toolbox'
+                    };
+                    return icons[category] || icons.general;
+                },
+                getCategoryColor(category) {
+                    const colors = {
+                        'system': '#0366D6',
+                        'web': '#33BB22',
+                        'file': '#F0C744',
+                        'git': '#8957e5',
+                        'search': '#DA3633',
+                        'memory': '#0366D6'
+                    };
+                    return colors[category] || '#6A737D';
+                },
+                getStatusBadge(status) {
+                    if (status === 'running') return 'badge-success';
+                    if (status === 'idle') return 'badge-neutral';
+                    if (status === 'error') return 'badge-danger';
+                    return 'badge-warning';
+                },
+                getInputType(paramType) {
+                    if (paramType === 'integer' || paramType === 'number') return 'number';
+                    if (paramType === 'boolean') return 'checkbox';
+                    return 'text';
+                },
+                formatTime(isoString) {
+                    if (!isoString) return '';
+                    const date = new Date(isoString);
+                    return date.toLocaleString('zh-CN');
+                },
+                loadDarkMode() {
+                    const saved = localStorage.getItem('theme');
+                    this.isDark = saved !== 'light';
+                    this.applyDarkMode();
+                },
+                toggleDarkMode() {
+                    this.isDark = !this.isDark;
+                    localStorage.setItem('theme', this.isDark ? 'dark' : 'light');
+                    this.applyDarkMode();
+                },
+                applyDarkMode() {
+                    if (this.isDark) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>

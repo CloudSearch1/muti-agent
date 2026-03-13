@@ -13,6 +13,7 @@ from .pi import router as pi_router
 from .settings import router as settings_router
 from .skill import router as skill_router
 from .task import router as task_router
+from .tools import router as tools_router
 
 router = APIRouter()
 
@@ -26,3 +27,4 @@ router.include_router(llm_router, prefix="/llm", tags=["llm"])
 router.include_router(local_llm_router, tags=["Local LLM"])
 router.include_router(pi_router, prefix="/pi", tags=["pi"])
 router.include_router(settings_router, tags=["settings"])
+router.include_router(tools_router, prefix="/tools", tags=["tools"])

@@ -397,6 +397,15 @@ async def get_ai_assistant_route():
     return HTMLResponse(content="<html><body><h1>AI Assistant page not found</h1></body></html>")
 
 
+@app.get("/tools")
+async def get_tools_page():
+    """返回工具系统页面"""
+    tools_file = WEBUI_DIR / "tools.html"
+    if tools_file.exists():
+        return FileResponse(path=str(tools_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>Tools page not found</h1></body></html>")
+
+
 @app.get("/manifest.json")
 async def get_manifest():
     """返回 PWA manifest"""
@@ -1334,6 +1343,227 @@ async def export_stats():
     }
 
 
+# ============ 工具系统 API ============
+
+# 工具数据（模拟 OpenClaw 工具）
+TOOLS_DATA = [
+    {
+        "name": "read",
+        "description": "读取文件内容，支持文本文件和图片",
+        "category": "file",
+        "enabled": True,
+        "parameters": [
+            {"name": "path", "type": "string", "description": "文件路径", "required": True},
+            {"name": "offset", "type": "integer", "description": "起始行号", "required": False, "default": 1},
+            {"name": "limit", "type": "integer", "description": "最大行数", "required": False, "default": 2000}
+        ],
+        "examples": [{"path": "/home/user/file.txt", "limit": 100}]
+    },
+    {
+        "name": "write",
+        "description": "写入文件内容，创建或覆盖文件",
+        "category": "file",
+        "enabled": True,
+        "parameters": [
+            {"name": "path", "type": "string", "description": "文件路径", "required": True},
+            {"name": "content", "type": "string", "description": "文件内容", "required": True}
+        ],
+        "examples": [{"path": "/home/user/file.txt", "content": "Hello World"}]
+    },
+    {
+        "name": "edit",
+        "description": "编辑文件，精确替换文本",
+        "category": "file",
+        "enabled": True,
+        "parameters": [
+            {"name": "path", "type": "string", "description": "文件路径", "required": True},
+            {"name": "oldText", "type": "string", "description": "要替换的原文本", "required": True},
+            {"name": "newText", "type": "string", "description": "新文本", "required": True}
+        ],
+        "examples": [{"path": "/home/user/file.txt", "oldText": "old", "newText": "new"}]
+    },
+    {
+        "name": "exec",
+        "description": "执行 shell 命令",
+        "category": "system",
+        "enabled": True,
+        "parameters": [
+            {"name": "command", "type": "string", "description": "要执行的命令", "required": True},
+            {"name": "timeout", "type": "integer", "description": "超时时间（秒）", "required": False, "default": 60},
+            {"name": "workdir", "type": "string", "description": "工作目录", "required": False}
+        ],
+        "examples": [{"command": "ls -la", "timeout": 30}]
+    },
+    {
+        "name": "web_search",
+        "description": "使用 Brave Search API 搜索互联网",
+        "category": "web",
+        "enabled": True,
+        "parameters": [
+            {"name": "query", "type": "string", "description": "搜索关键词", "required": True},
+            {"name": "count", "type": "integer", "description": "结果数量", "required": False, "default": 10},
+            {"name": "freshness", "type": "string", "description": "时间过滤", "required": False}
+        ],
+        "examples": [{"query": "Python tutorial", "count": 5}]
+    },
+    {
+        "name": "web_fetch",
+        "description": "抓取网页内容并提取可读文本",
+        "category": "web",
+        "enabled": True,
+        "parameters": [
+            {"name": "url", "type": "string", "description": "网页 URL", "required": True},
+            {"name": "extractMode", "type": "string", "description": "提取模式", "required": False, "default": "markdown"}
+        ],
+        "examples": [{"url": "https://example.com"}]
+    },
+    {
+        "name": "browser",
+        "description": "控制浏览器进行自动化操作",
+        "category": "web",
+        "enabled": True,
+        "parameters": [
+            {"name": "action", "type": "string", "description": "操作类型", "required": True},
+            {"name": "url", "type": "string", "description": "目标 URL", "required": False},
+            {"name": "selector", "type": "string", "description": "CSS 选择器", "required": False}
+        ],
+        "examples": [{"action": "open", "url": "https://example.com"}]
+    },
+    {
+        "name": "message",
+        "description": "发送消息到 Telegram 等渠道",
+        "category": "communication",
+        "enabled": True,
+        "parameters": [
+            {"name": "action", "type": "string", "description": "操作类型", "required": True},
+            {"name": "target", "type": "string", "description": "目标频道/用户", "required": False},
+            {"name": "message", "type": "string", "description": "消息内容", "required": False}
+        ],
+        "examples": [{"action": "send", "message": "Hello"}]
+    },
+    {
+        "name": "image",
+        "description": "分析图片内容",
+        "category": "multimedia",
+        "enabled": True,
+        "parameters": [
+            {"name": "image", "type": "string", "description": "图片路径或 URL", "required": True},
+            {"name": "prompt", "type": "string", "description": "分析提示", "required": False}
+        ],
+        "examples": [{"image": "/home/user/photo.jpg", "prompt": "描述图片内容"}]
+    },
+    {
+        "name": "pdf",
+        "description": "分析 PDF 文档",
+        "category": "multimedia",
+        "enabled": True,
+        "parameters": [
+            {"name": "pdf", "type": "string", "description": "PDF 路径或 URL", "required": True},
+            {"name": "prompt", "type": "string", "description": "分析提示", "required": False},
+            {"name": "pages", "type": "string", "description": "页码范围", "required": False}
+        ],
+        "examples": [{"pdf": "/home/user/doc.pdf", "prompt": "总结文档内容"}]
+    }
+]
+
+# 模拟进程数据
+PROCESSES_DATA = []
+
+
+@app.get("/api/v1/tools")
+async def get_tools():
+    """获取工具列表"""
+    logger.info("获取工具列表")
+    return {"tools": TOOLS_DATA, "total": len(TOOLS_DATA)}
+
+
+@app.get("/api/v1/tools/categories")
+async def get_tool_categories():
+    """获取工具分类"""
+    categories = list(set(tool["category"] for tool in TOOLS_DATA))
+    logger.info(f"获取工具分类：{categories}")
+    return {"categories": sorted(categories)}
+
+
+@app.get("/api/v1/tools/name/{tool_name}")
+async def get_tool_by_name(tool_name: str):
+    """根据名称获取工具详情"""
+    tool = next((t for t in TOOLS_DATA if t["name"] == tool_name), None)
+    if not tool:
+        raise HTTPException(status_code=404, detail=f"工具 {tool_name} 不存在")
+    logger.info(f"获取工具详情：{tool_name}")
+    return tool
+
+
+@app.get("/api/v1/tools/categories/{category}")
+async def get_tools_by_category(category: str):
+    """获取指定分类的工具"""
+    tools = [t for t in TOOLS_DATA if t["category"] == category]
+    logger.info(f"获取分类 {category} 的工具：{len(tools)} 个")
+    return {"tools": tools, "category": category}
+
+
+class ToolExecuteRequest(BaseModel):
+    """工具执行请求"""
+    tool_name: str
+    params: dict = {}
+
+
+@app.post("/api/v1/tools/execute")
+async def execute_tool(request: ToolExecuteRequest):
+    """执行工具"""
+    tool = next((t for t in TOOLS_DATA if t["name"] == request.tool_name), None)
+    if not tool:
+        raise HTTPException(status_code=404, detail=f"工具 {request.tool_name} 不存在")
+    if not tool["enabled"]:
+        raise HTTPException(status_code=400, detail=f"工具 {request.tool_name} 已禁用")
+    
+    # 模拟执行（实际应该调用 OpenClaw 工具）
+    import time
+    start_time = time.time()
+    
+    try:
+        # 这里应该调用实际的 OpenClaw 工具
+        # 暂时返回模拟结果
+        result = {
+            "success": True,
+            "data": {
+                "message": f"工具 {request.tool_name} 执行成功",
+                "params": request.params
+            },
+            "execution_time": round(time.time() - start_time, 3)
+        }
+        logger.info(f"执行工具 {request.tool_name}: 成功")
+        return result
+    except Exception as e:
+        logger.error(f"执行工具 {request.tool_name} 失败：{e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "execution_time": round(time.time() - start_time, 3)
+        }
+
+
+@app.get("/api/v1/tools/processes")
+async def get_processes():
+    """获取后台进程列表"""
+    logger.info(f"获取进程列表：{len(PROCESSES_DATA)} 个")
+    return {"processes": PROCESSES_DATA, "total": len(PROCESSES_DATA)}
+
+
+@app.post("/api/v1/tools/processes/{session_id}/kill")
+async def kill_process(session_id: str):
+    """终止后台进程"""
+    global PROCESSES_DATA
+    proc = next((p for p in PROCESSES_DATA if p["session_id"] == session_id), None)
+    if not proc:
+        raise HTTPException(status_code=404, detail=f"进程 {session_id} 不存在")
+    
+    PROCESSES_DATA = [p for p in PROCESSES_DATA if p["session_id"] != session_id]
+    logger.info(f"终止进程：{session_id}")
+    return {"status": "success", "message": f"进程 {session_id} 已终止"}
+
+
 # ============ 导出功能 ============
 
 # WebSocket 连接管理
@@ -1613,6 +1843,7 @@ if __name__ == "__main__":
     logger.info("  GET  /api/v1/agents     - Agent 列表")
     logger.info("  GET  /api/v1/tasks      - 任务列表 (缓存 30s)")
     logger.info("  GET  /api/v1/workflows  - 工作流")
+    logger.info("  GET  /api/v1/tools      - 工具列表 ✨")
     logger.info("  GET  /api/v1/cache/stats - 缓存统计")
     logger.info("  GET  /api/v1/ws/stats   - WebSocket 统计")
     logger.info("  WS   /ws                - WebSocket 实时推送")
