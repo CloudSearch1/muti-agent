@@ -1,0 +1,39 @@
+# UI UX Pro Max Skill Configuration
+# 前端生成质量提升配置
+
+ui_ux:
+  enabled: true
+  
+  styles:
+    default: "modern-minimalist"
+    available: 67
+    custom_dir: webui/styles/ui-styles/
+    favorites:
+      - modern-minimalist
+      - glassmorphism
+      - material-design
+  
+  colors:
+    default_scheme: "professional-blue"
+    available: 161
+    custom_dir: webui/styles/color-schemes/
+    dark_mode_default: "midnight-purple"
+  
+  generation:
+    responsive: true
+    animations: true
+    accessibility: true
+    dark_mode: true
+    mobile_first: true
+  
+  components:
+    auto_generate: true
+    include_tests: true
+    include_docs: true
+    storybook: false
+  
+  output:
+    format: vue
+    scss: true
+    typescript: true
+    eslint: true

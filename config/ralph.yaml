@@ -1,0 +1,50 @@
+# Ralph Loop Skill Configuration
+# 任务完成保障配置
+
+ralph_loop:
+  enabled: true
+  
+  validation:
+    strict_mode: false
+    auto_fix: true
+    max_attempts: 5
+    timeout_per_attempt: 300
+  
+  checks:
+    - name: requirements_met
+      required: true
+      weight: 1.0
+      auto_verify: true
+    
+    - name: tests_passing
+      required: true
+      weight: 1.0
+      auto_verify: true
+    
+    - name: code_quality
+      required: false
+      weight: 0.8
+      auto_verify: true
+    
+    - name: documentation
+      required: false
+      weight: 0.7
+      auto_verify: false
+  
+  notifications:
+    on_complete: true
+    on_stuck: true
+    on_max_loops: true
+    channel: telegram
+  
+  loop_behavior:
+    cooldown_seconds: 30
+    exponential_backoff: true
+    max_backoff_seconds: 300
+    notify_on_loop: false
+  
+  escalation:
+    enabled: true
+    after_loops: 3
+    notify_human: true
+    create_issue: true

@@ -1,0 +1,50 @@
+# Webapp Testing Skill Configuration
+# 前端自动化测试配置
+
+webapp_testing:
+  enabled: true
+  
+  playwright:
+    enabled: true
+    browsers:
+      - chromium
+      - firefox
+      - webkit
+    headless: true
+    timeout: 30000
+    action_timeout: 5000
+  
+  test_generation:
+    auto_generate: true
+    from_ui_spec: true
+    from_components: true
+    include_visual: true
+  
+  execution:
+    parallel: true
+    workers: 4
+    retry_failed: 2
+    screenshot_on_failure: true
+    video_on_failure: true
+  
+  visual_regression:
+    enabled: true
+    threshold: 0.1
+    update_baseline: manual
+    compare_method: pixel
+  
+  coverage:
+    enabled: true
+    target: 80
+    report_format: html
+  
+  ci_cd:
+    enabled: true
+    run_on_pr: true
+    run_on_merge: true
+    fail_on_regression: true
+  
+  output:
+    report_format: html
+    junit_xml: true
+    json_results: true

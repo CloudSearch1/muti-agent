@@ -1,0 +1,48 @@
+# Code Simplifier Skill Configuration
+# 自动代码优化配置
+
+simplifier:
+  enabled: true
+  
+  detection:
+    min_duplicate_lines: 3
+    similarity_threshold: 0.85
+    ignore_comments: true
+    ignore_strings: false
+  
+  optimizations:
+    remove_unused_imports: true
+    remove_dead_code: true
+    simplify_conditionals: true
+    extract_functions: true
+    rename_variables: false  # 保守模式
+    inline_trivial: true
+  
+  languages:
+    python:
+      enabled: true
+      rules: simplifier/rules/python.yaml
+      formatter: black
+      linter: ruff
+    
+    javascript:
+      enabled: true
+      rules: simplifier/rules/javascript.yaml
+      formatter: prettier
+      linter: eslint
+    
+    vue:
+      enabled: true
+      rules: simplifier/rules/vue.yaml
+      formatter: prettier
+  
+  safety:
+    dry_run_default: true
+    require_backup: true
+    max_changes_per_run: 100
+    review_required_above: 50
+  
+  output:
+    report_format: json
+    include_diff: true
+    include_metrics: true

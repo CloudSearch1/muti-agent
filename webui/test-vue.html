@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Vue Test</title>
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+</head>
+<body>
+    <div id="app">
+        <p>Vue loaded: {{ loaded }}</p>
+        <test-component msg="Hello"></test-component>
+    </div>
+    
+    <script type="module">
+        const TestComponent = {
+            props: ['msg'],
+            template: '<div>Component: {{ msg }}</div>'
+        };
+        
+        const { createApp } = window.Vue;
+        console.log('Vue:', window.Vue);
+        console.log('createApp:', createApp);
+        
+        createApp({
+            components: { TestComponent },
+            data() { return { loaded: true }; }
+        }).mount('#app');
+    </script>
+</body>
+</html>

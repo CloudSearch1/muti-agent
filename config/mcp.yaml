@@ -1,0 +1,45 @@
+# MCP Builder Skill Configuration
+# 工具系统扩展配置
+
+mcp:
+  enabled: true
+  
+  server:
+    host: localhost
+    port: 8080
+    transport: stdio
+    auto_start: true
+  
+  tools:
+    auto_generate: true
+    auto_register: true
+    handle_boundaries: true
+    wrap_existing: true
+  
+  resources:
+    enabled: true
+    cache_ttl: 300
+    auto_discover: true
+  
+  prompts:
+    enabled: true
+    templates_dir: mcp/prompts/
+    auto_generate: true
+  
+  security:
+    require_auth: false
+    allowed_origins:
+      - localhost
+      - 127.0.0.1
+    rate_limit: 100
+    max_request_size: 1048576  # 1MB
+  
+  discovery:
+    enabled: true
+    broadcast: false
+    mdns: true
+  
+  logging:
+    enabled: true
+    level: info
+    file: logs/mcp.log

@@ -1,0 +1,43 @@
+# Planning with Files Skill Configuration
+# 任务规划持久化配置
+
+planning:
+  enabled: true
+  
+  persistence:
+    enabled: true
+    base_path: plan/
+    auto_save_interval: 300  # 秒
+    max_checkpoints: 10
+    format: yaml
+  
+  recovery:
+    enabled: true
+    on_crash: resume_last
+    on_timeout: resume_last
+    notify: true
+  
+  task_format:
+    required_fields:
+      - id
+      - name
+      - status
+      - steps
+    optional_fields:
+      - description
+      - priority
+      - assignee
+      - due_date
+  
+  statuses:
+    - pending
+    - in_progress
+    - blocked
+    - completed
+    - cancelled
+  
+  notifications:
+    on_start: true
+    on_complete: true
+    on_blocked: true
+    channel: telegram

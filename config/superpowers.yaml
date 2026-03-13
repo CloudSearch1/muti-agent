@@ -1,0 +1,38 @@
+# Superpowers Skill Configuration
+# 核心开发 Agent 能力配置
+
+superpowers:
+  enabled: true
+  
+  brainstorming:
+    enabled: true
+    max_iterations: 5
+    evaluation_criteria:
+      - feasibility
+      - impact
+      - effort
+      - complexity
+  
+  tdd:
+    enabled: true
+    min_coverage: 80
+    test_framework: pytest
+    red_green_reflect: true
+  
+  constraints:
+    enforce_style: true
+    security_checks: true
+    performance_budget: true
+    max_function_length: 50
+    max_file_length: 500
+  
+  agents:
+    brainstorm:
+      model: default
+      temperature: 0.8
+    tdd:
+      model: default
+      temperature: 0.3
+    review:
+      model: default
+      temperature: 0.2

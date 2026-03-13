@@ -1,0 +1,47 @@
+# Skill Creator Skill Configuration
+# 自定义能力配置
+
+skill_creator:
+  enabled: true
+  
+  templates:
+    directory: skills/templates/
+    default: "basic"
+    available:
+      - basic
+      - advanced
+      - integration
+      - agent
+      - tool
+  
+  output:
+    base_dir: skills/custom/
+    auto_git: true
+    auto_init: true
+  
+  testing:
+    auto_generate: true
+    coverage_threshold: 80
+    run_on_create: true
+    framework: pytest
+  
+  publishing:
+    registry: skills/registry/
+    require_tests: true
+    require_docs: true
+    version_scheme: semver
+  
+  validation:
+    check_structure: true
+    check_docs: true
+    check_tests: true
+    check_dependencies: true
+  
+  integration:
+    auto_register: true
+    hot_reload: false
+    notify_on_create: true
+  
+  templates_custom:
+    enable_custom: true
+    save_custom_templates: true

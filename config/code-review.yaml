@@ -1,0 +1,65 @@
+# Code Review Skill Configuration
+# 多 Agent 代码审查配置
+
+code_review:
+  enabled: true
+  
+  parallel:
+    enabled: true
+    num_agents: 4
+    timeout: 300  # 秒
+    retry_on_timeout: true
+  
+  confidence:
+    threshold: 0.7
+    filter_false_positives: true
+    require_consensus: false
+  
+  agents:
+    - name: security
+      enabled: true
+      weight: 1.0
+      focus:
+        - sql_injection
+        - xss
+        - csrf
+        - auth_issues
+    
+    - name: quality
+      enabled: true
+      weight: 0.9
+      focus:
+        - code_smells
+        - duplication
+        - complexity
+    
+    - name: performance
+      enabled: true
+      weight: 0.8
+      focus:
+        - n_plus_one
+        - memory_leaks
+        - inefficient_loops
+    
+    - name: style
+      enabled: true
+      weight: 0.7
+      focus:
+        - naming
+        - formatting
+        - documentation
+  
+  output:
+    format: json
+    include_suggestions: true
+    include_fixes: true
+    severity_levels:
+      - critical
+      - high
+      - medium
+      - low
+  
+  integration:
+    github_pr: true
+    gitlab_mr: true
+    slack_notify: false

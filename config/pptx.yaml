@@ -1,0 +1,48 @@
+# PPTX Skill Configuration
+# 文档生成配置
+
+pptx:
+  enabled: true
+  
+  templates:
+    default: "project-report"
+    directory: docs/templates/
+    custom_dir: docs/templates/custom/
+  
+  generation:
+    auto_charts: true
+    auto_screenshots: true
+    include_toc: true
+    slide_numbers: true
+    auto_layout: true
+  
+  styling:
+    theme: "professional"
+    font_family: "Microsoft YaHei"
+    primary_color: "#1E88E5"
+    secondary_color: "#424242"
+    logo_path: docs/assets/logo.png
+  
+  content:
+    include_summary: true
+    include_metrics: true
+    include_timeline: true
+    include_team: true
+    auto_translate: false
+  
+  output:
+    formats:
+      - pptx
+      - pdf
+    quality: high
+    compress_images: true
+    max_image_size: 1048576  # 1MB
+  
+  schedules:
+    weekly_report:
+      enabled: true
+      day: monday
+      time: "09:00"
+    milestone_report:
+      enabled: true
+      trigger: milestone_complete
