@@ -1750,6 +1750,7 @@ websocket_manager = WebSocketManager()
 agent_event_bus = AgentEventBus()
 
 
+@app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """
     WebSocket 实时数据推送端点
