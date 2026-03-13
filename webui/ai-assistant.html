@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0d1117">
     <title>AI 助手 - IntelliTeam</title>
+    <script>
+        window.onerror = function(msg, url, line, col, error) {
+            console.error("Global error:", msg, url, line, col, error);
+            const div = document.createElement("div");
+            div.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);color:#f44;z-index:9999;padding:20px;font-family:monospace;white-space:pre-wrap;overflow:auto";
+            div.textContent = "Error: " + msg + "\n\nURL: " + url + "\nLine: " + line + "\n\nStack: " + (error ? error.stack : "N/A");
+            document.body.appendChild(div);
+            return false;
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
