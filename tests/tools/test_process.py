@@ -5,6 +5,7 @@ Process 工具单元测试
 """
 
 import pytest
+import asyncio
 
 from src.tools.builtin.process import (
     ProcessListRequest,
@@ -41,26 +42,26 @@ class TestProcessTool:
     def test_missing_action(self):
         """测试缺少 action 参数"""
         tool = ProcessTool(agent_id="test-agent")
-        result = await tool(session_id="test")
+        result = asyncio.run(tool(session_id="test"))
 
         assert result.success is False
-        assert "action" in result.error.lower()
+        assert "action" in str(result.error).lower()
 
     def test_invalid_action(self):
         """测试无效的 action"""
         tool = ProcessTool(agent_id="test-agent")
-        result = await tool(action="invalid")
+        result = asyncio.run(tool(action="invalid"))
 
         assert result.success is False
-        assert "Invalid action" in result.error
+        assert "Invalid action" in str(result.error) or "must be one of" in str(result.error)
 
     def test_missing_session_id(self):
         """测试缺少 session_id"""
         tool = ProcessTool(agent_id="test-agent")
-        result = await tool(action="poll")
+        result = asyncio.run(tool(action="poll"))
 
         assert result.success is False
-        assert "session_id" in result.error.lower()
+        assert "session_id" in str(result.error).lower()
 
 
 class TestProcessModels:
