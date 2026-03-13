@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skills System Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #1a1a1a; color: #fff; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .pass { background: #2d5016; border: 1px solid #3fb950; }
+        .fail { background: #501616; border: 1px solid #f85149; }
+        .test-section { margin: 20px 0; padding: 15px; background: #2a2a2a; border-radius: 8px; }
+        h2 { color: #f78166; }
+    </style>
+</head>
+<body>
+    <h1>Skills System Test Suite</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        let passCount = 0;
+        let failCount = 0;
+        
+        function addResult(testName, passed, message = '') {
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'pass' : 'fail'}`;
+            div.innerHTML = `<strong>${passed ? '✓' : '✗'} ${testName}</strong>${message ? ': ' + message : ''}`;
+            results.appendChild(div);
+            if (passed) passCount++;
+            else failCount++;
+        }
+        
+        // Test 1: HTML Structure
+        async function testHTMLStructure() {
+            try {
+                const response = await fetch('skills.html');
+                const html = await response.text();
+                
+                // Check for required elements
+                const hasDoctype = html.startsWith('<!DOCTYPE html>');
+                const hasHtmlTag = html.includes('<html') && html.includes('</html>');
+                const hasHead = html.includes('<head>') && html.includes('</head>');
+                const hasBody = html.includes('<body') && html.includes('</body>');
+                const hasVueApp = html.includes('id="app"');
+                const hasVueScript = html.includes('vue.global.prod.js');
+                const hasMarked = html.includes('marked.min.js');
+                
+                const passed = hasDoctype && hasHtmlTag && hasHead && hasBody && hasVueApp && hasVueScript && hasMarked;
+                addResult('HTML Structure', passed, 
+                    `DOCTYPE:${hasDoctype} | html:${hasHtmlTag} | head:${hasHead} | body:${hasBody} | vue:${hasVueApp} | marked:${hasMarked}`);
+            } catch (e) {
+                addResult('HTML Structure', false, e.message);
+            }
+        }
+        
+        // Test 2: Vue Template Syntax
+        function testVueTemplate() {
+            fetch('skills.html')
+                .then(r => r.text())
+                .then(html => {
+                    const hasVIf = html.includes('v-if=');
+                    const hasVElse = html.includes('v-else');
+                    const hasVFor = html.includes('v-for=');
+                    const hasVModel = html.includes('v-model=');
+                    const hasOnClick = html.includes('@click=');
+                    
+                    const passed = hasVIf && hasVFor && hasVModel && hasOnClick;
+                    addResult('Vue Template Syntax', passed,
+                        `v-if:${hasVIf} | v-for:${hasVFor} | v-model:${hasVModel} | @click:${hasOnClick}`);
+                })
+                .catch(e => addResult('Vue Template Syntax', false, e.message));
+        }
+        
+        // Test 3: JavaScript Syntax
+        function testJavaScript() {
+            fetch('skills.html')
+                .then(r => r.text())
+                .then(html => {
+                    // Extract script content
+                    const match = html.match(/<script type="module" defer>([\s\S]*?)<\/script>/);
+                    if (!match) {
+                        addResult('JavaScript Syntax', false, 'No script found');
+                        return;
+                    }
+                    
+                    const js = match[1];
+                    
+                    // Check for required Vue patterns
+                    const hasCreateApp = js.includes('createApp');
+                    const hasData = js.includes('data()');
+                    const hasMethods = js.includes('methods:');
+                    const hasMounted = js.includes('mounted()');
+                    const hasComputed = js.includes('computed:');
+                    
+                    // Check for balanced braces
+                    const openBraces = (js.match(/{/g) || []).length;
+                    const closeBraces = (js.match(/}/g) || []).length;
+                    const bracesBalanced = openBraces === closeBraces;
+                    
+                    const passed = hasCreateApp && hasData && hasMethods && hasMounted && bracesBalanced;
+                    addResult('JavaScript Syntax', passed,
+                        `createApp:${hasCreateApp} | data:${hasData} | methods:${hasMethods} | mounted:${hasMounted} | braces:${bracesBalanced ? 'balanced' : 'UNBALANCED'}`);
+                })
+                .catch(e => addResult('JavaScript Syntax', false, e.message));
+        }
+        
+        // Test 4: API Endpoints
+        async function testAPIEndpoints() {
+            try {
+                // Test GET /api/v1/skills
+                const response = await fetch('/api/v1/skills');
+                const data = await response.json();
+                
+                const passed = response.ok && Array.isArray(data.items);
+                addResult('API: GET /api/v1/skills', passed,
+                    `Status:${response.status} | Items:${data.items?.length || 0}`);
+            } catch (e) {
+                addResult('API: GET /api/v1/skills', false, e.message);
+            }
+        }
+        
+        // Test 5: File Upload Form
+        function testFileUploadForm() {
+            fetch('skills.html')
+                .then(r => r.text())
+                .then(html => {
+                    const hasFileInput = html.includes('type="file"');
+                    const hasAcceptMd = html.includes('accept=".md"');
+                    const hasOnChange = html.includes('@change=') || html.includes('onchange=');
+                    const hasHandleFileSelect = html.includes('handleFileSelect');
+                    
+                    const passed = hasFileInput && hasAcceptMd && hasOnChange && hasHandleFileSelect;
+                    addResult('File Upload Form', passed,
+                        `file input:${hasFileInput} | accept .md:${hasAcceptMd} | @change:${hasOnChange} | handler:${hasHandleFileSelect}`);
+                })
+                .catch(e => addResult('File Upload Form', false, e.message));
+        }
+        
+        // Test 6: Markdown Editor
+        function testMarkdownEditor() {
+            fetch('skills.html')
+                .then(r => r.text())
+                .then(html => {
+                    const hasTextarea = html.includes('<textarea');
+                    const hasMarkedLib = html.includes('marked');
+                    const hasPreview = html.includes('markdown-preview') || html.includes('renderedPreview');
+                    const hasContentTab = html.includes('content') && html.includes('基本信息');
+                    
+                    const passed = hasTextarea && hasMarkedLib && hasPreview && hasContentTab;
+                    addResult('Markdown Editor', passed,
+                        `textarea:${hasTextarea} | marked:${hasMarkedLib} | preview:${hasPreview} | content tab:${hasContentTab}`);
+                })
+                .catch(e => addResult('Markdown Editor', false, e.message));
+        }
+        
+        // Test 7: Error Handling
+        function testErrorHandling() {
+            fetch('skills.html')
+                .then(r => r.text())
+                .then(html => {
+                    const hasTryCatch = html.includes('try {') && html.includes('catch');
+                    const hasErrorToast = html.includes('error') && html.includes('showToast');
+                    const hasResponseOk = html.includes('response.ok');
+                    
+                    const passed = hasTryCatch && hasErrorToast && hasResponseOk;
+                    addResult('Error Handling', passed,
+                        `try/catch:${hasTryCatch} | error toast:${hasErrorToast} | response.ok:${hasResponseOk}`);
+                })
+                .catch(e => addResult('Error Handling', false, e.message));
+        }
+        
+        // Test 8: Component Files
+        async function testComponentFiles() {
+            const files = [
+                'static/js/components/SkillsView.js',
+                'static/js/utils/constants.js',
+                'static/js/utils/api.js'
+            ];
+            
+            let allPassed = true;
+            let details = [];
+            
+            for (const file of files) {
+                try {
+                    const response = await fetch(file);
+                    const passed = response.ok;
+                    allPassed = allPassed && passed;
+                    details.push(`${file.split('/').pop()}:${passed ? 'OK' : 'MISSING'}`);
+                } catch (e) {
+                    allPassed = false;
+                    details.push(`${file.split('/').pop()}:ERROR`);
+                }
+            }
+            
+            addResult('Component Files', allPassed, details.join(' | '));
+        }
+        
+        // Run all tests
+        (async function runTests() {
+            await testHTMLStructure();
+            testVueTemplate();
+            testJavaScript();
+            await testAPIEndpoints();
+            testFileUploadForm();
+            testMarkdownEditor();
+            testErrorHandling();
+            await testComponentFiles();
+            
+            // Add summary after a short delay
+            setTimeout(() => {
+                const summary = document.createElement('div');
+                summary.className = 'test-section';
+                summary.innerHTML = `
+                    <h2>Test Summary</h2>
+                    <p><strong>Passed:</strong> ${passCount}</p>
+                    <p><strong>Failed:</strong> ${failCount}</p>
+                    <p><strong>Total:</strong> ${passCount + failCount}</p>
+                `;
+                results.appendChild(summary);
+            }, 500);
+        })();
+    </script>
+</body>
+</html>
