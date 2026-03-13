@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Vue Test</title>
-    <script src="./static/js/vue.global.prod.js"></script>
+    <script src="./static/js/vue.global.prod.js" defer></script>
 </head>
 <body>
     <div id="app">
@@ -11,7 +11,7 @@
         <test-component msg="Hello"></test-component>
     </div>
     
-    <script type="module">
+    <script type="module" defer>
         const TestComponent = {
             props: ['msg'],
             template: '<div>Component: {{ msg }}</div>'

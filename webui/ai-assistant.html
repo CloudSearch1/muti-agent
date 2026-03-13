@@ -16,7 +16,7 @@
         };
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="./static/js/vue.global.prod.js"></script>
+    <script src="./static/js/vue.global.prod.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>
         window.tailwind = window.tailwind || {};
@@ -122,7 +122,7 @@
     <!-- 引入 marked 用于 Markdown 渲染 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     
-    <script type="module">
+    <script type="module" defer>
         import { AIAssistantView } from './static/js/components/AIAssistantView.js';
         
         const { createApp } = window.Vue;

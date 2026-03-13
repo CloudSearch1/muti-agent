@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#0d1117">
     <title>Agent 管理 - IntelliTeam</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="./static/js/vue.global.prod.js"></script>
+    <script src="./static/js/vue.global.prod.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>
         window.tailwind = window.tailwind || {};
@@ -57,7 +57,7 @@
             <agents-view :agents="agents"></agents-view>
         </main>
     </div>
-    <script type="module">
+    <script type="module" defer>
         import { AgentsView } from './static/js/components/AgentsView.js';
         const { createApp } = window.Vue;
         createApp({
