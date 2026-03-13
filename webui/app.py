@@ -1851,3 +1851,17 @@ if __name__ == "__main__":
     logger.info("")
 
     uvicorn.run(app, host="0.0.0.0", port=8080)
+
+
+# ============ 通用 HTML 页面路由 ============
+# 用于服务所有静态 HTML 文件（包括 test-vue.html 等）
+
+@app.get("/{filename}.html")
+async def serve_html_file(filename: str):
+    """服务任意 HTML 页面"""
+    html_file = WEBUI_DIR / f"{filename}.html"
+    if html_file.exists():
+        with open(html_file, encoding="utf-8") as f:
+            content = f.read()
+        return HTMLResponse(content=content)
+    raise HTTPException(status_code=404, detail=f"Page not found: {filename}.html")
