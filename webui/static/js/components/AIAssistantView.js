@@ -17,7 +17,7 @@ function renderMarkdown(content) {
         .replace(/\n/g, '<br>');
 }
 
-export const AIAssistantView = {
+export default {
     name: 'AIAssistantView',
     
     props: {
@@ -795,4 +795,3 @@ export const AIAssistantView = {
     }
 };
 
-export default AIAssistantView;
