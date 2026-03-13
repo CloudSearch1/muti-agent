@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务管理 - IntelliTeam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gh: {
+                            bg: '#0d1117',
+                            canvas: '#161b22',
+                            elevated: '#21262d',
+                            border: '#30363d',
+                            text: '#6A737D',
+                            light: '#e6edf3',
+                            blue: '#0366D6',
+                            green: '#33BB22',
+                            red: '#DA3633'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body { background: #0d1117; color: #e6edf3; }
+        .nav-link { padding: 8px 16px; border-radius: 6px; transition: all 0.2s; }
+        .nav-link:hover { background: rgba(255,255,255,0.1); }
+        .nav-link.active { background: rgba(3,102,214,0.2); color: #58a6ff; }
+        .task-row { transition: all 0.2s; }
+        .task-row:hover { background: rgba(255,255,255,0.03); }
+        .priority-high { border-left: 3px solid #f85149; }
+        .priority-normal { border-left: 3px solid #58a6ff; }
+        .priority-low { border-left: 3px solid #8b949e; }
+        .priority-critical { border-left: 3px solid #d29922; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <nav class="bg-gh-canvas border-b border-gh-border sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <a href="index.html" class="flex items-center space-x-3 text-white font-semibold hover:opacity-80">
+                    <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <span>IntelliTeam</span>
+                </a>
+                <div class="hidden md:flex items-center space-x-2">
+                    <a href="index.html" class="nav-link text-sm"><i class="fas fa-home mr-2"></i>首页</a>
+                    <a href="tools.html" class="nav-link text-sm"><i class="fas fa-toolbox mr-2"></i>工具系统</a>
+                    <a href="agent-monitor.html" class="nav-link text-sm"><i class="fas fa-desktop mr-2"></i>Agent 监控</a>
+                    <a href="log-viewer.html" class="nav-link text-sm"><i class="fas fa-file-alt mr-2"></i>日志查看</a>
+                    <a href="task-manager.html" class="nav-link active text-sm"><i class="fas fa-tasks mr-2"></i>任务管理</a>
+                    <a href="workflow-viz.html" class="nav-link text-sm"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
+                    <a href="ai-assistant.html" class="nav-link text-sm"><i class="fas fa-comments mr-2"></i>AI 助手</a>
+                </div>
+                <button class="md:hidden text-gh-text hover:text-white">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="flex-1 container mx-auto px-4 py-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-semibold text-white"><i class="fas fa-tasks mr-3 text-gh-blue"></i>任务管理系统</h1>
+            <button class="px-4 py-2 bg-gh-green hover:bg-green-600 rounded-md text-sm font-medium transition">
+                <i class="fas fa-plus mr-2"></i>新建任务
+            </button>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                <div class="text-sm text-gh-text mb-1">总任务数</div>
+                <div class="text-2xl font-bold text-white">156</div>
+            </div>
+            <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                <div class="text-sm text-gh-text mb-1">待处理</div>
+                <div class="text-2xl font-bold text-yellow-400">23</div>
+            </div>
+            <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                <div class="text-sm text-gh-text mb-1">进行中</div>
+                <div class="text-2xl font-bold text-blue-400">45</div>
+            </div>
+            <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                <div class="text-sm text-gh-text mb-1">已完成</div>
+                <div class="text-2xl font-bold text-green-400">88</div>
+            </div>
+        </div>
+
+        <!-- 过滤器 -->
+        <div class="bg-gh-canvas border border-gh-border rounded-lg p-4 mb-6">
+            <div class="flex flex-wrap gap-3">
+                <button class="px-3 py-1.5 bg-gh-blue text-white rounded text-sm">全部</button>
+                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">待处理</button>
+                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">进行中</button>
+                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">已完成</button>
+                <div class="flex-1"></div>
+                <input type="text" placeholder="搜索任务..." class="bg-gh-bg border border-gh-border rounded px-3 py-1.5 text-sm focus:border-gh-blue focus:outline-none">
+            </div>
+        </div>
+
+        <!-- 任务列表 -->
+        <div class="bg-gh-canvas border border-gh-border rounded-lg overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gh-elevated border-b border-gh-border">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gh-text uppercase">任务</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gh-text uppercase">优先级</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gh-text uppercase">状态</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gh-text uppercase">负责人</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gh-text uppercase">Agent</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gh-text uppercase">创建时间</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gh-text uppercase">操作</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gh-border">
+                    <tr class="task-row priority-high">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-white">创建用户管理 API</div>
+                            <div class="text-sm text-gh-text">实现用户注册、登录、权限管理</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-red-900/30 text-red-400 rounded text-xs">高</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs">进行中</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-light">张三</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <i class="fas fa-laptop-code text-green-400 mr-2"></i>
+                                <span class="text-sm">Coder</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-text">2026-03-03</td>
+                        <td class="px-4 py-3 text-right">
+                            <button class="text-gh-text hover:text-white mr-2"><i class="fas fa-edit"></i></button>
+                            <button class="text-gh-text hover:text-red-400"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    <tr class="task-row priority-normal">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-white">数据库设计</div>
+                            <div class="text-sm text-gh-text">设计用户表和权限表结构</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs">中</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-green-900/30 text-green-400 rounded text-xs">已完成</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-light">李四</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <i class="fas fa-building text-purple-400 mr-2"></i>
+                                <span class="text-sm">Architect</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-text">2026-03-03</td>
+                        <td class="px-4 py-3 text-right">
+                            <button class="text-gh-text hover:text-white mr-2"><i class="fas fa-edit"></i></button>
+                            <button class="text-gh-text hover:text-red-400"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    <tr class="task-row priority-normal">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-white">编写测试用例</div>
+                            <div class="text-sm text-gh-text">为 API 接口编写单元测试</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs">中</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">待处理</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-light">王五</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <i class="fas fa-vial text-pink-400 mr-2"></i>
+                                <span class="text-sm">Tester</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-text">2026-03-03</td>
+                        <td class="px-4 py-3 text-right">
+                            <button class="text-gh-text hover:text-white mr-2"><i class="fas fa-edit"></i></button>
+                            <button class="text-gh-text hover:text-red-400"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    <tr class="task-row priority-critical">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-white">性能优化</div>
+                            <div class="text-sm text-gh-text">优化系统响应速度</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-yellow-900/30 text-yellow-400 rounded text-xs">紧急</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs">进行中</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-light">张三</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <i class="fas fa-chess text-gh-text mr-2"></i>
+                                <span class="text-sm">SeniorArchitect</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-text">2026-03-04</td>
+                        <td class="px-4 py-3 text-right">
+                            <button class="text-gh-text hover:text-white mr-2"><i class="fas fa-edit"></i></button>
+                            <button class="text-gh-text hover:text-red-400"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                    <tr class="task-row priority-low">
+                        <td class="px-4 py-3">
+                            <div class="font-medium text-white">文档更新</div>
+                            <div class="text-sm text-gh-text">更新 API 文档和使用说明</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-gray-700 text-gray-400 rounded text-xs">低</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">待处理</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-light">李四</td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center">
+                                <i class="fas fa-file-alt text-blue-400 mr-2"></i>
+                                <span class="text-sm">DocWriter</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gh-text">2026-03-04</td>
+                        <td class="px-4 py-3 text-right">
+                            <button class="text-gh-text hover:text-white mr-2"><i class="fas fa-edit"></i></button>
+                            <button class="text-gh-text hover:text-red-400"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        <div class="flex items-center justify-between mt-4">
+            <div class="text-sm text-gh-text">显示 1-5 共 156 条</div>
+            <div class="flex items-center space-x-2">
+                <button class="px-3 py-1 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5 disabled:opacity-50" disabled>上一页</button>
+                <button class="px-3 py-1 bg-gh-blue text-white rounded text-sm">1</button>
+                <button class="px-3 py-1 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">2</button>
+                <button class="px-3 py-1 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">3</button>
+                <span class="text-gh-text">...</span>
+                <button class="px-3 py-1 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">32</button>
+                <button class="px-3 py-1 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">下一页</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gh-canvas border-t border-gh-border py-4 mt-8">
+        <div class="container mx-auto px-4 text-center text-sm text-gh-text">
+            IntelliTeam 任务管理系统 © 2026
+        </div>
+    </footer>
+</body>
+</html>

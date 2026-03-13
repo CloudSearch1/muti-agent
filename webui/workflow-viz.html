@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作流可视化 - IntelliTeam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gh: {
+                            bg: '#0d1117',
+                            canvas: '#161b22',
+                            elevated: '#21262d',
+                            border: '#30363d',
+                            text: '#6A737D',
+                            light: '#e6edf3',
+                            blue: '#0366D6',
+                            green: '#33BB22',
+                            red: '#DA3633'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body { background: #0d1117; color: #e6edf3; }
+        .nav-link { padding: 8px 16px; border-radius: 6px; transition: all 0.2s; }
+        .nav-link:hover { background: rgba(255,255,255,0.1); }
+        .nav-link.active { background: rgba(3,102,214,0.2); color: #58a6ff; }
+        .workflow-step { position: relative; }
+        .workflow-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -24px;
+            width: 40px;
+            height: 2px;
+            background: #30363d;
+        }
+        .workflow-step.active:not(:last-child)::after {
+            background: linear-gradient(90deg, #33BB22, #30363d);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <nav class="bg-gh-canvas border-b border-gh-border sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <a href="index.html" class="flex items-center space-x-3 text-white font-semibold hover:opacity-80">
+                    <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <span>IntelliTeam</span>
+                </a>
+                <div class="hidden md:flex items-center space-x-2">
+                    <a href="index.html" class="nav-link text-sm"><i class="fas fa-home mr-2"></i>首页</a>
+                    <a href="tools.html" class="nav-link text-sm"><i class="fas fa-toolbox mr-2"></i>工具系统</a>
+                    <a href="agent-monitor.html" class="nav-link text-sm"><i class="fas fa-desktop mr-2"></i>Agent 监控</a>
+                    <a href="log-viewer.html" class="nav-link text-sm"><i class="fas fa-file-alt mr-2"></i>日志查看</a>
+                    <a href="task-manager.html" class="nav-link text-sm"><i class="fas fa-tasks mr-2"></i>任务管理</a>
+                    <a href="workflow-viz.html" class="nav-link active text-sm"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
+                    <a href="ai-assistant.html" class="nav-link text-sm"><i class="fas fa-comments mr-2"></i>AI 助手</a>
+                </div>
+                <button class="md:hidden text-gh-text hover:text-white">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="flex-1 container mx-auto px-4 py-6">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-2xl font-semibold text-white"><i class="fas fa-project-diagram mr-3 text-gh-blue"></i>工作流可视化</h1>
+            <div class="flex items-center space-x-2">
+                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">
+                    <i class="fas fa-plus mr-1"></i>新建工作流
+                </button>
+                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">
+                    <i class="fas fa-download mr-1"></i>导出
+                </button>
+            </div>
+        </div>
+
+        <!-- 统计 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                <div class="text-sm text-gh-text mb-1">活跃工作流</div>
+                <div class="text-2xl font-bold text-blue-400">12</div>
+            </div>
+            <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                <div class="text-sm text-gh-text mb-1">本周完成</div>
+                <div class="text-2xl font-bold text-green-400">34</div>
+            </div>
+            <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                <div class="text-sm text-gh-text mb-1">平均耗时</div>
+                <div class="text-2xl font-bold text-white">4.2h</div>
+            </div>
+            <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                <div class="text-sm text-gh-text mb-1">成功率</div>
+                <div class="text-2xl font-bold text-green-400">96%</div>
+            </div>
+        </div>
+
+        <!-- 标准研发流程 -->
+        <div class="bg-gh-canvas border border-gh-border rounded-lg p-6 mb-8">
+            <h2 class="text-lg font-semibold text-white mb-6">标准研发流程</h2>
+            <div class="flex flex-wrap items-center justify-center gap-8">
+                <div class="workflow-step text-center">
+                    <div class="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-3 shadow-lg">
+                        <i class="fas fa-clipboard-list text-white text-2xl"></i>
+                    </div>
+                    <div class="font-medium text-white">需求分析</div>
+                    <div class="text-xs text-gh-text mt-1">Planner</div>
+                    <div class="mt-2 px-2 py-1 bg-green-900/30 text-green-400 rounded text-xs">已完成</div>
+                </div>
+                <div class="workflow-step text-center">
+                    <div class="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-3 shadow-lg">
+                        <i class="fas fa-building text-white text-2xl"></i>
+                    </div>
+                    <div class="font-medium text-white">架构设计</div>
+                    <div class="text-xs text-gh-text mt-1">Architect</div>
+                    <div class="mt-2 px-2 py-1 bg-green-900/30 text-green-400 rounded text-xs">已完成</div>
+                </div>
+                <div class="workflow-step text-center">
+                    <div class="w-16 h-16 mx-auto bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-3 shadow-lg animate-pulse">
+                        <i class="fas fa-laptop-code text-white text-2xl"></i>
+                    </div>
+                    <div class="font-medium text-white">代码开发</div>
+                    <div class="text-xs text-gh-text mt-1">Coder</div>
+                    <div class="mt-2 px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs">进行中</div>
+                </div>
+                <div class="workflow-step text-center">
+                    <div class="w-16 h-16 mx-auto bg-gh-elevated border border-gh-border rounded-xl flex items-center justify-center mb-3">
+                        <i class="fas fa-vial text-gh-text text-2xl"></i>
+                    </div>
+                    <div class="font-medium text-gh-text">测试</div>
+                    <div class="text-xs text-gh-text mt-1">Tester</div>
+                    <div class="mt-2 px-2 py-1 bg-gray-700 text-gray-400 rounded text-xs">待开始</div>
+                </div>
+                <div class="workflow-step text-center">
+                    <div class="w-16 h-16 mx-auto bg-gh-elevated border border-gh-border rounded-xl flex items-center justify-center mb-3">
+                        <i class="fas fa-file-alt text-gh-text text-2xl"></i>
+                    </div>
+                    <div class="font-medium text-gh-text">文档</div>
+                    <div class="text-xs text-gh-text mt-1">DocWriter</div>
+                    <div class="mt-2 px-2 py-1 bg-gray-700 text-gray-400 rounded text-xs">待开始</div>
+                </div>
+                <div class="workflow-step text-center">
+                    <div class="w-16 h-16 mx-auto bg-gh-elevated border border-gh-border rounded-xl flex items-center justify-center mb-3">
+                        <i class="fas fa-rocket text-gh-text text-2xl"></i>
+                    </div>
+                    <div class="font-medium text-gh-text">部署</div>
+                    <div class="text-xs text-gh-text mt-1">System</div>
+                    <div class="mt-2 px-2 py-1 bg-gray-700 text-gray-400 rounded text-xs">待开始</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 活跃工作流 -->
+        <div class="bg-gh-canvas border border-gh-border rounded-lg p-6">
+            <h2 class="text-lg font-semibold text-white mb-6">活跃工作流</h2>
+            <div class="space-y-4">
+                <div class="border border-gh-border rounded-lg p-4 hover:border-gh-text transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-blue-900/30 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-shopping-cart text-blue-400"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium text-white">电商订单系统开发</div>
+                                <div class="text-xs text-gh-text">任务 #1024</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="text-sm text-gh-text">
+                                <i class="fas fa-clock mr-1"></i>已进行 2.5h
+                            </div>
+                            <span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs">进行中</span>
+                        </div>
+                    </div>
+                    <div class="h-2 bg-gh-elevated rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500 w-3/5"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-2 text-xs text-gh-text">
+                        <span>进度：60%</span>
+                        <span>预计剩余：1.5h</span>
+                    </div>
+                </div>
+
+                <div class="border border-gh-border rounded-lg p-4 hover:border-gh-text transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-purple-900/30 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-users text-purple-400"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium text-white">用户管理系统</div>
+                                <div class="text-xs text-gh-text">任务 #1023</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="text-sm text-gh-text">
+                                <i class="fas fa-clock mr-1"></i>已进行 4.2h
+                            </div>
+                            <span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs">进行中</span>
+                        </div>
+                    </div>
+                    <div class="h-2 bg-gh-elevated rounded-full overflow-hidden">
+                        <div class="h-full bg-purple-500 w-4/5"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-2 text-xs text-gh-text">
+                        <span>进度：80%</span>
+                        <span>预计剩余：0.5h</span>
+                    </div>
+                </div>
+
+                <div class="border border-gh-border rounded-lg p-4 hover:border-gh-text transition">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-green-900/30 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-chart-bar text-green-400"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium text-white">数据分析平台</div>
+                                <div class="text-xs text-gh-text">任务 #1022</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="text-sm text-gh-text">
+                                <i class="fas fa-clock mr-1"></i>已进行 1.2h
+                            </div>
+                            <span class="px-2 py-1 bg-yellow-900/30 text-yellow-400 rounded text-xs">待处理</span>
+                        </div>
+                    </div>
+                    <div class="h-2 bg-gh-elevated rounded-full overflow-hidden">
+                        <div class="h-full bg-green-500 w-1/5"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-2 text-xs text-gh-text">
+                        <span>进度：20%</span>
+                        <span>预计剩余：5h</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gh-canvas border-t border-gh-border py-4 mt-8">
+        <div class="container mx-auto px-4 text-center text-sm text-gh-text">
+            IntelliTeam 工作流可视化 © 2026
+        </div>
+    </footer>
+</body>
+</html>

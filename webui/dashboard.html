@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="description" content="IntelliTeam - 仪表盘">
+    <title>仪表盘 - IntelliTeam</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Chart.js -->
+    <script>
+        window.loadChartJS = function() {
+            if (window.Chart) return Promise.resolve();
+            return new Promise(function(resolve, reject) {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        };
+    </script>
+
+    <!-- Tailwind 配置 -->
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gh: {
+                            bg: '#0d1117',
+                            canvas: '#161b22',
+                            elevated: '#21262d',
+                            border: '#30363d',
+                            text: '#6A737D',
+                            light: '#e6edf3',
+                            white: '#ffffff',
+                            blue: '#0366D6',
+                            green: '#33BB22',
+                            yellow: '#F0C744',
+                            red: '#DA3633',
+                            purple: '#8957e5'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { font-size: 16px; line-height: 1.5; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif; background: #0d1117; color: #e6edf3; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0d1117; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+        .loading-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .card-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid #30363d; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); border-color: #6A737D; }
+        .gh-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
+        .gh-card-header { padding: 16px; border-bottom: 1px solid #30363d; font-weight: 600; color: #e6edf3; }
+        .gh-card-body { padding: 16px; }
+        .nav-link { display: flex; align-items: center; height: 64px; padding: 0 16px; color: #8b949e; font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; text-decoration: none; }
+        .nav-link:hover { color: #e6edf3; border-color: #30363d; }
+        .nav-link.active { color: #fff; border-color: #f78166; }
+        .badge-success { background: rgba(51, 187, 34, 0.15); color: #3fb950; border: 1px solid rgba(51, 187, 34, 0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; font-weight: 500; }
+        .badge-warning { background: rgba(240, 199, 68, 0.15); color: #d29922; border: 1px solid rgba(240, 199, 68, 0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; font-weight: 500; }
+        .gh-toolbar { height: 64px; background-color: #161b22; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 40; display: flex; align-items: center; padding: 0 16px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="fixed inset-0 bg-gh-bg/95 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div class="text-center">
+                <i class="fas fa-circle-notch text-4xl text-gh-blue loading-spin mb-4"></i>
+                <p class="text-gh-text">加载中...</p>
+            </div>
+        </div>
+
+        <!-- 顶部导航栏 -->
+        <nav class="gh-toolbar px-4 py-0">
+            <div class="flex items-center justify-between w-full h-full">
+                <div class="flex items-center h-full">
+                    <a href="/" class="flex items-center h-full px-3 hover:bg-white/5 transition">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
+                                <i class="fas fa-robot text-lg text-white"></i>
+                            </div>
+                            <span class="text-lg font-semibold text-white tracking-tight">IntelliTeam</span>
+                        </div>
+                    </a>
+                    <div class="h-6 w-px bg-gh-border mx-2"></div>
+                    <div class="hidden md:flex items-center h-full">
+                        <a href="/" class="nav-link active"><i class="fas fa-home mr-2 text-xs"></i>仪表盘</a>
+                        <a href="/tasks" class="nav-link"><i class="fas fa-tasks mr-2 text-xs"></i>任务</a>
+                        <a href="/agents" class="nav-link"><i class="fas fa-users mr-2 text-xs"></i>Agent</a>
+                        <a href="/workflows" class="nav-link"><i class="fas fa-project-diagram mr-2 text-xs"></i>工作流</a>
+                        <a href="/analytics" class="nav-link"><i class="fas fa-chart-line mr-2 text-xs"></i>分析</a>
+                        <a href="/skills" class="nav-link"><i class="fas fa-puzzle-piece mr-2 text-xs"></i>技能</a>
+                        <a href="/ai-assistant" class="nav-link"><i class="fas fa-robot mr-2 text-xs"></i>AI 助手</a>
+                    </div>
+                </div>
+                <div class="flex items-center h-full gap-2">
+                    <button @click="toggleDarkMode" class="w-8 h-8 rounded-md hover:bg-white/10 flex items-center justify-center transition text-gh-text hover:text-white">
+                        <i :class="isDark ? 'fas fa-sun' : 'fas fa-moon'" class="text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <dashboard-view :stats="stats" :agents="agents" :tasks="tasks"></dashboard-view>
+        </main>
+    </div>
+
+    <!-- 导入组件 -->
+    <script type="module">
+        import { DashboardView } from './static/js/components/DashboardView.js';
+        
+        const { createApp } = Vue;
+        
+        createApp({
+            components: { DashboardView },
+            data() {
+                return {
+                    loading: true,
+                    isDark: true,
+                    stats: { totalTasks: 156, activeAgents: 8, completionRate: 93 },
+                    agents: [
+                        { name: 'Planner', role: '任务规划师', icon: 'fas fa-clipboard-list', status: 'idle', tasksCompleted: 45, avgTime: 2.3, successRate: 98 },
+                        { name: 'Architect', role: '系统架构师', icon: 'fas fa-building', status: 'busy', tasksCompleted: 38, avgTime: 5.7, successRate: 96 },
+                        { name: 'Coder', role: '代码工程师', icon: 'fas fa-laptop-code', status: 'busy', tasksCompleted: 89, avgTime: 8.2, successRate: 94 },
+                        { name: 'Tester', role: '测试工程师', icon: 'fas fa-vial', status: 'idle', tasksCompleted: 67, avgTime: 4.5, successRate: 97 },
+                        { name: 'DocWriter', role: '文档工程师', icon: 'fas fa-file-alt', status: 'idle', tasksCompleted: 52, avgTime: 3.8, successRate: 99 }
+                    ],
+                    tasks: [
+                        { id: 1, title: '创建用户管理 API', description: '实现用户注册、登录、权限管理等功能', status: 'in_progress', agent: 'Coder', time: '2 小时前' },
+                        { id: 2, title: '数据库设计', description: '设计用户表和权限表结构', status: 'completed', agent: 'Architect', time: '3 小时前' },
+                        { id: 3, title: '编写测试用例', description: '为 API 接口编写单元测试', status: 'pending', agent: 'Tester', time: '1 小时前' }
+                    ]
+                };
+            },
+            mounted() {
+                this.loadData();
+                this.loadDarkMode();
+            },
+            methods: {
+                async loadData() {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    this.loading = false;
+                },
+                loadDarkMode() {
+                    const saved = localStorage.getItem('theme');
+                    this.isDark = saved !== 'light';
+                    this.applyDarkMode();
+                },
+                toggleDarkMode() {
+                    this.isDark = !this.isDark;
+                    localStorage.setItem('theme', this.isDark ? 'dark' : 'light');
+                    this.applyDarkMode();
+                },
+                applyDarkMode() {
+                    if (this.isDark) {
+                        document.documentElement.classList.add('dark');
+                    } else {
+                        document.documentElement.classList.remove('dark');
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

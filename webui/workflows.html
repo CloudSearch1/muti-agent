@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0d1117">
+    <title>工作流 - IntelliTeam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: { colors: { gh: { bg: '#0d1117', canvas: '#161b22', elevated: '#21262d', border: '#30363d', text: '#6A737D', light: '#e6edf3', blue: '#0366D6', green: '#33BB22' } } } }
+        }
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1117; color: #e6edf3; }
+        .gh-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; }
+        .gh-card-header { padding: 16px; border-bottom: 1px solid #30363d; font-weight: 600; }
+        .gh-card-body { padding: 16px; }
+        .nav-link { display: flex; align-items: center; height: 64px; padding: 0 16px; color: #8b949e; font-size: 14px; border-bottom: 2px solid transparent; text-decoration: none; transition: all 0.2s; }
+        .nav-link:hover { color: #e6edf3; border-color: #30363d; }
+        .nav-link.active { color: #fff; border-color: #f78166; }
+        .gh-toolbar { height: 64px; background-color: #161b22; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 40; display: flex; align-items: center; padding: 0 16px; }
+        .btn-primary { background-color: #33BB22; color: #fff; border: 1px solid rgba(51,187,34,0.5); border-radius: 6px; padding: 5px 16px; cursor: pointer; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <div id="app">
+        <nav class="gh-toolbar">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center">
+                    <a href="/" class="flex items-center space-x-3 text-white font-semibold">
+                        <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20"><i class="fas fa-robot"></i></div>
+                        <span>IntelliTeam</span>
+                    </a>
+                    <div class="h-6 w-px bg-gh-border mx-2"></div>
+                    <div class="hidden md:flex items-center">
+                        <a href="/" class="nav-link"><i class="fas fa-home mr-2"></i>仪表盘</a>
+                        <a href="/tasks" class="nav-link"><i class="fas fa-tasks mr-2"></i>任务</a>
+                        <a href="/agents" class="nav-link"><i class="fas fa-users mr-2"></i>Agent</a>
+                        <a href="/workflows" class="nav-link active"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
+                        <a href="/analytics" class="nav-link"><i class="fas fa-chart-line mr-2"></i>分析</a>
+                        <a href="/skills" class="nav-link"><i class="fas fa-puzzle-piece mr-2"></i>技能</a>
+                        <a href="/ai-assistant" class="nav-link"><i class="fas fa-robot mr-2"></i>AI 助手</a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <workflows-view :workflows="workflows" :agents="agents"></workflows-view>
+        </main>
+    </div>
+    <script type="module">
+        import { WorkflowsView } from './static/js/components/WorkflowsView.js';
+        const { createApp } = Vue;
+        createApp({
+            components: { WorkflowsView },
+            data() {
+                return {
+                    workflows: [
+                        { id: 1, name: '需求开发流程', steps: ['需求分析', '架构设计', '代码开发', '测试', '文档'] },
+                        { id: 2, name: 'Bug 修复流程', steps: ['问题确认', '定位分析', '代码修复', '验证测试'] }
+                    ],
+                    agents: [
+                        { name: 'Planner', icon: 'fas fa-clipboard-list' },
+                        { name: 'Architect', icon: 'fas fa-building' },
+                        { name: 'Coder', icon: 'fas fa-laptop-code' },
+                        { name: 'Tester', icon: 'fas fa-vial' },
+                        { name: 'DocWriter', icon: 'fas fa-file-alt' }
+                    ]
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

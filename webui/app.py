@@ -321,9 +321,14 @@ SKILLS_DATA = [
 
 @app.get("/")
 async def root():
-    """返回主页面"""
+    """返回仪表盘页面（根目录）"""
     from starlette.responses import HTMLResponse
 
+    dashboard_file = WEBUI_DIR / "dashboard.html"
+    if dashboard_file.exists():
+        return FileResponse(path=str(dashboard_file), media_type="text/html")
+    
+    # 向后兼容：如果 dashboard.html 不存在，返回 index.html
     index_file = WEBUI_DIR / "index.html"
     if not index_file.exists():
         logger.error(f"主页面文件不存在：{index_file}")
@@ -336,6 +341,60 @@ async def root():
         content = f.read()
 
     return HTMLResponse(content=content)
+
+
+@app.get("/tasks")
+async def get_tasks():
+    """返回任务管理页面"""
+    tasks_file = WEBUI_DIR / "tasks.html"
+    if tasks_file.exists():
+        return FileResponse(path=str(tasks_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>Tasks page not found</h1></body></html>")
+
+
+@app.get("/agents")
+async def get_agents():
+    """返回 Agent 管理页面"""
+    agents_file = WEBUI_DIR / "agents.html"
+    if agents_file.exists():
+        return FileResponse(path=str(agents_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>Agents page not found</h1></body></html>")
+
+
+@app.get("/workflows")
+async def get_workflows():
+    """返回工作流页面"""
+    workflows_file = WEBUI_DIR / "workflows.html"
+    if workflows_file.exists():
+        return FileResponse(path=str(workflows_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>Workflows page not found</h1></body></html>")
+
+
+@app.get("/analytics")
+async def get_analytics():
+    """返回数据分析页面"""
+    analytics_file = WEBUI_DIR / "analytics.html"
+    if analytics_file.exists():
+        return FileResponse(path=str(analytics_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>Analytics page not found</h1></body></html>")
+
+
+@app.get("/skills")
+async def get_skills():
+    """返回技能管理页面"""
+    skills_file = WEBUI_DIR / "skills.html"
+    if skills_file.exists():
+        return FileResponse(path=str(skills_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>Skills page not found</h1></body></html>")
+
+
+@app.get("/ai-assistant")
+async def get_ai_assistant_route():
+    """返回 AI 助手页面"""
+    ai_file = WEBUI_DIR / "ai-assistant.html"
+    if ai_file.exists():
+        return FileResponse(path=str(ai_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>AI Assistant page not found</h1></body></html>")
 
 
 @app.get("/manifest.json")
@@ -354,15 +413,6 @@ async def get_offline():
     if offline_file.exists():
         return FileResponse(path=str(offline_file), media_type="text/html")
     return HTMLResponse(content="<html><body><h1>Offline</h1></body></html>")
-
-
-@app.get("/ai-assistant.html")
-async def get_ai_assistant():
-    """返回 AI 助手页面"""
-    ai_file = WEBUI_DIR / "ai-assistant.html"
-    if ai_file.exists():
-        return FileResponse(path=str(ai_file), media_type="text/html")
-    return HTMLResponse(content="<html><body><h1>AI Assistant page not found</h1></body></html>")
 
 
 @app.get("/static/js/{filename:path}")

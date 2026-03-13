@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务详情 - IntelliTeam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gh: {
+                            bg: '#0d1117',
+                            canvas: '#161b22',
+                            elevated: '#21262d',
+                            border: '#30363d',
+                            text: '#6A737D',
+                            light: '#e6edf3',
+                            blue: '#0366D6',
+                            green: '#33BB22',
+                            red: '#DA3633'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body { background: #0d1117; color: #e6edf3; }
+        .nav-link { padding: 8px 16px; border-radius: 6px; transition: all 0.2s; }
+        .nav-link:hover { background: rgba(255,255,255,0.1); }
+        .nav-link.active { background: rgba(3,102,214,0.2); color: #58a6ff; }
+        .tab-active { border-bottom: 2px solid #58a6ff; color: #fff; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- 顶部导航栏 -->
+    <nav class="bg-gh-canvas border-b border-gh-border sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <a href="index.html" class="flex items-center space-x-3 text-white font-semibold hover:opacity-80">
+                    <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <span>IntelliTeam</span>
+                </a>
+                <div class="hidden md:flex items-center space-x-2">
+                    <a href="index.html" class="nav-link text-sm"><i class="fas fa-home mr-2"></i>首页</a>
+                    <a href="tools.html" class="nav-link text-sm"><i class="fas fa-toolbox mr-2"></i>工具系统</a>
+                    <a href="agent-monitor.html" class="nav-link text-sm"><i class="fas fa-desktop mr-2"></i>Agent 监控</a>
+                    <a href="log-viewer.html" class="nav-link text-sm"><i class="fas fa-file-alt mr-2"></i>日志查看</a>
+                    <a href="task-manager.html" class="nav-link text-sm"><i class="fas fa-tasks mr-2"></i>任务管理</a>
+                    <a href="workflow-viz.html" class="nav-link text-sm"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
+                    <a href="ai-assistant.html" class="nav-link text-sm"><i class="fas fa-comments mr-2"></i>AI 助手</a>
+                </div>
+                <button class="md:hidden text-gh-text hover:text-white">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容 -->
+    <main class="flex-1 container mx-auto px-4 py-6">
+        <!-- 返回按钮和标题 -->
+        <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center space-x-4">
+                <a href="task-manager.html" class="text-gh-text hover:text-white transition">
+                    <i class="fas fa-arrow-left mr-2"></i>返回
+                </a>
+                <h1 class="text-2xl font-semibold text-white">创建用户管理 API</h1>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">
+                    <i class="fas fa-edit mr-1"></i>编辑
+                </button>
+                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">
+                    <i class="fas fa-clone mr-1"></i>复制
+                </button>
+                <button class="px-3 py-1.5 bg-red-900/30 border border-red-900/50 rounded text-sm text-red-400 hover:bg-red-900/50">
+                    <i class="fas fa-trash mr-1"></i>删除
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 主内容区 -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- 任务信息 -->
+                <div class="bg-gh-canvas border border-gh-border rounded-lg p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="px-2 py-1 bg-red-900/30 text-red-400 rounded text-xs font-medium">高优先级</span>
+                                <span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs font-medium">进行中</span>
+                            </div>
+                            <p class="text-gh-light">实现用户注册、登录、权限管理等功能，包括 JWT 认证、角色权限控制等核心功能。</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-6 text-sm text-gh-text">
+                        <span><i class="fas fa-calendar mr-2"></i>创建：2026-03-03 10:30</span>
+                        <span><i class="fas fa-clock mr-2"></i>截止：2026-03-10</span>
+                        <span><i class="fas fa-tag mr-2"></i>标签：API, 后端，用户系统</span>
+                    </div>
+                </div>
+
+                <!-- 选项卡 -->
+                <div class="bg-gh-canvas border border-gh-border rounded-lg overflow-hidden">
+                    <div class="flex border-b border-gh-border">
+                        <button class="px-4 py-3 text-sm font-medium tab-active">描述</button>
+                        <button class="px-4 py-3 text-sm font-medium text-gh-text hover:text-white">子任务</button>
+                        <button class="px-4 py-3 text-sm font-medium text-gh-text hover:text-white">评论</button>
+                        <button class="px-4 py-3 text-sm font-medium text-gh-text hover:text-white">附件</button>
+                        <button class="px-4 py-3 text-sm font-medium text-gh-text hover:text-white">活动日志</button>
+                    </div>
+                    <div class="p-6">
+                        <h3 class="font-semibold text-white mb-3">任务描述</h3>
+                        <div class="text-gh-light space-y-3">
+                            <p>需要创建一个完整的用户管理系统 API，包含以下功能：</p>
+                            <ul class="list-disc list-inside space-y-1 text-gh-text ml-4">
+                                <li>用户注册（邮箱验证）</li>
+                                <li>用户登录（JWT Token）</li>
+                                <li>密码重置</li>
+                                <li>角色权限管理</li>
+                                <li>用户资料管理</li>
+                            </ul>
+                            <p class="mt-4">技术栈要求：</p>
+                            <ul class="list-disc list-inside space-y-1 text-gh-text ml-4">
+                                <li>Python FastAPI</li>
+                                <li>PostgreSQL 数据库</li>
+                                <li>Redis 缓存</li>
+                                <li>JWT 认证</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 子任务 -->
+                <div class="bg-gh-canvas border border-gh-border rounded-lg p-6">
+                    <h3 class="font-semibold text-white mb-4">子任务</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-gh-border bg-gh-bg">
+                            <div class="flex-1">
+                                <div class="text-sm text-white line-through text-gh-text">数据库表设计</div>
+                            </div>
+                            <span class="text-xs text-green-400"><i class="fas fa-check mr-1"></i>已完成</span>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
+                            <input type="checkbox" checked class="w-4 h-4 rounded border-gh-border bg-gh-bg">
+                            <div class="flex-1">
+                                <div class="text-sm text-white line-through text-gh-text">API 接口定义</div>
+                            </div>
+                            <span class="text-xs text-green-400"><i class="fas fa-check mr-1"></i>已完成</span>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
+                            <input type="checkbox" class="w-4 h-4 rounded border-gh-border bg-gh-bg">
+                            <div class="flex-1">
+                                <div class="text-sm text-white">实现用户注册接口</div>
+                            </div>
+                            <span class="text-xs text-blue-400"><i class="fas fa-spinner fa-spin mr-1"></i>进行中</span>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
+                            <input type="checkbox" class="w-4 h-4 rounded border-gh-border bg-gh-bg">
+                            <div class="flex-1">
+                                <div class="text-sm text-white">实现用户登录接口</div>
+                            </div>
+                            <span class="text-xs text-gh-text">待开始</span>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
+                            <input type="checkbox" class="w-4 h-4 rounded border-gh-border bg-gh-bg">
+                            <div class="flex-1">
+                                <div class="text-sm text-white">编写单元测试</div>
+                            </div>
+                            <span class="text-xs text-gh-text">待开始</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 侧边栏 -->
+            <div class="space-y-6">
+                <!-- 负责人 -->
+                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gh-text mb-3">负责人</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-blue-900/30 rounded-full flex items-center justify-center">
+                            <span class="text-sm text-blue-400">张</span>
+                        </div>
+                        <span class="text-sm text-white">张三</span>
+                    </div>
+                </div>
+
+                <!-- Agent -->
+                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gh-text mb-3">分配 Agent</h3>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-green-900/30 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-laptop-code text-green-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm text-white">Coder</div>
+                            <div class="text-xs text-gh-text">代码工程师</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 进度 -->
+                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gh-text mb-3">进度</h3>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-2xl font-bold text-white">40%</span>
+                        <span class="text-sm text-gh-text">2/5</span>
+                    </div>
+                    <div class="h-2 bg-gh-elevated rounded-full overflow-hidden">
+                        <div class="h-full bg-green-500 w-2/5"></div>
+                    </div>
+                </div>
+
+                <!-- 时间跟踪 -->
+                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gh-text mb-3">时间跟踪</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gh-text">预估时间</span>
+                            <span class="text-white">8h</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gh-text">已用时间</span>
+                            <span class="text-white">3.2h</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gh-text">剩余时间</span>
+                            <span class="text-yellow-400">4.8h</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 相关文件 -->
+                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-gh-text mb-3">相关文件</h3>
+                    <div class="space-y-2">
+                        <a href="#" class="flex items-center gap-2 text-sm text-gh-link hover:text-white">
+                            <i class="fas fa-file-code text-yellow-400"></i>
+                            <span>api/users.py</span>
+                        </a>
+                        <a href="#" class="flex items-center gap-2 text-sm text-gh-link hover:text-white">
+                            <i class="fas fa-database text-green-400"></i>
+                            <span>models/user.sql</span>
+                        </a>
+                        <a href="#" class="flex items-center gap-2 text-sm text-gh-link hover:text-white">
+                            <i class="fas fa-file-alt text-blue-400"></i>
+                            <span>docs/api-spec.md</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gh-canvas border-t border-gh-border py-4 mt-8">
+        <div class="container mx-auto px-4 text-center text-sm text-gh-text">
+            IntelliTeam 任务详情 © 2026
+        </div>
+    </footer>
+</body>
+</html>
