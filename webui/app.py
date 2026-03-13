@@ -10,6 +10,7 @@ import csv
 import io
 import logging
 import random
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List, AsyncGenerator
@@ -66,6 +67,21 @@ if STATIC_DIR.exists():
     logger.info(f"静态文件挂载成功：{STATIC_DIR}")
 else:
     logger.warning(f"静态文件目录不存在：{STATIC_DIR}")
+
+# ============ 数据库支持（用于聊天持久化） ============
+
+# 添加项目根目录到 Python 路径
+sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from src.db import crud
+    from src.db.database import get_db_session
+    from src.db.models import ChatMessageModel
+    DATABASE_ENABLED = True
+    logger.info("数据库模块已加载，聊天持久化功能已启用")
+except Exception as e:
+    DATABASE_ENABLED = False
+    logger.warning(f"数据库模块加载失败：{e}，聊天功能将使用内存存储")
 
 # ============ 响应缓存 ============
 
