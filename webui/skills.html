@@ -6,13 +6,14 @@
     <meta name="theme-color" content="#0d1117">
     <title>技能管理 - IntelliTeam</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="./static/js/vue.global.prod.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>
         window.tailwind = window.tailwind || {};
         window.tailwind.config = {
             darkMode: 'class',
-            theme: { extend: { colors: { gh: { bg: '#0d1117', canvas: '#161b22', elevated: '#21262d', border: '#30363d', text: '#6A737D', light: '#e6edf3', blue: '#0366D6', green: '#33BB22' } } } }
+            theme: { extend: { colors: { gh: { bg: '#0d1117', canvas: '#161b22', elevated: '#21262d', border: '#30363d', text: '#6A737D', light: '#e6edf3', blue: '#0366D6', green: '#33BB22', red: '#f85149' } } } }
         }
     </script>
     <style>
@@ -26,10 +27,32 @@
         .nav-link.active { color: #fff; border-color: #f78166; }
         .gh-toolbar { height: 64px; background-color: #161b22; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 40; display: flex; align-items: center; padding: 0 16px; }
         .gh-input { padding: 5px 12px; background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; }
+        .gh-input:focus { outline: none; border-color: #f78166; }
         .gh-select { padding: 5px 12px; background-color: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; }
-        .btn-primary { background-color: #33BB22; color: #fff; border: 1px solid rgba(51,187,34,0.5); border-radius: 6px; padding: 5px 16px; cursor: pointer; }
+        .btn-primary { background-color: #33BB22; color: #fff; border: 1px solid rgba(51,187,34,0.5); border-radius: 6px; padding: 5px 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background-color: #2ea043; }
+        .btn-secondary { background-color: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 5px 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { background-color: #30363d; }
+        .btn-danger { background-color: #da3633; color: #fff; border: 1px solid rgba(218,54,51,0.5); border-radius: 6px; padding: 5px 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-danger:hover { background-color: #b62324; }
         .badge-success { background: rgba(51,187,34,0.15); color: #3fb950; border: 1px solid rgba(51,187,34,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
         .badge-neutral { background: rgba(110,118,129,0.15); color: #8b949e; border: 1px solid rgba(110,118,129,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .card-hover { transition: all 0.2s; }
+        .card-hover:hover { border-color: #f78166; transform: translateY(-2px); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 24px; max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .markdown-editor { font-family: 'Monaco', 'Menlo', monospace; font-size: 14px; line-height: 1.6; }
+        .markdown-preview { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 16px; min-height: 400px; overflow-y: auto; }
+        .markdown-preview h1, .markdown-preview h2, .markdown-preview h3 { color: #e6edf3; margin: 16px 0 8px 0; }
+        .markdown-preview p { color: #8b949e; margin: 8px 0; }
+        .markdown-preview code { background: #21262d; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .markdown-preview pre { background: #21262d; padding: 12px; border-radius: 6px; overflow-x: auto; }
+        .loading-spinner { border: 3px solid #30363d; border-top: 3px solid #f78166; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 6px; z-index: 200; animation: slideIn 0.3s ease; }
+        .toast-success { background: rgba(51,187,34,0.9); color: #fff; }
+        .toast-error { background: rgba(218,54,51,0.9); color: #fff; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -48,30 +71,544 @@
                         <a href="/agents" class="nav-link"><i class="fas fa-users mr-2"></i>Agent</a>
                         <a href="/workflows" class="nav-link"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
                         <a href="/analytics" class="nav-link"><i class="fas fa-chart-line mr-2"></i>分析</a>
-                        <a href="/tools" class="nav-link"><i class="fas fa-toolbox mr-2"></i>工具</a><a href="/skills" class="nav-link active"><i class="fas fa-puzzle-piece mr-2"></i>技能</a>
+                        <a href="/tools" class="nav-link"><i class="fas fa-toolbox mr-2"></i>工具</a>
+                        <a href="/skills" class="nav-link active"><i class="fas fa-puzzle-piece mr-2"></i>技能</a>
                         <a href="/ai-assistant" class="nav-link"><i class="fas fa-robot mr-2"></i>AI 助手</a>
                     </div>
                 </div>
             </div>
         </nav>
         <main class="flex-1 container mx-auto px-4 py-6">
-            <skills-view :skills="skills"></skills-view>
+            <!-- 加载状态 -->
+            <div v-if="loading" class="flex items-center justify-center py-16">
+                <div class="loading-spinner"></div>
+                <span class="ml-4 text-gh-text">加载中...</span>
+            </div>
+            
+            <!-- 技能管理视图 -->
+            <div v-else class="space-y-6">
+                <!-- 页面标题 -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">技能管理</h1>
+                        <p class="text-gh-text mt-1">共 {{ skills.length }} 个技能 · {{ enabledCount }} 个已启用</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="showUploadModal = true" class="btn-secondary flex items-center gap-2">
+                            <i class="fas fa-upload"></i>上传技能
+                        </button>
+                        <button @click="openCreateModal" class="btn-primary flex items-center gap-2">
+                            <i class="fas fa-plus"></i>新建技能
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 过滤 -->
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1 relative">
+                        <input v-model="searchQuery" 
+                               type="text" 
+                               placeholder="搜索技能..."
+                               class="gh-input pl-10 w-full">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gh-text"></i>
+                    </div>
+                    <select v-model="filterCategory" class="gh-select w-full sm:w-40">
+                        <option value="">所有分类</option>
+                        <option v-for="cat in SKILL_CATEGORIES" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
+                    </select>
+                    <select v-model="filterStatus" class="gh-select w-full sm:w-40">
+                        <option value="">所有状态</option>
+                        <option value="enabled">已启用</option>
+                        <option value="disabled">已禁用</option>
+                    </select>
+                </div>
+                
+                <!-- 技能卡片网格 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div v-for="skill in filteredSkills" :key="skill.id"
+                         class="gh-card card-hover group">
+                        <div class="flex items-start justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-gh-elevated flex items-center justify-center border border-gh-border">
+                                    <i class="fas fa-cube text-gh-text"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-white">{{ skill.name }}</h3>
+                                    <p class="text-xs text-gh-text">v{{ skill.version }}</p>
+                                </div>
+                            </div>
+                            <span :class="skill.enabled ? 'badge-success' : 'badge-neutral'">
+                                {{ skill.enabled ? '启用' : '禁用' }}
+                            </span>
+                        </div>
+                        
+                        <p class="text-sm text-gh-text mb-3 line-clamp-2">{{ skill.description }}</p>
+                        
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="text-xs px-2 py-1 rounded bg-gh-elevated text-gh-text border border-gh-border">
+                                {{ categoryLabel(skill.category) }}
+                            </span>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 pt-3 border-t border-gh-border">
+                            <button @click="openEditModal(skill)" 
+                                    class="flex-1 btn-secondary text-sm py-1.5">
+                                <i class="fas fa-edit mr-1"></i>编辑
+                            </button>
+                            <button @click="toggleSkill(skill)" 
+                                    :class="['flex-1 text-sm py-1.5 rounded transition', skill.enabled ? 'btn-secondary' : 'btn-primary']">
+                                <i :class="[skill.enabled ? 'fas fa-pause' : 'fas fa-play', 'mr-1']"></i>
+                                {{ skill.enabled ? '禁用' : '启用' }}
+                            </button>
+                            <button @click="confirmDelete(skill)" 
+                                    class="w-8 h-8 rounded-lg flex items-center justify-center text-gh-text hover:text-gh-red hover:bg-gh-red/10 transition">
+                                <i class="fas fa-trash text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 空状态 -->
+                <div v-if="filteredSkills.length === 0" class="text-center py-16">
+                    <div class="w-16 h-16 mx-auto bg-gh-elevated rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-puzzle-piece text-2xl text-gh-text"></i>
+                    </div>
+                    <p class="text-gh-text mb-4">暂无技能</p>
+                    <button @click="openCreateModal" class="btn-primary">
+                        <i class="fas fa-plus mr-2"></i>创建第一个技能
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 创建/编辑技能模态框 -->
+            <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
+                <div class="modal-content">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-white">{{ isEditing ? '编辑技能' : '创建技能' }}</h2>
+                        <button @click="closeEditModal" class="text-gh-text hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm text-gh-text mb-2">技能名称</label>
+                            <input v-model="editingSkill.name" type="text" :disabled="isEditing"
+                                   class="gh-input w-full" placeholder="例如：code-review">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gh-text mb-2">版本</label>
+                            <input v-model="editingSkill.version" type="text"
+                                   class="gh-input w-full" placeholder="1.0.0">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm text-gh-text mb-2">描述</label>
+                        <input v-model="editingSkill.description" type="text"
+                               class="gh-input w-full" placeholder="技能描述...">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm text-gh-text mb-2">分类</label>
+                            <select v-model="editingSkill.category" class="gh-select w-full">
+                                <option v-for="cat in SKILL_CATEGORIES" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gh-text mb-2">状态</label>
+                            <select v-model="editingSkill.enabled" class="gh-select w-full">
+                                <option :value="true">启用</option>
+                                <option :value="false">禁用</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm text-gh-text mb-2">配置 (JSON)</label>
+                        <textarea v-model="configJson" rows="3"
+                                  class="gh-input w-full font-mono text-sm" placeholder='{"key": "value"}'></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button @click="closeEditModal" class="btn-secondary">取消</button>
+                        <button @click="saveSkill" class="btn-primary" :disabled="saving">
+                            <i v-if="saving" class="fas fa-spinner fa-spin mr-2"></i>
+                            {{ saving ? '保存中...' : '保存' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 上传技能模态框 -->
+            <div v-if="showUploadModal" class="modal-overlay" @click.self="showUploadModal = false">
+                <div class="modal-content">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-white">上传技能文件</h2>
+                        <button @click="showUploadModal = false" class="text-gh-text hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm text-gh-text mb-2">选择 .md 文件</label>
+                        <input type="file" @change="handleFileSelect" accept=".md"
+                               class="gh-input w-full">
+                        <p class="text-xs text-gh-text mt-2">文件必须是 Markdown 格式，包含 YAML frontmatter</p>
+                    </div>
+                    
+                    <div v-if="uploadPreview" class="mb-4 p-4 bg-gh-elevated border border-gh-border rounded">
+                        <h3 class="text-sm font-semibold text-white mb-2">文件预览</h3>
+                        <p class="text-sm text-gh-text"><strong>名称:</strong> {{ uploadPreview.name }}</p>
+                        <p class="text-sm text-gh-text"><strong>描述:</strong> {{ uploadPreview.description }}</p>
+                        <p class="text-sm text-gh-text"><strong>分类:</strong> {{ uploadPreview.category }}</p>
+                    </div>
+                    
+                    <div class="flex justify-end gap-2 mt-6">
+                        <button @click="showUploadModal = false" class="btn-secondary">取消</button>
+                        <button @click="uploadFile" class="btn-primary" :disabled="uploading || !uploadPreview">
+                            <i v-if="uploading" class="fas fa-spinner fa-spin mr-2"></i>
+                            {{ uploading ? '上传中...' : '上传' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 删除确认模态框 -->
+            <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
+                <div class="modal-content max-w-md">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-gh-red/10 flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-gh-red"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-white">删除技能</h2>
+                    </div>
+                    <p class="text-gh-text mb-6">确定要删除技能 "{{ skillToDelete?.name }}" 吗？此操作不可恢复。</p>
+                    <div class="flex justify-end gap-2">
+                        <button @click="showDeleteConfirm = false" class="btn-secondary">取消</button>
+                        <button @click="handleDelete" class="btn-danger">删除</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Toast 通知 -->
+            <div v-if="toast" :class="['toast', toast.type === 'success' ? 'toast-success' : 'toast-error']">
+                {{ toast.message }}
+            </div>
         </main>
     </div>
+    
     <script type="module" defer>
-        import { SkillsView } from './static/js/components/SkillsView.js';
         const { createApp } = window.Vue;
+        
         createApp({
-            components: { SkillsView },
             data() {
                 return {
-                    skills: [
-                        { id: 1, name: 'simplify', description: 'Review code for reuse, quality, and efficiency', category: 'code_review', version: '1.0.0', enabled: true },
-                        { id: 2, name: 'claude-api', description: 'Build apps with Claude API or Anthropic SDK', category: 'api', version: '1.0.0', enabled: true },
-                        { id: 3, name: 'code-generation', description: 'Generate code from natural language', category: 'generation', version: '1.2.0', enabled: true },
-                        { id: 4, name: 'documentation', description: 'Generate documentation for code files', category: 'docs', version: '1.0.0', enabled: true }
+                    skills: [],
+                    loading: true,
+                    saving: false,
+                    uploading: false,
+                    searchQuery: '',
+                    filterCategory: '',
+                    filterStatus: '',
+                    showEditModal: false,
+                    showUploadModal: false,
+                    showDeleteConfirm: false,
+                    isEditing: false,
+                    editingSkill: {},
+                    configJson: '',
+                    skillToDelete: null,
+                    uploadPreview: null,
+                    selectedFile: null,
+                    toast: null,
+                    SKILL_CATEGORIES: [
+                        { value: 'code_review', label: '代码审查' },
+                        { value: 'api', label: 'API 集成' },
+                        { value: 'generation', label: '代码生成' },
+                        { value: 'docs', label: '文档' },
+                        { value: 'testing', label: '测试' },
+                        { value: 'general', label: '通用' }
                     ]
                 };
+            },
+            
+            computed: {
+                enabledCount() {
+                    return this.skills.filter(s => s.enabled).length;
+                },
+                
+                filteredSkills() {
+                    let result = [...this.skills];
+                    
+                    if (this.filterCategory) {
+                        result = result.filter(s => s.category === this.filterCategory);
+                    }
+                    
+                    if (this.filterStatus) {
+                        result = result.filter(s => 
+                            this.filterStatus === 'enabled' ? s.enabled : !s.enabled
+                        );
+                    }
+                    
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        result = result.filter(s => 
+                            s.name.toLowerCase().includes(query) ||
+                            s.description.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    return result;
+                }
+            },
+            
+            mounted() {
+                this.loadSkills();
+            },
+            
+            methods: {
+                async loadSkills() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/v1/skills');
+                        const data = await response.json();
+                        this.skills = data.items || [];
+                    } catch (error) {
+                        this.showToast('加载技能失败：' + error.message, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                
+                categoryLabel(value) {
+                    const cat = this.SKILL_CATEGORIES.find(c => c.value === value);
+                    return cat ? cat.label : value;
+                },
+                
+                openCreateModal() {
+                    this.isEditing = false;
+                    this.editingSkill = {
+                        name: '',
+                        description: '',
+                        category: 'general',
+                        version: '1.0.0',
+                        enabled: true,
+                        config: {}
+                    };
+                    this.configJson = '{}';
+                    this.showEditModal = true;
+                },
+                
+                openEditModal(skill) {
+                    this.isEditing = true;
+                    this.editingSkill = { ...skill };
+                    this.configJson = JSON.stringify(skill.config || {}, null, 2);
+                    this.showEditModal = true;
+                },
+                
+                closeEditModal() {
+                    this.showEditModal = false;
+                    this.editingSkill = {};
+                    this.configJson = '';
+                },
+                
+                async saveSkill() {
+                    // 验证
+                    if (!this.editingSkill.name || !this.editingSkill.name.trim()) {
+                        this.showToast('技能名称不能为空', 'error');
+                        return;
+                    }
+                    
+                    // 验证名称格式
+                    if (!/^[a-zA-Z0-9_-]+$/.test(this.editingSkill.name)) {
+                        this.showToast('技能名称只能包含字母、数字、下划线和连字符', 'error');
+                        return;
+                    }
+                    
+                    // 解析配置
+                    let config = {};
+                    try {
+                        config = JSON.parse(this.configJson || '{}');
+                    } catch (e) {
+                        this.showToast('配置 JSON 格式错误', 'error');
+                        return;
+                    }
+                    
+                    this.saving = true;
+                    try {
+                        const skillData = {
+                            ...this.editingSkill,
+                            config
+                        };
+                        
+                        let response;
+                        if (this.isEditing) {
+                            response = await fetch(`/api/v1/skills/${this.editingSkill.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(skillData)
+                            });
+                        } else {
+                            response = await fetch('/api/v1/skills', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(skillData)
+                            });
+                        }
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {
+                            this.showToast(this.isEditing ? '技能已更新' : '技能已创建', 'success');
+                            this.closeEditModal();
+                            this.loadSkills();
+                        } else {
+                            this.showToast(result.detail || '操作失败', 'error');
+                        }
+                    } catch (error) {
+                        this.showToast('保存失败：' + error.message, 'error');
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+                
+                handleFileSelect(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    // 验证文件大小
+                    if (file.size > 1024 * 1024) {
+                        this.showToast('文件大小不能超过 1MB', 'error');
+                        return;
+                    }
+                    
+                    this.selectedFile = file;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const content = e.target.result;
+                        // 解析 frontmatter
+                        const match = content.match(/^---\s*\n(.*?)\n---\s*\n/s);
+                        if (match) {
+                            try {
+                                // 简单 YAML 解析
+                                const yaml = match[1];
+                                const frontmatter = {};
+                                yaml.split('\n').forEach(line => {
+                                    const [key, ...valueParts] = line.split(':');
+                                    if (key && valueParts.length) {
+                                        let value = valueParts.join(':').trim();
+                                        // 去除引号
+                                        if ((value.startsWith('"') && value.endsWith('"')) ||
+                                            (value.startsWith("'") && value.endsWith("'"))) {
+                                            value = value.slice(1, -1);
+                                        }
+                                        // 转换布尔值
+                                        if (value === 'true') value = true;
+                                        else if (value === 'false') value = false;
+                                        // 转换数字
+                                        else if (!isNaN(value) && value.trim()) value = Number(value);
+                                        frontmatter[key.trim()] = value;
+                                    }
+                                });
+                                
+                                this.uploadPreview = {
+                                    name: frontmatter.name || '未知',
+                                    description: frontmatter.description || '',
+                                    category: frontmatter.category || 'general',
+                                    content: content
+                                };
+                            } catch (e) {
+                                this.showToast('解析文件失败：' + e.message, 'error');
+                            }
+                        } else {
+                            this.showToast('文件格式错误：缺少 YAML frontmatter', 'error');
+                        }
+                    };
+                    reader.readAsText(file);
+                },
+                
+                async uploadFile() {
+                    if (!this.selectedFile || !this.uploadPreview) return;
+                    
+                    this.uploading = true;
+                    try {
+                        const response = await fetch('/api/v1/skills/upload', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                file_content: this.uploadPreview.content,
+                                filename: this.selectedFile.name
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {
+                            this.showToast('技能上传成功', 'success');
+                            this.showUploadModal = false;
+                            this.uploadPreview = null;
+                            this.selectedFile = null;
+                            this.loadSkills();
+                        } else {
+                            this.showToast(result.detail || '上传失败', 'error');
+                        }
+                    } catch (error) {
+                        this.showToast('上传失败：' + error.message, 'error');
+                    } finally {
+                        this.uploading = false;
+                    }
+                },
+                
+                async toggleSkill(skill) {
+                    try {
+                        const response = await fetch(`/api/v1/skills/${skill.id}/toggle`, {
+                            method: 'POST'
+                        });
+                        
+                        if (response.ok) {
+                            skill.enabled = !skill.enabled;
+                            this.showToast(`技能已${skill.enabled ? '启用' : '禁用'}`, 'success');
+                        } else {
+                            const result = await response.json();
+                            this.showToast(result.detail || '操作失败', 'error');
+                        }
+                    } catch (error) {
+                        this.showToast('操作失败：' + error.message, 'error');
+                    }
+                },
+                
+                confirmDelete(skill) {
+                    this.skillToDelete = skill;
+                    this.showDeleteConfirm = true;
+                },
+                
+                async handleDelete() {
+                    try {
+                        const response = await fetch(`/api/v1/skills/${this.skillToDelete.id}`, {
+                            method: 'DELETE'
+                        });
+                        
+                        if (response.ok) {
+                            this.showToast('技能已删除', 'success');
+                            this.showDeleteConfirm = false;
+                            this.skillToDelete = null;
+                            this.loadSkills();
+                        } else {
+                            const result = await response.json();
+                            this.showToast(result.detail || '删除失败', 'error');
+                        }
+                    } catch (error) {
+                        this.showToast('删除失败：' + error.message, 'error');
+                    }
+                },
+                
+                showToast(message, type = 'success') {
+                    this.toast = { message, type };
+                    setTimeout(() => {
+                        this.toast = null;
+                    }, 3000);
+                }
             }
         }).mount('#app');
     </script>

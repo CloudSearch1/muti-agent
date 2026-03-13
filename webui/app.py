@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List, AsyncGenerator
 import json
+import yaml
 
 import httpx
 import uvicorn
@@ -325,14 +326,166 @@ WORKFLOWS_DATA = [
     }
 ]
 
-# 技能数据
-SKILLS_DATA = [
-    {"id": 1, "name": "simplify", "description": "Review code for reuse, quality, and efficiency", "category": "code_review", "version": "1.0.0", "config": {"auto_fix": True}, "enabled": True, "createdAt": "2026-03-01 10:00"},
-    {"id": 2, "name": "claude-api", "description": "Build apps with Claude API or Anthropic SDK", "category": "api", "version": "1.0.0", "config": {"model": "claude-sonnet-4-6"}, "enabled": True, "createdAt": "2026-03-01 10:00"},
-    {"id": 3, "name": "code-generation", "description": "Generate code from natural language", "category": "generation", "version": "1.2.0", "config": {"language": "python"}, "enabled": True, "createdAt": "2026-03-02 14:30"},
-    {"id": 4, "name": "documentation", "description": "Generate documentation for code files", "category": "docs", "version": "1.0.0", "config": {"format": "markdown"}, "enabled": True, "createdAt": "2026-03-02 14:30"},
-    {"id": 5, "name": "testing", "description": "Generate and run tests for code", "category": "testing", "version": "1.1.0", "config": {"framework": "pytest"}, "enabled": False, "createdAt": "2026-03-03 09:15"},
-]
+# ============ Skills 文件持久化 ============
+
+SKILLS_DIR = WEBUI_DIR / "skills"
+
+# 确保 skills 目录存在
+SKILLS_DIR.mkdir(exist_ok=True)
+
+
+def _parse_yaml_frontmatter(content: str) -> dict:
+    """解析 YAML frontmatter（--- 之间的内容）"""
+    import re
+    import yaml
+    
+    match = re.match(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
+    if not match:
+        return {}
+    
+    try:
+        frontmatter = yaml.safe_load(match.group(1))
+        return frontmatter or {}
+    except Exception as e:
+        logger.error(f"解析 YAML frontmatter 失败：{e}")
+        return {}
+
+
+def _generate_yaml_frontmatter(data: dict) -> str:
+    """生成 YAML frontmatter"""
+    import yaml
+    return "---\n" + yaml.dump(data, default_flow_style=False, allow_unicode=True) + "---\n"
+
+
+def _load_skills_from_files() -> list:
+    """从 skills 目录加载所有技能文件"""
+    skills = []
+    
+    if not SKILLS_DIR.exists():
+        SKILLS_DIR.mkdir(exist_ok=True)
+        return skills
+    
+    for file_path in SKILLS_DIR.glob("*.md"):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            frontmatter = _parse_yaml_frontmatter(content)
+            if frontmatter and 'name' in frontmatter:
+                # 转换 config 字段（可能是字符串或字典）
+                if isinstance(frontmatter.get('config'), str):
+                    try:
+                        frontmatter['config'] = json.loads(frontmatter['config'])
+                    except:
+                        frontmatter['config'] = {}
+                elif frontmatter.get('config') is None:
+                    frontmatter['config'] = {}
+                
+                # 确保 enabled 是布尔值
+                if 'enabled' in frontmatter:
+                    if isinstance(frontmatter['enabled'], str):
+                        frontmatter['enabled'] = frontmatter['enabled'].lower() == 'true'
+                
+                skills.append(frontmatter)
+        except Exception as e:
+            logger.error(f"加载技能文件 {file_path} 失败：{e}")
+    
+    return skills
+
+
+def _save_skill_to_file(skill_data: dict) -> Path:
+    """保存技能到文件"""
+    import re
+    
+    name = skill_data.get('name', '')
+    if not name:
+        raise ValueError("技能名称不能为空")
+    
+    # 验证文件名：只允许字母、数字、下划线、连字符
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', name)
+    if not safe_name:
+        raise ValueError("技能名称包含非法字符")
+    
+    file_path = SKILLS_DIR / f"{safe_name}.md"
+    
+    # 准备 frontmatter 数据
+    frontmatter_data = {
+        'id': skill_data.get('id'),
+        'name': skill_data.get('name'),
+        'description': skill_data.get('description', ''),
+        'category': skill_data.get('category', 'general'),
+        'version': skill_data.get('version', '1.0.0'),
+        'enabled': skill_data.get('enabled', True),
+        'createdAt': skill_data.get('createdAt', datetime.now().strftime("%Y-%m-%d %H:%M")),
+    }
+    
+    # 添加 updatedAt 如果存在
+    if 'updatedAt' in skill_data:
+        frontmatter_data['updatedAt'] = skill_data['updatedAt']
+    
+    # 处理 config（转换为 YAML 兼容格式）
+    config = skill_data.get('config', {})
+    if config:
+        frontmatter_data['config'] = config
+    
+    # 生成 frontmatter
+    frontmatter = _generate_yaml_frontmatter(frontmatter_data)
+    
+    # 生成技能内容（保留原有内容或创建新内容）
+    if file_path.exists():
+        with open(file_path, 'r', encoding='utf-8') as f:
+            existing_content = f.read()
+        # 保留 frontmatter 之后的内容
+        existing_match = re.match(r'^---\s*\n.*?\n---\s*\n(.*)', existing_content, re.DOTALL)
+        body_content = existing_match.group(1) if existing_match else f"\n# {skill_data.get('name', 'Skill')}\n"
+    else:
+        body_content = f"\n# {skill_data.get('name', 'Skill')}\n\n## 描述\n{skill_data.get('description', '')}\n"
+    
+    # 写入文件
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(frontmatter + body_content)
+    
+    return file_path
+
+
+def _delete_skill_file(skill_name: str) -> bool:
+    """删除技能文件"""
+    import re
+    
+    # 验证文件名
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
+    file_path = SKILLS_DIR / f"{safe_name}.md"
+    
+    if file_path.exists():
+        file_path.unlink()
+        return True
+    return False
+
+
+def _get_next_skill_id(skills: list) -> int:
+    """获取下一个可用的技能 ID"""
+    if not skills:
+        return 1
+    max_id = max(s.get('id', 0) for s in skills)
+    return max_id + 1
+
+
+# 初始化时从文件加载技能
+SKILLS_DATA = _load_skills_from_files()
+
+# 如果没有加载到任何技能，创建默认技能
+if not SKILLS_DATA:
+    logger.info("未找到现有技能文件，创建默认技能...")
+    default_skills = [
+        {"id": 1, "name": "simplify", "description": "Review code for reuse, quality, and efficiency", "category": "code_review", "version": "1.0.0", "config": {"auto_fix": True}, "enabled": True, "createdAt": "2026-03-01 10:00"},
+        {"id": 2, "name": "claude-api", "description": "Build apps with Claude API or Anthropic SDK", "category": "api", "version": "1.0.0", "config": {"model": "claude-sonnet-4-6"}, "enabled": True, "createdAt": "2026-03-01 10:00"},
+        {"id": 3, "name": "code-generation", "description": "Generate code from natural language", "category": "generation", "version": "1.2.0", "config": {"language": "python"}, "enabled": True, "createdAt": "2026-03-02 14:30"},
+        {"id": 4, "name": "documentation", "description": "Generate documentation for code files", "category": "docs", "version": "1.0.0", "config": {"format": "markdown"}, "enabled": True, "createdAt": "2026-03-02 14:30"},
+        {"id": 5, "name": "testing", "description": "Generate and run tests for code", "category": "testing", "version": "1.1.0", "config": {"framework": "pytest"}, "enabled": False, "createdAt": "2026-03-03 09:15"},
+    ]
+    for skill in default_skills:
+        _save_skill_to_file(skill)
+    SKILLS_DATA = default_skills
 
 # ============ API 路由 ============
 
@@ -638,9 +791,15 @@ async def create_skill(skill: dict):
         "enabled": skill.get("enabled", True),
         "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M")
     }
-    SKILLS_DATA.append(new_skill)
-    logger.info(f"create_skill: 技能创建成功, id={new_skill['id']}, name={name}")
-    return {"status": "success", "message": "技能创建成功", "skill": new_skill}
+    # 保存到文件
+    try:
+        _save_skill_to_file(new_skill)
+        SKILLS_DATA.append(new_skill)
+        logger.info(f"create_skill: 技能创建成功，id={new_skill['id']}, name={name}")
+        return {"status": "success", "message": "技能创建成功", "skill": new_skill}
+    except Exception as e:
+        logger.error(f"create_skill: 保存文件失败：{e}")
+        raise HTTPException(status_code=500, detail=f"保存技能文件失败：{str(e)}")
 
 
 @app.put("/api/v1/skills/{skill_id}")
@@ -671,8 +830,14 @@ async def update_skill(skill_id: int, skill_update: dict):
                     skill[field] = skill_update[field]
 
             skill["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-            logger.info(f"update_skill: 技能 {skill_id} 更新成功")
-            return {"status": "success", "message": "技能已更新", "skill": skill}
+            # 保存到文件
+            try:
+                _save_skill_to_file(skill)
+                logger.info(f"update_skill: 技能 {skill_id} 更新成功")
+                return {"status": "success", "message": "技能已更新", "skill": skill}
+            except Exception as e:
+                logger.error(f"update_skill: 保存文件失败：{e}")
+                raise HTTPException(status_code=500, detail=f"保存技能文件失败：{str(e)}")
 
     logger.warning(f"update_skill: 技能 {skill_id} 不存在")
     raise HTTPException(status_code=404, detail=f"技能不存在 (ID: {skill_id})")
@@ -695,6 +860,8 @@ async def delete_skill(skill_id: int):
     for i, skill in enumerate(SKILLS_DATA):
         if skill["id"] == skill_id:
             deleted_name = skill["name"]
+            # 删除文件
+            _delete_skill_file(deleted_name)
             SKILLS_DATA.pop(i)
             logger.info(f"delete_skill: 技能 {skill_id} ({deleted_name}) 已删除")
             return {"status": "success", "message": "技能已删除"}
@@ -721,11 +888,179 @@ async def toggle_skill(skill_id: int):
         if skill["id"] == skill_id:
             skill["enabled"] = not skill["enabled"]
             skill["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-            logger.info(f"toggle_skill: 技能 {skill_id} 状态已切换为 {skill['enabled']}")
-            return {"status": "success", "message": f"技能已{'启用' if skill['enabled'] else '禁用'}", "skill": skill}
+            # 保存到文件
+            try:
+                _save_skill_to_file(skill)
+                logger.info(f"toggle_skill: 技能 {skill_id} 状态已切换为 {skill['enabled']}")
+                return {"status": "success", "message": f"技能已{'启用' if skill['enabled'] else '禁用'}", "skill": skill}
+            except Exception as e:
+                logger.error(f"toggle_skill: 保存文件失败：{e}")
+                raise HTTPException(status_code=500, detail=f"保存技能文件失败：{str(e)}")
 
     logger.warning(f"toggle_skill: 技能 {skill_id} 不存在")
     raise HTTPException(status_code=404, detail=f"技能不存在 (ID: {skill_id})")
+
+
+@app.get("/api/v1/skills/name/{skill_name}")
+async def get_skill_by_name(skill_name: str):
+    """根据名称获取技能详情"""
+    import re
+    # 验证文件名
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
+    file_path = SKILLS_DIR / f"{safe_name}.md"
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"技能文件不存在：{skill_name}")
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            full_content = f.read()
+        
+        frontmatter = _parse_yaml_frontmatter(full_content)
+        if not frontmatter:
+            raise HTTPException(status_code=500, detail="技能文件格式错误")
+        
+        # 获取 body 内容（frontmatter 之后的部分）
+        body_match = re.match(r'^---\s*\n.*?\n---\s*\n(.*)', full_content, re.DOTALL)
+        body_content = body_match.group(1) if body_match else ""
+        
+        return {
+            "skill": frontmatter,
+            "content": full_content,
+            "body": body_content
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"get_skill_by_name: 读取文件失败：{e}")
+        raise HTTPException(status_code=500, detail=f"读取技能文件失败：{str(e)}")
+
+
+@app.put("/api/v1/skills/name/{skill_name}/content")
+async def update_skill_content(skill_name: str, content_data: dict):
+    """更新技能文件内容（Markdown 编辑器）"""
+    import re
+    
+    # 验证文件名
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
+    file_path = SKILLS_DIR / f"{safe_name}.md"
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"技能文件不存在：{skill_name}")
+    
+    content = content_data.get("content", "")
+    if not content:
+        raise HTTPException(status_code=400, detail="内容不能为空")
+    
+    try:
+        # 解析新的 frontmatter
+        new_frontmatter = _parse_yaml_frontmatter(content)
+        if not new_frontmatter or 'name' not in new_frontmatter:
+            raise HTTPException(status_code=400, detail="技能文件必须包含有效的 YAML frontmatter 和 name 字段")
+        
+        # 验证文件名不能更改
+        if new_frontmatter['name'] != skill_name:
+            raise HTTPException(status_code=400, detail="技能名称不能更改")
+        
+        # 写入文件
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        # 更新内存中的数据
+        for i, skill in enumerate(SKILLS_DATA):
+            if skill['name'] == skill_name:
+                SKILLS_DATA[i] = new_frontmatter
+                break
+        
+        logger.info(f"update_skill_content: 技能 {skill_name} 内容已更新")
+        return {"status": "success", "message": "技能内容已更新", "skill": new_frontmatter}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"update_skill_content: 保存文件失败：{e}")
+        raise HTTPException(status_code=500, detail=f"保存技能文件失败：{str(e)}")
+
+
+@app.post("/api/v1/skills/upload")
+async def upload_skill_file(upload_data: dict):
+    """上传技能文件"""
+    import re
+    
+    file_content = upload_data.get("file_content", "")
+    filename = upload_data.get("filename")
+    
+    # 验证文件内容
+    if not file_content or not file_content.strip():
+        raise HTTPException(status_code=400, detail="文件内容不能为空")
+    
+    # 解析 frontmatter 获取技能名称
+    frontmatter = _parse_yaml_frontmatter(file_content)
+    if not frontmatter or 'name' not in frontmatter:
+        raise HTTPException(status_code=400, detail="技能文件必须包含有效的 YAML frontmatter 和 name 字段")
+    
+    skill_name = frontmatter['name']
+    
+    # 验证文件名：只允许字母、数字、下划线、连字符
+    if not re.match(r'^[a-zA-Z0-9_-]+$', skill_name):
+        raise HTTPException(status_code=400, detail="技能名称只能包含字母、数字、下划线和连字符")
+    
+    # 检查是否已存在
+    if any(s["name"] == skill_name for s in SKILLS_DATA):
+        raise HTTPException(status_code=400, detail=f"技能 '{skill_name}' 已存在")
+    
+    # 检查文件大小（最大 1MB）
+    if len(file_content.encode('utf-8')) > 1024 * 1024:
+        raise HTTPException(status_code=400, detail="文件大小不能超过 1MB")
+    
+    try:
+        # 保存文件
+        file_path = SKILLS_DIR / f"{skill_name}.md"
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(file_content)
+        
+        # 添加到内存数据
+        frontmatter['id'] = _get_next_skill_id(SKILLS_DATA)
+        SKILLS_DATA.append(frontmatter)
+        
+        logger.info(f"upload_skill_file: 技能文件上传成功：{skill_name}")
+        return {"status": "success", "message": "技能文件上传成功", "skill": frontmatter}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"upload_skill_file: 保存文件失败：{e}")
+        raise HTTPException(status_code=500, detail=f"保存技能文件失败：{str(e)}")
+
+
+@app.delete("/api/v1/skills/name/{skill_name}")
+async def delete_skill_by_name(skill_name: str):
+    """根据名称删除技能"""
+    import re
+    
+    # 验证文件名
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
+    file_path = SKILLS_DIR / f"{safe_name}.md"
+    
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"技能文件不存在：{skill_name}")
+    
+    try:
+        # 从内存中删除
+        global SKILLS_DATA
+        for i, skill in enumerate(SKILLS_DATA):
+            if skill['name'] == skill_name:
+                SKILLS_DATA.pop(i)
+                break
+        
+        # 删除文件
+        file_path.unlink()
+        
+        logger.info(f"delete_skill_by_name: 技能 {skill_name} 已删除")
+        return {"status": "success", "message": "技能已删除"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"delete_skill_by_name: 删除失败：{e}")
+        raise HTTPException(status_code=500, detail=f"删除技能失败：{str(e)}")
 
 
 # ============ AI 聊天 API ============

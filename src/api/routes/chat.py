@@ -7,10 +7,10 @@
 import logging
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...db.crud import (
@@ -21,7 +21,7 @@ from ...db.crud import (
     get_chat_sessions,
     get_chat_stats,
 )
-from ...db.database import get_db_session
+from ...db.database import get_database_manager, get_db_session
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,27 @@ class ChatMessageResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def validate_timestamp(cls, v):
+        """转换时间戳为字符串"""
+        if isinstance(v, datetime):
+            return v.isoformat()
+        return v
+
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def validate_metadata(cls, v):
+        """转换元数据为字典"""
+        if v is None:
+            return {}
+        if hasattr(v, "__dict__"):
+            # 如果是 MetaData 对象，转换为字典
+            return dict(v) if callable(v) else {}
+        if isinstance(v, dict):
+            return v
+        return {}
+
 
 class ChatSessionResponse(BaseModel):
     """会话响应"""
@@ -85,10 +106,16 @@ class ChatStatsResponse(BaseModel):
 # ===========================================
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """获取数据库会话"""
-    async for session in get_db_session():
-        yield session
+    db = get_database_manager()
+    async with db.async_session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 # ===========================================
