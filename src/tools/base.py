@@ -61,6 +61,8 @@ from .errors import ErrorCode, StandardError, ToolError
 
 __all__ = [
     "ToolParameter",
+    "OutputField",
+    "OutputSchema",
     "ToolStatus",
     "ToolResult",
     "ToolRuntimeInfo",
@@ -125,6 +127,107 @@ class ToolParameter(BaseModel):
     required: bool = Field(default=False, description="是否必填")
     default: Any = Field(default=None, description="默认值")
     enum: list[Any] | None = Field(default=None, description="枚举值")
+
+
+# ============================================================================
+# 工具输出字段定义
+# ============================================================================
+
+
+class OutputField(BaseModel):
+    """
+    工具输出字段定义
+    
+    用于描述工具返回数据结构中的字段。
+    
+    示例:
+        OutputField(
+            name="content",
+            description="文件内容",
+            type="string"
+        )
+        
+        OutputField(
+            name="exit_code",
+            description="退出码",
+            type="integer"
+        )
+    """
+
+    name: str = Field(..., description="字段名称")
+    description: str = Field(..., description="字段描述")
+    type: str = Field(..., description="字段类型")
+    required: bool = Field(default=True, description="是否必填")
+    enum: list[Any] | None = Field(default=None, description="枚举值")
+
+
+class OutputSchema(BaseModel):
+    """
+    工具输出模式定义
+    
+    描述工具成功执行后的返回数据结构。
+    支持嵌套对象和数组类型。
+    
+    示例:
+        # 简单输出
+        OutputSchema(
+            description="文件内容",
+            fields=[
+                OutputField(name="content", type="string", description="文件内容"),
+                OutputField(name="size", type="integer", description="文件大小"),
+            ]
+        )
+        
+        # 嵌套对象
+        OutputSchema(
+            description="进程信息",
+            fields=[
+                OutputField(name="session_id", type="string", description="会话ID"),
+                OutputField(name="status", type="string", description="状态"),
+            ],
+            nested_schemas={
+                "process_info": OutputSchema(...)
+            }
+        )
+    """
+
+    description: str = Field(default="", description="输出描述")
+    fields: list[OutputField] = Field(default_factory=list, description="输出字段列表")
+    nested_schemas: dict[str, "OutputSchema"] = Field(
+        default_factory=dict, description="嵌套模式定义"
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        """转换为字典"""
+        result: dict[str, Any] = {
+            "description": self.description,
+            "type": "object",
+            "properties": {},
+            "required": [],
+        }
+
+        for field in self.fields:
+            prop: dict[str, Any] = {
+                "type": field.type,
+                "description": field.description,
+            }
+            if field.enum:
+                prop["enum"] = field.enum
+            result["properties"][field.name] = prop
+            
+            if field.required:
+                result["required"].append(field.name)
+
+        # 处理嵌套模式
+        for name, schema in self.nested_schemas.items():
+            result["properties"][name] = schema.to_dict()
+            if schema.fields and all(f.required for f in schema.fields):
+                result["required"].append(name)
+
+        if not result["required"]:
+            del result["required"]
+
+        return result
 
 
 # ============================================================================
@@ -352,6 +455,7 @@ class BaseTool(ABC):
     # 类变量：工具名称和描述
     NAME: str = None  # 必须在子类中定义
     DESCRIPTION: str = None
+    SCHEMA_VERSION: str = "1.0.0"  # 工具 schema 版本，遵循语义化版本
 
     def __init__(self, **kwargs):
         """
@@ -379,6 +483,30 @@ class BaseTool(ABC):
             参数定义列表
         """
         pass
+
+    @property
+    def output_schema(self) -> OutputSchema | None:
+        """
+        获取工具输出模式定义
+
+        描述工具成功执行后的返回数据结构。
+        可选实现，默认返回 None。
+
+        Returns:
+            输出模式定义，如果未定义返回 None
+
+        示例:
+            @property
+            def output_schema(self) -> OutputSchema:
+                return OutputSchema(
+                    description="文件内容",
+                    fields=[
+                        OutputField(name="content", type="string", description="文件内容"),
+                        OutputField(name="size", type="integer", description="文件大小"),
+                    ]
+                )
+        """
+        return None
 
     @abstractmethod
     async def execute(self, **kwargs) -> ToolResult:
@@ -438,9 +566,10 @@ class BaseTool(ABC):
         Returns:
             工具信息字典
         """
-        return {
+        result = {
             "name": self.NAME,
             "description": self.DESCRIPTION,
+            "schema_version": self.SCHEMA_VERSION,
             "parameters": [
                 {
                     "name": p.name,
@@ -454,6 +583,12 @@ class BaseTool(ABC):
             ],
             "enabled": self.enabled,
         }
+
+        # 添加输出模式定义
+        if self.output_schema:
+            result["output_schema"] = self.output_schema.to_dict()
+
+        return result
 
     async def __call__(self, **kwargs) -> ToolResult:
         """允许工具像函数一样调用"""

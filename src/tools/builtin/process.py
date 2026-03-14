@@ -26,7 +26,7 @@ from typing import Any, Optional
 import structlog
 from pydantic import BaseModel, Field
 
-from ..base import BaseTool, ToolParameter, ToolResult
+from ..base import BaseTool, OutputField, OutputSchema, ToolParameter, ToolResult
 
 logger = structlog.get_logger(__name__)
 
@@ -129,6 +129,7 @@ class ProcessTool(BaseTool):
 
     NAME = "process"
     DESCRIPTION = "Manage background process sessions"
+    SCHEMA_VERSION = "1.0.0"
     ACTIONS = ["list", "poll", "log", "write", "kill", "clear", "remove"]
 
     def __init__(self, agent_id: str, **kwargs):
@@ -207,6 +208,74 @@ class ProcessTool(BaseTool):
                 required=False,
             ),
         ]
+
+    @property
+    def output_schema(self) -> OutputSchema:
+        """
+        获取工具输出模式定义
+
+        Returns:
+            Process 工具的输出模式（根据 action 不同而变化）
+        """
+        return OutputSchema(
+            description="Process session management result",
+            fields=[
+                OutputField(
+                    name="sessions",
+                    type="array",
+                    description="List of sessions (for list action)",
+                    required=False,
+                ),
+                OutputField(
+                    name="sessionId",
+                    type="string",
+                    description="Session ID",
+                    required=False,
+                ),
+                OutputField(
+                    name="status",
+                    type="string",
+                    description="Session status (running/finished/error)",
+                    required=False,
+                ),
+                OutputField(
+                    name="exitCode",
+                    type="integer",
+                    description="Exit code (when finished)",
+                    required=False,
+                ),
+                OutputField(
+                    name="stdout",
+                    type="string",
+                    description="Standard output (for log action)",
+                    required=False,
+                ),
+                OutputField(
+                    name="stderr",
+                    type="string",
+                    description="Standard error (for log action)",
+                    required=False,
+                ),
+                OutputField(
+                    name="hasMore",
+                    type="boolean",
+                    description="Whether more logs are available",
+                    required=False,
+                ),
+                OutputField(
+                    name="bytesRead",
+                    type="integer",
+                    description="Number of bytes read (for log action)",
+                    required=False,
+                ),
+                OutputField(
+                    name="success",
+                    type="boolean",
+                    description="Operation success status",
+                    required=False,
+                ),
+            ],
+        )
 
     async def execute(self, **kwargs) -> ToolResult:
         """

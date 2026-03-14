@@ -33,7 +33,7 @@ from typing import Any, Optional
 import structlog
 from pydantic import BaseModel, Field
 
-from ..base import BaseTool, ToolParameter, ToolResult
+from ..base import BaseTool, OutputField, OutputSchema, ToolParameter, ToolResult
 from ..errors import ErrorCode, ToolError
 
 logger = structlog.get_logger(__name__)
@@ -474,11 +474,12 @@ class WebSearchTool(BaseTool):
 
     NAME = "web_search"
     DESCRIPTION = "网络搜索工具，用于搜索互联网上的信息"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(
         self,
         backend: Optional[SearchBackend] = None,
-        cache_ttl: int = 900,
+        cache_ttl: int = None,
         **kwargs,
     ):
         """
@@ -486,14 +487,25 @@ class WebSearchTool(BaseTool):
 
         Args:
             backend: 搜索引擎后端，默认使用 DuckDuckGo
-            cache_ttl: 缓存有效期（秒），默认 15 分钟
+            cache_ttl: 缓存有效期（秒），默认使用全局配置
             **kwargs: 其他配置参数
         """
         super().__init__(**kwargs)
 
+        # 从全局配置获取 Web 配置（如果提供）
+        from ..policy import WebToolsConfig
+        web_config = kwargs.get("web_config")
+        if web_config is None:
+            web_config = WebToolsConfig()
+        elif isinstance(web_config, dict):
+            web_config = WebToolsConfig(**web_config)
+
         # 默认使用 DuckDuckGo 后端
         self.backend = backend or DuckDuckGoBackend()
-        self.cache = SearchCache(ttl_sec=cache_ttl)
+        
+        # 缓存配置（优先使用传入的参数，否则使用全局配置）
+        ttl = cache_ttl if cache_ttl is not None else web_config.cache_ttl_sec
+        self.cache = SearchCache(ttl_sec=ttl)
 
         # 配置参数
         self.default_count = kwargs.get("default_count", 5)
@@ -547,6 +559,80 @@ class WebSearchTool(BaseTool):
                 default=7,
             ),
         ]
+
+    @property
+    def output_schema(self) -> OutputSchema:
+        """
+        获取工具输出模式定义
+
+        Returns:
+            WebSearch 工具的输出模式
+        """
+        return OutputSchema(
+            description="Web search results",
+            fields=[
+                OutputField(
+                    name="results",
+                    type="array",
+                    description="List of search results",
+                    required=True,
+                ),
+            ],
+            nested_schemas={
+                "result_item": OutputSchema(
+                    description="Single search result",
+                    fields=[
+                        OutputField(
+                            name="title",
+                            type="string",
+                            description="Result title",
+                            required=True,
+                        ),
+                        OutputField(
+                            name="url",
+                            type="string",
+                            description="Result URL",
+                            required=True,
+                        ),
+                        OutputField(
+                            name="snippet",
+                            type="string",
+                            description="Result snippet/description",
+                            required=False,
+                        ),
+                        OutputField(
+                            name="source",
+                            type="string",
+                            description="Search engine source",
+                            required=True,
+                        ),
+                        OutputField(
+                            name="publishedAt",
+                            type="string",
+                            description="Publication date (ISO 8601 format)",
+                            required=False,
+                        ),
+                    ],
+                ),
+                "cache_info": OutputSchema(
+                    description="Cache information",
+                    fields=[
+                        OutputField(
+                            name="hit",
+                            type="boolean",
+                            description="Whether result was served from cache",
+                            required=True,
+                        ),
+                        OutputField(
+                            name="ttlSec",
+                            type="integer",
+                            description="Cache TTL in seconds",
+                            required=True,
+                        ),
+                    ],
+                ),
+            },
+        )
 
     async def execute(self, **kwargs) -> ToolResult:
         """执行网络搜索"""

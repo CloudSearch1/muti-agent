@@ -31,6 +31,7 @@ class TestingTools(BaseTool):
 
     NAME = "testing_tools"
     DESCRIPTION = "测试相关工具集合"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -273,7 +273,7 @@ export const AIAssistantView = {
                                  aria-label="AI 回复内容"></div>
                             <div v-else>{{ msg.content }}</div>
                             <div class="flex items-center gap-2 mt-1 text-xs opacity-60">
-                                <time :datetime="new Date(msg.time).toISOString()">{{ formatDate(msg.time, 'HH:mm') }}</time>
+                                <time :datetime="formatDate(msg.time, 'YYYY-MM-DDTHH:mm:ss')">{{ formatDate(msg.time, 'HH:mm') }}</time>
                                 <span v-if="msg.model" class="px-1.5 py-0.5 bg-gh-bg rounded" aria-label="使用模型：{{ msg.model }}">{{ msg.model }}</span>
                             </div>
                         </div>
@@ -877,7 +877,9 @@ export const AIAssistantView = {
                     max_tokens: 4096,
                     provider: this.localSettings.aiProvider,
                     model: this.localSettings.model,
-                    apiKey: this.localSettings.apiKey
+                    apiKey: this.localSettings.apiKey,
+                    enable_tools: true,  // 启用工具调用
+                    tool_profile: 'coding'  // 使用 coding 策略
                 })
             });
             
@@ -906,6 +908,7 @@ export const AIAssistantView = {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let fullContent = '';
+            let toolCalls = []; // 存储工具调用信息
             
             try {
                 while (true) {
@@ -923,16 +926,46 @@ export const AIAssistantView = {
                             }
                             try {
                                 const parsed = JSON.parse(data);
+                                
+                                // 处理文本内容
                                 if (parsed.content) {
                                     fullContent += parsed.content;
                                     this.messages[aiMessageIndex].content = fullContent;
                                     this.scrollToBottom();
                                 }
+                                
+                                // 处理工具开始事件
+                                if (parsed.type === 'tool_start') {
+                                    console.log('[AIAssistant] 工具开始:', parsed.tool_name, parsed.args);
+                                    toolCalls.push(parsed);
+                                    // 显示工具调用提示
+                                    const toolMsg = `🔧 正在执行工具: ${parsed.tool_name}...`;
+                                    if (!this.messages[aiMessageIndex].toolInfo) {
+                                        this.messages[aiMessageIndex].toolInfo = [];
+                                    }
+                                    this.messages[aiMessageIndex].toolInfo.push(toolMsg);
+                                    this.scrollToBottom();
+                                }
+                                
+                                // 处理工具结束事件
+                                if (parsed.type === 'tool_end') {
+                                    console.log('[AIAssistant] 工具完成:', parsed.tool_name, parsed.success ? '成功' : '失败');
+                                    // 更新工具调用状态
+                                    if (this.messages[aiMessageIndex].toolInfo && this.messages[aiMessageIndex].toolInfo.length > 0) {
+                                        const lastIndex = this.messages[aiMessageIndex].toolInfo.length - 1;
+                                        this.messages[aiMessageIndex].toolInfo[lastIndex] = 
+                                            `✅ 工具执行完成: ${parsed.tool_name}`;
+                                    }
+                                }
+                                
                                 if (parsed.error) {
                                     throw new Error(parsed.error);
                                 }
                             } catch (e) {
                                 // 忽略解析错误，继续处理
+                                if (e.name !== 'SyntaxError') {
+                                    console.warn('[AIAssistant] 解析错误:', e);
+                                }
                             }
                         }
                     }

@@ -29,6 +29,7 @@ class CodeTools(BaseTool):
 
     NAME = "code_tools"
     DESCRIPTION = "代码相关工具集合"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

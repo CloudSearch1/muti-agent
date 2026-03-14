@@ -27,7 +27,7 @@ import httpx
 import structlog
 from pydantic import BaseModel, Field, field_validator
 
-from ..base import BaseTool, ToolParameter, ToolResult, ToolStatus
+from ..base import BaseTool, OutputField, OutputSchema, ToolParameter, ToolResult, ToolStatus
 from ..errors import ErrorCode, StandardError
 from ..security import SecurityError
 
@@ -491,19 +491,32 @@ class WebFetchTool(BaseTool):
 
     NAME = "web_fetch"
     DESCRIPTION = "Fetch and extract content from web URLs securely"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        # 安全配置
-        self.max_chars_cap = kwargs.get("max_chars_cap", 20000)
-        self.default_timeout = kwargs.get("default_timeout", 20.0)
+        # 从全局配置获取 Web 配置（如果提供）
+        from ..policy import WebToolsConfig
+        web_config = kwargs.get("web_config")
+        if web_config is None:
+            web_config = WebToolsConfig()
+        elif isinstance(web_config, dict):
+            web_config = WebToolsConfig(**web_config)
+        
+        # 安全配置（优先使用传入的参数，否则使用全局配置）
+        self.max_chars_cap = kwargs.get("max_chars_cap", web_config.max_chars_cap)
+        self.default_timeout = kwargs.get("default_timeout", web_config.default_timeout_ms / 1000)
+        self.allow_private_network = kwargs.get(
+            "allow_private_network", 
+            web_config.allow_private_network
+        )
 
         # 初始化 SSRF 防护
         self.ssrf_guard = SSRFGuard(max_chars_cap=self.max_chars_cap)
 
         # 初始化缓存
-        cache_ttl = kwargs.get("cache_ttl_seconds", 900)  # 15 分钟
+        cache_ttl = kwargs.get("cache_ttl_seconds", web_config.cache_ttl_sec)
         self.cache = WebFetchCache(ttl_seconds=cache_ttl)
 
         # 内容提取器
@@ -555,6 +568,62 @@ class WebFetchTool(BaseTool):
                 default={},
             ),
         ]
+
+    @property
+    def output_schema(self) -> OutputSchema:
+        """
+        获取工具输出模式定义
+
+        Returns:
+            WebFetch 工具的输出模式
+        """
+        return OutputSchema(
+            description="Web page content extraction result",
+            fields=[
+                OutputField(
+                    name="url",
+                    type="string",
+                    description="Original request URL",
+                    required=True,
+                ),
+                OutputField(
+                    name="finalUrl",
+                    type="string",
+                    description="Final URL after redirects",
+                    required=True,
+                ),
+                OutputField(
+                    name="title",
+                    type="string",
+                    description="Page title (if available)",
+                    required=False,
+                ),
+                OutputField(
+                    name="content",
+                    type="string",
+                    description="Extracted content",
+                    required=True,
+                ),
+                OutputField(
+                    name="truncated",
+                    type="boolean",
+                    description="Whether content was truncated due to maxChars limit",
+                    required=True,
+                ),
+                OutputField(
+                    name="contentType",
+                    type="string",
+                    description="Content type (e.g., text/html)",
+                    required=True,
+                ),
+                OutputField(
+                    name="statusCode",
+                    type="integer",
+                    description="HTTP status code",
+                    required=True,
+                ),
+            ],
+        )
 
     async def execute(self, **kwargs) -> ToolResult:
         """执行 Web Fetch"""

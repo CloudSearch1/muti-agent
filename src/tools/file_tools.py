@@ -33,6 +33,7 @@ class FileTools(BaseTool):
 
     NAME = "file_tools"
     DESCRIPTION = "文件操作工具集合"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

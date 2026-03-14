@@ -33,6 +33,7 @@ class GitTools(BaseTool):
 
     NAME = "git_tools"
     DESCRIPTION = "Git 操作工具集合"
+    SCHEMA_VERSION = "1.0.0"
 
     # 允许的 Git 操作
     ALLOWED_ACTIONS = ["status", "log", "diff", "branch", "checkout", "pull", "push"]

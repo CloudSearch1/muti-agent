@@ -32,7 +32,7 @@ from typing import Any, Optional
 import structlog
 from pydantic import BaseModel, Field
 
-from ..base import BaseTool, ToolParameter, ToolResult, ToolStatus
+from ..base import BaseTool, OutputField, OutputSchema, ToolParameter, ToolResult, ToolStatus
 from ..errors import ErrorCode, StandardError, ToolError
 from ..security import SecurityError, ToolSecurity
 
@@ -327,6 +327,7 @@ class ExecTool(BaseTool):
 
     NAME = "exec"
     DESCRIPTION = "Execute a command, optionally in background mode"
+    SCHEMA_VERSION = "1.0.0"
 
     # 命令长度限制
     MAX_CMD_LENGTH = 10000
@@ -425,12 +426,55 @@ class ExecTool(BaseTool):
             ),
         ]
 
+    @property
+    def output_schema(self) -> OutputSchema:
+        """
+        获取工具输出模式定义
+
+        Returns:
+            Exec 工具的输出模式
+        """
+        return OutputSchema(
+            description="Command execution result",
+            fields=[
+                OutputField(
+                    name="exitCode",
+                    type="integer",
+                    description="Command exit code (0 for success)",
+                    required=True,
+                ),
+                OutputField(
+                    name="stdout",
+                    type="string",
+                    description="Standard output from the command",
+                    required=True,
+                ),
+                OutputField(
+                    name="stderr",
+                    type="string",
+                    description="Standard error from the command",
+                    required=True,
+                ),
+                OutputField(
+                    name="sessionId",
+                    type="string",
+                    description="Session ID for background processes (only when background=true)",
+                    required=False,
+                ),
+            ],
+        )
+
     async def execute(self, **kwargs) -> ToolResult:
         """
         执行命令
 
         根据 background 参数决定同步或异步执行
         """
+        # 兼容 AI 模型可能使用的 'command' 参数
+        if 'command' in kwargs and 'cmd' not in kwargs:
+            kwargs['cmd'] = kwargs.pop('command')
+            self.logger.debug(f"Converted 'command' parameter to 'cmd': {kwargs['cmd']}")
+
         # 解析请求
         try:
             request = ExecRequest(**kwargs)

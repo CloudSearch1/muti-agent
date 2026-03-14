@@ -62,6 +62,28 @@ app.add_middleware(
 # Gzip 压缩 - 启用以提升传输效率
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
+
+# ============ 应用启动事件 - 初始化数据库 ============
+
+@app.on_event("startup")
+async def startup_event():
+    """应用启动时初始化"""
+    global DATABASE_ENABLED
+    logger.info("应用启动中...")
+    
+    # 初始化数据库（如果启用）
+    if DATABASE_ENABLED:
+        try:
+            from src.db.database import init_database
+            await init_database()
+            logger.info("数据库初始化完成")
+        except Exception as e:
+            logger.error(f"数据库初始化失败: {e}", exc_info=True)
+            logger.warning("降级到内存模式")
+            DATABASE_ENABLED = False
+    
+    logger.info(f"应用启动完成，数据库模式: {'启用' if DATABASE_ENABLED else '禁用（内存模式）'}")
+
 # 挂载静态文件（使用绝对路径）
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -74,15 +96,90 @@ else:
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, str(PROJECT_ROOT))
 
+# 初始化数据库相关变量（默认值）
+DATABASE_ENABLED = False
+get_db_session = None
+get_database_manager = None
+ChatMessageModel = None
+crud = None
+
 try:
-    from src.db import crud
-    from src.db.database import get_db_session
-    from src.db.models import ChatMessageModel
+    logger.info("尝试加载数据库模块...")
+    from src.db import crud as _crud
+    logger.info("✓ 加载 crud 成功")
+    from src.db.database import get_db_session as _get_db_session, get_database_manager as _get_database_manager
+    logger.info("✓ 加载 database 成功")
+    from src.db.models import ChatMessageModel as _ChatMessageModel
+    logger.info("✓ 加载 models 成功")
+    # 导入成功，更新变量
+    crud = _crud
+    get_db_session = _get_db_session
+    get_database_manager = _get_database_manager
+    ChatMessageModel = _ChatMessageModel
     DATABASE_ENABLED = True
     logger.info("数据库模块已加载，聊天持久化功能已启用")
 except Exception as e:
-    DATABASE_ENABLED = False
-    logger.warning(f"数据库模块加载失败：{e}，聊天功能将使用内存存储")
+    logger.warning(f"数据库模块加载失败：{e}", exc_info=True)
+    logger.warning("聊天功能将使用内存存储")
+    # 确保变量有默认值
+    crud = None
+    get_db_session = None
+    get_database_manager = None
+    ChatMessageModel = None
+
+# ============ Agent 框架支持（工具调用能力） ============
+
+AGENT_ENABLED = False
+try:
+    # 导入工具系统组件
+    from src.tools import get_registry, register_tool
+    from src.tools.policy import ToolsConfig, get_effective_tools
+    from src.tools.builtin import (
+        ExecTool, WebFetchTool, WebSearchTool,
+        MemorySearchTool, MemoryGetTool, BrowserTool,
+        ReadTool, WriteTool, EditTool, ApplyPatchTool,
+        SessionsListTool, SessionsHistoryTool
+    )
+    from src.tools.builtin.process import create_process_tool
+    
+    # 初始化工具注册表（注册所有内置工具）
+    registry = get_registry()
+    
+    # 注册内置工具
+    builtin_tools = [
+        ExecTool(),
+        WebFetchTool(),
+        WebSearchTool(),
+        MemorySearchTool(),
+        MemoryGetTool(),
+        BrowserTool(),
+        ReadTool(),
+        WriteTool(),
+        EditTool(),
+        ApplyPatchTool(),
+        SessionsListTool(),
+        SessionsHistoryTool(),
+    ]
+    
+    registered_count = 0
+    for tool in builtin_tools:
+        if not registry.get(tool.NAME):
+            register_tool(tool)
+            logger.info(f"✓ 注册工具: {tool.NAME}")
+            registered_count += 1
+    
+    # ProcessTool 需要 agent_id，使用一个通用的 agent_id 创建
+    if not registry.get("process"):
+        process_tool = create_process_tool(agent_id="default_agent")
+        register_tool(process_tool)
+        logger.info(f"✓ 注册工具: process (使用默认 agent)")
+        registered_count += 1
+    
+    AGENT_ENABLED = True
+    logger.info(f"Agent 框架已加载，共注册 {registered_count} 个工具，AI 助手支持工具调用")
+except Exception as e:
+    logger.warning(f"Agent 框架加载失败：{e}", exc_info=True)
+    logger.warning("AI 助手将使用纯对话模式")
 
 # ============ 响应缓存 ============
 
@@ -1268,9 +1365,398 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     apiKey: Optional[str] = None
     endpoint: Optional[str] = None
+    # 工具调用支持
+    enable_tools: bool = True  # 是否启用工具调用（默认启用）
+    tool_profile: str = "coding"  # 工具策略 profile
 
 # 聊天历史存储（内存中，实际应用应使用数据库）
 CHAT_HISTORY: dict[str, list] = {}
+
+
+async def generate_agent_response(
+    messages: List[ChatMessage],
+    temperature: float = 0.7,
+    max_tokens: int = 4096,
+    provider: str = "bailian",
+    api_key: str = None,
+    model: str = None,
+    endpoint: str = None,
+    tool_profile: str = "coding",
+) -> AsyncGenerator[str, None]:
+    """
+    使用 Agent 框架生成聊天响应（支持工具调用）
+    
+    这是新的带工具调用能力的 AI 助手实现。
+    通过直接调用 LLM API 并集成工具系统，使 AI 能够执行文件操作、命令等。
+    
+    Args:
+        messages: 聊天消息列表
+        temperature: 温度参数
+        max_tokens: 最大 token 数
+        provider: LLM 提供商
+        api_key: API 密钥
+        model: 模型名称
+        endpoint: 自定义端点
+        tool_profile: 工具策略 profile
+        
+    Yields:
+        SSE 格式的流式响应
+    """
+    from src.tools import get_registry
+    from src.tools.policy import ToolsConfig, get_effective_tools
+    
+    try:
+        # 1. 获取工具定义
+        registry = get_registry()
+        config = ToolsConfig(profile=tool_profile)
+        effective_tools = get_effective_tools(global_config=config, registry=registry)
+        
+        # 构建工具定义列表（OpenAI function 格式）
+        tools_definitions = []
+        tool_map = {}  # 用于后续查找工具
+        
+        logger.info(f"[Agent] effective_tools: {effective_tools}")
+        logger.info(f"[Agent] registry.tools.keys(): {list(registry.tools.keys()) if registry else 'None'}")
+        
+        for tool_name in effective_tools:
+            logger.info(f"[Agent] 处理工具: {tool_name}")
+            tool = registry.get(tool_name)
+            logger.info(f"[Agent] registry.get({tool_name}) = {tool}")
+            if tool:
+                logger.info(f"[Agent] tool.enabled = {tool.enabled}")
+                if tool.enabled:
+                    tool_def = _convert_tool_to_openai_format(tool)
+                    tools_definitions.append(tool_def)
+                    tool_map[tool_name] = tool
+                    logger.info(f"[Agent] 成功添加工具: {tool_name}")
+                else:
+                    logger.warning(f"[Agent] 工具被禁用: {tool_name}")
+            else:
+                logger.warning(f"[Agent] 工具未找到: {tool_name}")
+        
+        logger.info(f"[Agent] 启用 {len(tools_definitions)} 个工具: {list(tool_map.keys())}")
+        
+        # 2. 构建消息
+        api_messages = []
+        
+        # 添加系统提示
+        system_prompt = _build_system_prompt(tool_profile)
+        api_messages.append({"role": "system", "content": system_prompt})
+        
+        # 添加历史消息
+        for msg in messages:
+            api_messages.append({"role": msg.role, "content": msg.content})
+        
+        # 3. Agent 循环
+        max_iterations = 10
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            logger.info(f"[Agent] 第 {iteration} 轮对话")
+            
+            # 4. 调用 LLM
+            response = await _call_llm_with_tools(
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                endpoint=endpoint,
+                messages=api_messages,
+                tools=tools_definitions,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            if response is None:
+                yield f"data: {json.dumps({'error': 'LLM 调用失败'})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+            
+            # 5. 处理响应
+            # 检查是否有工具调用
+            tool_calls = response.get("tool_calls", [])
+            content = response.get("content", "")
+            
+            logger.info(f"[Agent] 第 {iteration} 轮 - tool_calls: {len(tool_calls)}, content: '{content[:100]}'")
+            
+            # 过滤掉 <tool_call> 标签（如果 LLM 错误地输出了这些）
+            if content and "<tool_call>" in content:
+                logger.warning(f"[Agent] 检测到 <tool_call> 标签在 content 中: {content}")
+                # 提取标签内的内容作为工具调用
+                import re
+                tool_call_match = re.search(r'<tool_call>(.*?)</tool_call>', content, re.DOTALL)
+                if tool_call_match:
+                    try:
+                        # 尝试解析工具调用
+                        tool_call_data = json.loads(tool_call_match.group(1))
+                        if isinstance(tool_call_data, dict) and "name" in tool_call_data:
+                            # 转换为 OpenAI tool_calls 格式
+                            tool_calls = [{
+                                "id": f"call_{hash(content)}",
+                                "type": "function",
+                                "function": {
+                                    "name": tool_call_data["name"],
+                                    "arguments": json.dumps(tool_call_data.get("arguments", {}))
+                                }
+                            }]
+                            logger.info(f"[Agent] 从 <tool_call> 标签中提取工具调用: {tool_calls}")
+                            content = ""  # 清空内容，只执行工具
+                        else:
+                            logger.warning(f"[Agent] <tool_call> 内容格式不正确: {tool_call_data}")
+                            content = re.sub(r'<tool_call>.*?</tool_call>', '', content, flags=re.DOTALL).strip()
+                    except Exception as e:
+                        logger.error(f"[Agent] 解析 <tool_call> 标签失败: {e}")
+                        content = re.sub(r'<tool_call>.*?</tool_call>', '', content, flags=re.DOTALL).strip()
+                else:
+                    # 如果没有找到有效的工具调用，移除标签
+                    logger.warning("[Agent] 未匹配到 <tool_call> 内容，直接移除标签")
+                    content = re.sub(r'<tool_call>.*?</tool_call>', '', content, flags=re.DOTALL).strip()
+            
+            logger.info(f"[Agent] 第 {iteration} 轮 - 过滤后 - tool_calls: {len(tool_calls)}, content: '{content[:100]}'")
+            
+            # 发送文本内容
+            if content:
+                yield f"data: {json.dumps({'content': content})}\n\n"
+            
+            # 添加助手消息到历史
+            assistant_message = {"role": "assistant", "content": content}
+            if tool_calls:
+                assistant_message["tool_calls"] = tool_calls
+            api_messages.append(assistant_message)
+            
+            # 6. 如果没有工具调用，结束
+            if not tool_calls:
+                break
+            
+            # 7. 执行工具调用
+            for tool_call in tool_calls:
+                tool_call_id = tool_call.get("id", "")
+                function_name = tool_call.get("function", {}).get("name", "")
+                function_args_str = tool_call.get("function", {}).get("arguments", "{}")
+                
+                try:
+                    function_args = json.loads(function_args_str)
+                except json.JSONDecodeError:
+                    function_args = {}
+                
+                # 发送工具开始事件
+                tool_start_info = {
+                    "type": "tool_start",
+                    "tool_name": function_name,
+                    "tool_call_id": tool_call_id,
+                    "args": function_args
+                }
+                logger.info(f"[Agent] 工具调用: {function_name}({function_args})")
+                yield f"data: {json.dumps(tool_start_info)}\n\n"
+                
+                # 执行工具
+                tool = tool_map.get(function_name)
+                tool_result = ""
+                tool_success = False
+                
+                if tool:
+                    try:
+                        result = await tool.execute(**function_args)
+                        if result.success:
+                            if isinstance(result.data, str):
+                                tool_result = result.data
+                            elif isinstance(result.data, dict):
+                                tool_result = json.dumps(result.data, ensure_ascii=False, indent=2)
+                            else:
+                                tool_result = str(result.data)
+                            tool_success = True
+                        else:
+                            tool_result = f"Error: {result.error}"
+                    except Exception as e:
+                        tool_result = f"Error: {str(e)}"
+                        logger.error(f"[Agent] 工具执行错误: {e}", exc_info=True)
+                else:
+                    tool_result = f"Error: Unknown tool '{function_name}'"
+                
+                # 发送工具结束事件
+                tool_end_info = {
+                    "type": "tool_end",
+                    "tool_name": function_name,
+                    "tool_call_id": tool_call_id,
+                    "success": tool_success
+                }
+                yield f"data: {json.dumps(tool_end_info)}\n\n"
+                
+                # 添加工具结果到消息历史
+                api_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call_id,
+                    "content": tool_result
+                })
+            
+            # 继续循环，让 LLM 处理工具结果
+        
+        logger.info("[Agent] 响应完成")
+        yield "data: [DONE]\n\n"
+        
+    except Exception as e:
+        logger.error(f"[Agent] 响应生成错误: {e}", exc_info=True)
+        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        yield "data: [DONE]\n\n"
+
+
+def _convert_tool_to_openai_format(tool) -> dict:
+    """
+    将 BaseTool 转换为 OpenAI function 格式
+    
+    Args:
+        tool: BaseTool 实例
+        
+    Returns:
+        OpenAI function 定义字典
+    """
+    properties = {}
+    required = []
+    
+    if hasattr(tool, 'PARAMETERS') and tool.PARAMETERS:
+        for param in tool.PARAMETERS:
+            param_name = param.get("name", "")
+            param_type = param.get("type", "string")
+            param_desc = param.get("description", "")
+            param_enum = param.get("enum")
+            
+            prop = {
+                "type": param_type,
+                "description": param_desc
+            }
+            if param_enum:
+                prop["enum"] = param_enum
+            
+            properties[param_name] = prop
+            
+            if param.get("required", False):
+                required.append(param_name)
+    
+    return {
+        "type": "function",
+        "function": {
+            "name": tool.NAME,
+            "description": tool.DESCRIPTION,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required
+            }
+        }
+    }
+
+
+async def _call_llm_with_tools(
+    provider: str,
+    api_key: str,
+    model: str,
+    endpoint: str,
+    messages: list,
+    tools: list,
+    temperature: float = 0.7,
+    max_tokens: int = 4096,
+) -> dict | None:
+    """
+    调用 LLM API（支持工具调用）
+    
+    Args:
+        provider: 提供商
+        api_key: API 密钥
+        model: 模型名称
+        endpoint: 自定义端点
+        messages: 消息列表
+        tools: 工具定义列表
+        temperature: 温度
+        max_tokens: 最大 token
+        
+    Returns:
+        响应字典，包含 content 和 tool_calls
+    """
+    try:
+        # 确定端点 URL
+        if provider == "bailian":
+            base_url = endpoint.rstrip('/') if endpoint else "https://coding.dashscope.aliyuncs.com/v1"
+            # 去掉 bailian/ 前缀
+            if model.startswith("bailian/"):
+                model = model[8:]
+        elif provider == "openai":
+            base_url = endpoint.rstrip('/') if endpoint else "https://api.openai.com/v1"
+        elif provider == "deepseek":
+            base_url = endpoint.rstrip('/') if endpoint else "https://api.deepseek.com/v1"
+        else:
+            base_url = endpoint.rstrip('/') if endpoint else ""
+        
+        api_url = f"{base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        
+        # 添加工具定义
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+        
+        timeout_config = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
+        
+        async with httpx.AsyncClient(timeout=timeout_config) as client:
+            response = await client.post(api_url, headers=headers, json=payload)
+            
+            if response.status_code != 200:
+                logger.error(f"[Agent] LLM 调用失败: {response.status_code} - {response.text}")
+                return None
+            
+            data = response.json()
+            choice = data.get("choices", [{}])[0]
+            message = choice.get("message", {})
+            
+            return {
+                "content": message.get("content", ""),
+                "tool_calls": message.get("tool_calls", [])
+            }
+            
+    except Exception as e:
+        logger.error(f"[Agent] LLM 调用异常: {e}")
+        return None
+
+
+def _build_system_prompt(tool_profile: str = "coding") -> str:
+    """
+    构建系统提示词
+    
+    Args:
+        tool_profile: 工具策略 profile
+        
+    Returns:
+        系统提示词
+    """
+    base_prompt = """你是一个智能研发助手，具备以下能力：
+
+1. **文件操作**：读取、创建、编辑文件
+2. **命令执行**：执行 shell 命令
+3. **代码分析**：分析和理解代码结构
+4. **网络搜索**：搜索和获取网络信息
+
+当用户请求需要文件操作或命令执行时，请使用相应的工具完成。
+执行工具后，请根据结果继续处理或向用户报告。
+
+注意事项：
+- 执行文件操作前确认路径正确
+- 执行命令时注意安全性
+- 工具执行结果会作为新消息返回，请根据结果继续对话
+- 不要直接输出 <tool_call> 标签，系统会自动处理工具调用
+
+请直接回答用户的问题，如果需要使用工具，系统会自动调用。
+"""
+    return base_prompt
+
 
 async def generate_chat_response(messages: List[ChatMessage], temperature: float = 0.7, max_tokens: int = 2048, provider: str = None, api_key: str = None, model: str = None, endpoint: str = None, context_window: int = None) -> AsyncGenerator[str, None]:
     """
@@ -1539,52 +2025,116 @@ async def chat(request: ChatRequest):
     AI 聊天端点
 
     支持流式响应（SSE）和非流式响应
+    支持工具调用（通过 Agent 框架）
     """
+    # 获取配置
+    provider = request.provider or SETTINGS_STORE.get("aiProvider", "bailian")
+    api_key = request.apiKey
+    if not api_key:
+        api_key = SETTINGS_STORE.get("apiKey", "")
+        if not api_key and SETTINGS_STORE.get("apiKeyEncrypted"):
+            api_key = decrypt_api_key(SETTINGS_STORE.get("apiKeyEncrypted", ""))
+    model = request.model or SETTINGS_STORE.get("model", "qwen3.5-plus")
+    endpoint = request.endpoint or SETTINGS_STORE.get("endpoint", "")
+    max_tokens = request.max_tokens if request.max_tokens != 2048 else SETTINGS_STORE.get("maxTokens", 4096)
+    
+    # 选择响应生成方式
+    # 如果启用了工具且 Agent 框架可用，使用 Agent 响应
+    use_agent = request.enable_tools and AGENT_ENABLED
+    
     if request.stream:
-        # 流式响应
-        return StreamingResponse(
-            generate_chat_response(
-                request.messages,
-                temperature=request.temperature,
-                max_tokens=request.max_tokens,
-                provider=request.provider,
-                api_key=request.apiKey,
-                model=request.model,
-                endpoint=request.endpoint,
-                context_window=request.context_window
-            ),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",  # 禁用 nginx 缓冲
-            }
-        )
+        if use_agent:
+            # 使用 Agent 框架（支持工具调用）
+            logger.info(f"[Chat] 使用 Agent 模式，工具策略: {request.tool_profile}")
+            return StreamingResponse(
+                generate_agent_response(
+                    request.messages,
+                    temperature=request.temperature,
+                    max_tokens=max_tokens,
+                    provider=provider,
+                    api_key=api_key,
+                    model=model,
+                    endpoint=endpoint,
+                    tool_profile=request.tool_profile,
+                ),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",
+                }
+            )
+        else:
+            # 使用纯对话模式
+            logger.info("[Chat] 使用纯对话模式")
+            return StreamingResponse(
+                generate_chat_response(
+                    request.messages,
+                    temperature=request.temperature,
+                    max_tokens=max_tokens,
+                    provider=provider,
+                    api_key=api_key,
+                    model=model,
+                    endpoint=endpoint,
+                    context_window=request.context_window
+                ),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no",  # 禁用 nginx 缓冲
+                }
+            )
     else:
         # 非流式响应
         response_content = ""
-        async for chunk in generate_chat_response(
-            request.messages,
-            temperature=request.temperature,
-            max_tokens=request.max_tokens,
-            provider=request.provider,
-            api_key=request.apiKey,
-            model=request.model,
-            endpoint=request.endpoint,
-            context_window=request.context_window
-        ):
-            if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
-                try:
-                    data = json.loads(chunk[6:].strip())
-                    if "content" in data:
-                        response_content += data["content"]
-                except json.JSONDecodeError:
-                    continue
+        tool_calls = []
+        
+        if use_agent:
+            async for chunk in generate_agent_response(
+                request.messages,
+                temperature=request.temperature,
+                max_tokens=max_tokens,
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                endpoint=endpoint,
+                tool_profile=request.tool_profile,
+            ):
+                if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
+                    try:
+                        data = json.loads(chunk[6:].strip())
+                        if "content" in data:
+                            response_content += data["content"]
+                        elif "type" in data and data["type"] == "tool_start":
+                            tool_calls.append(data)
+                    except json.JSONDecodeError:
+                        continue
+        else:
+            async for chunk in generate_chat_response(
+                request.messages,
+                temperature=request.temperature,
+                max_tokens=max_tokens,
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                endpoint=endpoint,
+                context_window=request.context_window
+            ):
+                if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
+                    try:
+                        data = json.loads(chunk[6:].strip())
+                        if "content" in data:
+                            response_content += data["content"]
+                    except json.JSONDecodeError:
+                        continue
 
         return {
             "response": response_content,
-            "model": "intelliteam-ai",
-            "timestamp": datetime.now().isoformat()
+            "model": model,
+            "timestamp": datetime.now().isoformat(),
+            "tool_calls": tool_calls if tool_calls else None,
+            "agent_mode": use_agent
         }
 
 
@@ -1594,17 +2144,31 @@ async def get_chat_sessions(
     offset: int = 0
 ):
     """获取会话列表（支持分页）"""
+    logger.info(f"[get_chat_sessions] 请求参数: limit={limit}, offset={offset}, DATABASE_ENABLED={DATABASE_ENABLED}")
+    logger.info(f"[get_chat_sessions] 变量状态: get_database_manager={get_database_manager}, crud={crud}, ChatMessageModel={ChatMessageModel}")
+    
     if not DATABASE_ENABLED:
         # 降级到内存模式
+        logger.info("[get_chat_sessions] 使用内存模式")
         sessions = list(CHAT_HISTORY.keys())
-        return {
+        result = {
             "sessions": [{"session_id": sid, "message_count": len(CHAT_HISTORY[sid])} for sid in sessions[offset:offset+limit]],
             "total": len(sessions),
             "has_more": offset + limit < len(sessions)
         }
+        logger.info(f"[get_chat_sessions] 返回: {result}")
+        return result
     
     try:
-        async for db in get_db_session():
+        logger.info("[get_chat_sessions] 使用数据库模式")
+        if get_database_manager is None:
+            logger.error("[get_chat_sessions] get_database_manager 为 None!")
+            raise Exception("get_database_manager 未初始化")
+        
+        db_manager = get_database_manager()
+        logger.info(f"[get_chat_sessions] 获取数据库管理器: {db_manager}")
+        async with db_manager.get_session() as db:
+            logger.info("[get_chat_sessions] 获取会话数据")
             sessions = await crud.get_chat_sessions(db, limit=limit, offset=offset)
             
             # 获取总数量
@@ -1613,14 +2177,22 @@ async def get_chat_sessions(
             )
             total = count_result.scalar() or 0
             
+            logger.info(f"[get_chat_sessions] 返回数据: sessions={len(sessions)}, total={total}")
             return {
                 "sessions": sessions,
                 "total": total,
                 "has_more": offset + limit < total
             }
     except Exception as e:
-        logger.error(f"获取会话列表失败：{e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"[get_chat_sessions] 获取会话列表失败：{e}", exc_info=True)
+        # 降级到内存模式
+        sessions = list(CHAT_HISTORY.keys())
+        return {
+            "sessions": [{"session_id": sid, "message_count": len(CHAT_HISTORY[sid])} for sid in sessions[offset:offset+limit]],
+            "total": len(sessions),
+            "has_more": offset + limit < len(sessions),
+            "error": str(e)
+        }
 
 
 @app.get("/api/v1/chat/history/{session_id}")
@@ -1641,7 +2213,8 @@ async def get_chat_history(
         }
     
     try:
-        async for db in get_db_session():
+        db_manager = get_database_manager()
+        async with db_manager.get_session() as db:
             messages = await crud.get_chat_messages_by_session(
                 db, session_id, limit=limit, offset=offset
             )
@@ -1661,8 +2234,16 @@ async def get_chat_history(
                 "has_more": offset + limit < total
             }
     except Exception as e:
-        logger.error(f"获取聊天历史失败 (session={session_id}): {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"获取聊天历史失败 (session={session_id}): {e}", exc_info=True)
+        # 降级到内存模式
+        messages = CHAT_HISTORY.get(session_id, [])
+        return {
+            "session_id": session_id,
+            "messages": messages[offset:offset+limit],
+            "total": len(messages),
+            "has_more": offset + limit < len(messages),
+            "error": str(e)
+        }
 
 
 @app.post("/api/v1/chat/messages")
@@ -1693,7 +2274,8 @@ async def create_chat_message(message_data: dict):
         return message
     
     try:
-        async for db in get_db_session():
+        db_manager = get_database_manager()
+        async with db_manager.get_session() as db:
             message = await crud.create_chat_message(
                 db,
                 session_id=session_id,
@@ -1703,8 +2285,21 @@ async def create_chat_message(message_data: dict):
             )
             return message.to_dict()
     except Exception as e:
-        logger.error(f"保存消息失败：{e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"保存消息失败：{e}", exc_info=True)
+        # 降级到内存模式
+        if session_id not in CHAT_HISTORY:
+            CHAT_HISTORY[session_id] = []
+        
+        message = {
+            "id": len(CHAT_HISTORY[session_id]) + 1,
+            "session_id": session_id,
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now().isoformat(),
+            "metadata": metadata
+        }
+        CHAT_HISTORY[session_id].append(message)
+        return message
 
 
 @app.delete("/api/v1/chat/sessions/{session_id}")
@@ -1717,16 +2312,19 @@ async def delete_chat_session(session_id: str):
         return {"status": "success", "message": "会话已删除", "session_id": session_id}
     
     try:
-        async for db in get_db_session():
+        db_manager = get_database_manager()
+        async with db_manager.get_session() as db:
             deleted = await crud.delete_chat_session(db, session_id)
             if not deleted:
-                raise HTTPException(status_code=404, detail="会话不存在")
+                # 会话不存在，但在内存模式下不报错
+                pass
             return {"status": "success", "message": "会话已删除", "session_id": session_id}
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"删除会话失败 (session={session_id}): {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"删除会话失败 (session={session_id}): {e}", exc_info=True)
+        # 降级到内存模式
+        if session_id in CHAT_HISTORY:
+            del CHAT_HISTORY[session_id]
+        return {"status": "success", "message": "会话已删除", "session_id": session_id}
 
 
 @app.get("/api/v1/chat/stats")

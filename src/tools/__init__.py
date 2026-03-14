@@ -16,7 +16,7 @@
 """
 
 # 基类和结果
-from .base import BaseTool, ToolParameter, ToolResult, ToolStatus
+from .base import BaseTool, OutputField, OutputSchema, ToolParameter, ToolResult, ToolStatus
 
 # 错误模型
 from .errors import (
@@ -52,6 +52,7 @@ from .policy import (
     AgentToolsConfig,
     ToolPolicyEngine,
     ToolsConfig,
+    WebToolsConfig,
     create_policy_engine,
     get_policy_engine,
 )
@@ -103,6 +104,22 @@ from .builtin import (
     MemoryGetTool,
     MemoryBackend,
     InMemoryBackend,
+    # Browser
+    BrowserTool,
+    BrowserState,
+    BrowserSession,
+    BrowserSessionManager,
+    ElementRef,
+    TabInfo,
+    get_browser_session_manager,
+    browser_action,
+    start_browser,
+    browser_snapshot,
+    browser_click,
+    browser_type,
+    browser_navigate,
+    browser_screenshot,
+    stop_browser,
 )
 
 # 旧版工具集合（保持向后兼容）
@@ -116,6 +133,8 @@ __all__ = [
     # 基类和结果
     "BaseTool",
     "ToolParameter",
+    "OutputField",
+    "OutputSchema",
     "ToolResult",
     "ToolStatus",
     # 错误模型
@@ -147,6 +166,7 @@ __all__ = [
     "ToolPolicyEngine",
     "ToolsConfig",
     "AgentToolsConfig",
+    "WebToolsConfig",
     "create_policy_engine",
     "get_policy_engine",
     # 呈现器
@@ -188,6 +208,22 @@ __all__ = [
     "MemoryGetTool",
     "MemoryBackend",
     "InMemoryBackend",
+    # Browser 工具
+    "BrowserTool",
+    "BrowserState",
+    "BrowserSession",
+    "BrowserSessionManager",
+    "ElementRef",
+    "TabInfo",
+    "get_browser_session_manager",
+    "browser_action",
+    "start_browser",
+    "browser_snapshot",
+    "browser_click",
+    "browser_type",
+    "browser_navigate",
+    "browser_screenshot",
+    "stop_browser",
     # 旧版工具集合（向后兼容）
     "CodeTools",
     "FileTools",

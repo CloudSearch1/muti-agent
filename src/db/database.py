@@ -446,8 +446,12 @@ def get_database_manager(database_url: str | None = None, **kwargs) -> DatabaseM
     """获取数据库管理器单例"""
     global _db_manager
     if _db_manager is None:
-        _db_manager = DatabaseManager(database_url, **kwargs)
-        _db_manager.connect()
+        try:
+            _db_manager = DatabaseManager(database_url, **kwargs)
+            _db_manager.connect()
+        except Exception as e:
+            logger.error(f"数据库连接失败: {e}", exc_info=True)
+            raise
     return _db_manager
 
 

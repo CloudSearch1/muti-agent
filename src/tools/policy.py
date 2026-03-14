@@ -172,6 +172,56 @@ class LoopDetectionConfig(BaseModel):
 
 
 # =============================================================================
+# Web 工具配置
+# =============================================================================
+
+class WebToolsConfig(BaseModel):
+    """
+    Web 工具全局配置
+    
+    控制 web_fetch 和 web_search 工具的行为。
+    """
+    
+    cache_ttl_sec: int = Field(
+        default=900,
+        description="缓存有效期（秒），默认 15 分钟",
+    )
+    max_chars_cap: int = Field(
+        default=20000,
+        description="最大字符数上限",
+    )
+    allow_private_network: bool = Field(
+        default=False,
+        description="是否允许访问私网地址（不推荐启用）",
+    )
+    default_timeout_ms: int = Field(
+        default=20000,
+        description="默认请求超时（毫秒）",
+    )
+    
+    @field_validator("cache_ttl_sec")
+    @classmethod
+    def validate_cache_ttl(cls, v: int) -> int:
+        if v < 0:
+            raise ValueError("cache_ttl_sec must be non-negative")
+        if v > 3600:
+            logger.warning(
+                "Long cache TTL may cause stale results",
+                cache_ttl_sec=v,
+            )
+        return v
+    
+    @field_validator("max_chars_cap")
+    @classmethod
+    def validate_max_chars_cap(cls, v: int) -> int:
+        if v < 1000:
+            raise ValueError("max_chars_cap must be at least 1000")
+        if v > 100000:
+            raise ValueError("max_chars_cap must not exceed 100000")
+        return v
+
+
+# =============================================================================
 # 策略配置模型
 # =============================================================================
 
@@ -264,6 +314,10 @@ class ToolsConfig(BaseModel):
         default=None,
         description="循环检测配置",
     )
+    web: Optional[WebToolsConfig] = Field(
+        default=None,
+        description="Web 工具全局配置",
+    )
     
     @field_validator("profile")
     @classmethod
@@ -271,6 +325,15 @@ class ToolsConfig(BaseModel):
         if v not in [p.value for p in ProfileType]:
             raise ValueError(f"Invalid profile: {v}. Must be one of: {[p.value for p in ProfileType]}")
         return v
+    
+    def get_web_config(self) -> WebToolsConfig:
+        """
+        获取 Web 工具配置
+        
+        Returns:
+            WebToolsConfig 实例，如果未设置则返回默认值
+        """
+        return self.web or WebToolsConfig()
 
 
 # =============================================================================

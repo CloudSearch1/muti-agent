@@ -26,7 +26,7 @@ from typing import Any, Optional
 import structlog
 from pydantic import BaseModel, Field
 
-from ..base import BaseTool, ToolParameter, ToolResult
+from ..base import BaseTool, OutputField, OutputSchema, ToolParameter, ToolResult
 from ..errors import ErrorCode, StandardError
 
 logger = structlog.get_logger(__name__)
@@ -543,6 +543,7 @@ class SessionsListTool(BaseTool):
 
     NAME = "sessions_list"
     DESCRIPTION = "列出会话"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, manager: Optional[SessionToolManager] = None, **kwargs):
         super().__init__(**kwargs)
@@ -571,6 +572,18 @@ class SessionsListTool(BaseTool):
                 required=False,
             ),
         ]
+
+    @property
+    def output_schema(self) -> OutputSchema:
+        """获取工具输出模式定义"""
+        return OutputSchema(
+            description="Session list result",
+            fields=[
+                OutputField(name="items", type="array", description="List of sessions", required=True),
+                OutputField(name="nextCursor", type="string", description="Next page cursor", required=False),
+                OutputField(name="hasMore", type="boolean", description="Whether more results exist", required=True),
+            ],
+        )
 
     async def execute(self, **kwargs) -> ToolResult:
         cursor = kwargs.get("cursor")
@@ -601,6 +614,7 @@ class SessionsHistoryTool(BaseTool):
 
     NAME = "sessions_history"
     DESCRIPTION = "获取会话历史消息"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, manager: Optional[SessionToolManager] = None, **kwargs):
         super().__init__(**kwargs)
@@ -629,6 +643,17 @@ class SessionsHistoryTool(BaseTool):
                 default=50,
             ),
         ]
+
+    @property
+    def output_schema(self) -> OutputSchema:
+        """获取工具输出模式定义"""
+        return OutputSchema(
+            description="Session history messages",
+            fields=[
+                OutputField(name="items", type="array", description="List of messages", required=True),
+                OutputField(name="nextCursor", type="string", description="Next page cursor", required=False),
+            ],
+        )
 
     async def execute(self, **kwargs) -> ToolResult:
         session_id = kwargs.get("sessionId")
@@ -665,6 +690,7 @@ class SessionsSendTool(BaseTool):
 
     NAME = "sessions_send"
     DESCRIPTION = "向指定会话发送消息"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, manager: Optional[SessionToolManager] = None, **kwargs):
         super().__init__(**kwargs)
@@ -692,6 +718,17 @@ class SessionsSendTool(BaseTool):
                 required=False,
             ),
         ]
+
+    @property
+    def output_schema(self) -> OutputSchema:
+        """获取工具输出模式定义"""
+        return OutputSchema(
+            description="Message send result",
+            fields=[
+                OutputField(name="accepted", type="boolean", description="Whether message was accepted", required=True),
+                OutputField(name="messageId", type="string", description="Message ID", required=False),
+            ],
+        )
 
     async def execute(self, **kwargs) -> ToolResult:
         session_id = kwargs.get("sessionId")
@@ -742,6 +779,7 @@ class SessionsSpawnTool(BaseTool):
 
     NAME = "sessions_spawn"
     DESCRIPTION = "创建新会话"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, manager: Optional[SessionToolManager] = None, **kwargs):
         super().__init__(**kwargs)
@@ -828,6 +866,7 @@ class SessionStatusTool(BaseTool):
 
     NAME = "session_status"
     DESCRIPTION = "查询会话状态"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, manager: Optional[SessionToolManager] = None, **kwargs):
         super().__init__(**kwargs)
@@ -883,6 +922,7 @@ class AgentsListTool(BaseTool):
 
     NAME = "agents_list"
     DESCRIPTION = "列出可用 agents"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(self, manager: Optional[SessionToolManager] = None, **kwargs):
         super().__init__(**kwargs)

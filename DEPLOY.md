@@ -36,12 +36,14 @@ venv\Scripts\activate  # Windows
 
 ```bash
 pip install -r requirements.txt
+# 或
+python scripts\install_requirements.py  # Windows
 ```
 
 ### 5. 启动服务
 
 ```bash
-python3 webui/app.py
+python webui/app.py
 ```
 
 ### 6. 访问应用

@@ -19,7 +19,7 @@ from typing import Any
 import structlog
 from pydantic import BaseModel, Field
 
-from ..base import BaseTool, ToolParameter, ToolResult
+from ..base import BaseTool, OutputField, OutputSchema, ToolParameter, ToolResult
 from ..errors import ErrorCode
 
 logger = structlog.get_logger(__name__)
@@ -296,6 +296,7 @@ class MemorySearchTool(BaseTool):
 
     NAME = "memory_search"
     DESCRIPTION = "Search agent's memory for relevant information"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(
         self,
@@ -344,6 +345,45 @@ class MemorySearchTool(BaseTool):
                 description="Memory namespace to search within",
             ),
         ]
+
+    @property
+    def output_schema(self) -> OutputSchema:
+        """
+        获取工具输出模式定义
+
+        Returns:
+            MemorySearchTool 的输出模式
+        """
+        return OutputSchema(
+            description="Memory search results",
+            fields=[
+                OutputField(
+                    name="memories",
+                    type="array",
+                    description="List of matching memory entries",
+                    required=True,
+                ),
+                OutputField(
+                    name="count",
+                    type="integer",
+                    description="Number of results returned",
+                    required=True,
+                ),
+            ],
+            nested_schemas={
+                "memory_entry": OutputSchema(
+                    description="Memory entry",
+                    fields=[
+                        OutputField(name="id", type="string", description="Memory ID", required=True),
+                        OutputField(name="agent_id", type="string", description="Agent ID", required=True),
+                        OutputField(name="content", type="string", description="Memory content", required=True),
+                        OutputField(name="namespace", type="string", description="Namespace", required=True),
+                        OutputField(name="created_at", type="string", description="Creation time (ISO 8601)", required=True),
+                        OutputField(name="score", type="number", description="Relevance score", required=False),
+                    ],
+                ),
+            },
+        )
 
     async def execute(
         self,
@@ -429,6 +469,7 @@ class MemoryGetTool(BaseTool):
 
     NAME = "memory_get"
     DESCRIPTION = "Retrieve specific memory entry by ID"
+    SCHEMA_VERSION = "1.0.0"
 
     def __init__(
         self,
@@ -463,6 +504,26 @@ class MemoryGetTool(BaseTool):
                 description="Agent ID for access control",
             ),
         ]
+
+    @property
+    def output_schema(self) -> OutputSchema:
+        """
+        获取工具输出模式定义
+
+        Returns:
+            MemoryGetTool 的输出模式
+        """
+        return OutputSchema(
+            description="Memory entry data",
+            fields=[
+                OutputField(name="id", type="string", description="Memory ID", required=True),
+                OutputField(name="agent_id", type="string", description="Agent ID", required=True),
+                OutputField(name="content", type="string", description="Memory content", required=True),
+                OutputField(name="namespace", type="string", description="Namespace", required=True),
+                OutputField(name="created_at", type="string", description="Creation time (ISO 8601)", required=True),
+                OutputField(name="metadata", type="object", description="Additional metadata", required=False),
+            ],
+        )
 
     async def execute(
         self,

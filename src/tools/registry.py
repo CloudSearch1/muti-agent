@@ -259,6 +259,7 @@ class ToolRegistry(BaseModel):
             SessionsSpawnTool,
             SessionStatusTool,
             AgentsListTool,
+            BrowserTool,
         )
 
         # 注册基础工具（不需要特殊参数）
@@ -274,6 +275,7 @@ class ToolRegistry(BaseModel):
             SessionsSpawnTool(),
             SessionStatusTool(),
             AgentsListTool(),
+            BrowserTool(),
         ]
 
         for tool in tools_to_register:

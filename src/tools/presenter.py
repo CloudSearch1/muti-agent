@@ -244,14 +244,21 @@ class ToolPresenter:
         """
         parameters_schema = self._generate_parameters_schema(tool)
 
-        return {
+        schema: dict[str, Any] = {
             "type": "function",
             "function": {
                 "name": tool.NAME,
                 "description": tool.DESCRIPTION or "No description available.",
                 "parameters": parameters_schema,
             },
+            "x-schema-version": tool.SCHEMA_VERSION,
         }
+
+        # 添加输出模式定义（如果工具定义了 output_schema）
+        if tool.output_schema:
+            schema["x-output-schema"] = tool.output_schema.to_dict()
+
+        return schema
 
     def _generate_parameters_schema(self, tool: BaseTool) -> dict[str, Any]:
         """

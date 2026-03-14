@@ -306,7 +306,7 @@
                                      aria-label="AI 回复内容"></div>
                                 <div v-else>{{ msg.content }}</div>
                                 <div class="flex items-center gap-2 mt-1 text-xs opacity-60">
-                                    <time :datetime="new Date(msg.time).toISOString()">{{ formatDate(msg.time, 'HH:mm') }}</time>
+                                    <time :datetime="formatDate(msg.time, 'YYYY-MM-DDTHH:mm:ss')">{{ formatDate(msg.time, 'HH:mm') }}</time>
                                     <span v-if="msg.model" class="px-1.5 py-0.5 bg-gh-bg rounded" :aria-label="'使用模型：' + msg.model">{{ msg.model }}</span>
                                 </div>
                             </div>
