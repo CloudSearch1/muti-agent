@@ -86,9 +86,9 @@ class DebugTracer:
             # 实时写入文件（避免内存占用过大）
             if len(self.events) % 10 == 0:
                 self._write_trace()
-        
-        # 订阅 Agent 事件
-        agent.subscribe(trace_event)
+
+        # 保存取消订阅函数以便清理
+        self._unsubscribe = agent.subscribe(trace_event)
     
     def _serialize_event(self, event: Any) -> dict[str, Any]:
         """
@@ -179,9 +179,9 @@ class DebugTracer:
     
     def _write_trace(self) -> None:
         """写入追踪文件"""
+        trace_file = self.output_dir / f"{self.trace_id}.json"
+
         try:
-            trace_file = self.output_dir / f"{self.trace_id}.json"
-            
             with open(trace_file, "w", encoding="utf-8") as f:
                 json.dump({
                     "trace_id": self.trace_id,
@@ -196,13 +196,20 @@ class DebugTracer:
     def generate_report(self) -> Path:
         """
         生成调试报告
-        
+
         Returns:
             报告文件路径
         """
         # 确保所有事件已写入
         self._write_trace()
-        
+
+        # 取消订阅（如果支持）
+        if self._unsubscribe:
+            try:
+                self._unsubscribe()
+            except Exception:
+                pass
+
         # 生成 Markdown 报告
         return self._generate_markdown_report()
     
@@ -293,13 +300,15 @@ class DebugTracer:
             
             # 添加工具调用节点
             for i, _ in enumerate(tool_events, 1):
-                flow += f"    MessageUpdate --> Tool{i}[执行工具 {i}]\n"
-                flow += f"    Tool{i} --> Tool{i}End[工具 {i} 完成]\n"
-                
-                if i < len(tool_events):
-                    flow += f"    Tool{i}End --> Tool{i+1}\n"
+                if i == 1:
+                    flow += f"    LLMCall --> Tool1[执行工具 1]\n"
                 else:
-                    flow += f"    Tool{i}End --> TurnEnd[回合结束]\n"
+                    flow += f"    Tool{i-1}End --> Tool{i}[执行工具 {i}]\n"
+                flow += f"    Tool{i} --> Tool{i}End[工具 {i} 完成]\n"
+
+            # 最后一个工具结束连到回合结束
+            last_idx = len(tool_events)
+            flow += f"    Tool{last_idx}End --> TurnEnd[回合结束]\n"
         else:
             flow += "    LLMCall --> TurnEnd[回合结束]\n"
         

@@ -151,28 +151,45 @@ class MessageRouter:
     ) -> IntegrationResponse:
         """
         使用 Agent 处理消息
-        
+
         Args:
             agent: Agent 实例
             message: 集成消息
-            
+
         Returns:
             集成响应
         """
         # 收集完整响应
         response_parts = []
-        
+
         def on_event(event: Any) -> None:
             """收集 Agent 输出"""
             if hasattr(event, 'type') and event.type == "message_update":
                 if hasattr(event, 'delta') and event.delta:
                     response_parts.append(event.delta)
-        
-        # 订阅 Agent 事件
-        agent.subscribe(on_event)
-        
-        # 发送提示
-        await agent.prompt(message.text)
+
+        # 订阅 Agent 事件（使用 try-finally 确保清理）
+        handler_id = None
+        try:
+            # 如果 Agent 支持 unsubscribe，保存 handler_id
+            if hasattr(agent, 'subscribe'):
+                handler_id = agent.subscribe(on_event)
+
+            # 发送提示
+            await agent.prompt(message.text)
+        except Exception as e:
+            print(f"Agent 处理消息失败: {e}")
+            return IntegrationResponse(
+                text=f"处理消息时发生错误: {e}",
+                thread_id=message.raw_data.get("ts") if message.raw_data else None
+            )
+        finally:
+            # 如果有 unsubscribe 方法，取消订阅
+            if handler_id and hasattr(agent, 'unsubscribe'):
+                try:
+                    agent.unsubscribe(handler_id)
+                except Exception:
+                    pass  # 忽略取消订阅错误
         
         # 构建响应
         response_text = "".join(response_parts)

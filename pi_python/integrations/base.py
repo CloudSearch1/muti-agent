@@ -6,10 +6,14 @@ PI-Python 集成基类
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Callable, Awaitable
 import asyncio
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -113,7 +117,7 @@ class BaseIntegration(ABC):
         for result in results:
             if isinstance(result, Exception):
                 # 记录异常但不中断其他处理器
-                print(f"处理器错误: {result}")
+                logger.error(f"处理器错误: {result}")
                 continue
             
             if isinstance(result, IntegrationResponse):

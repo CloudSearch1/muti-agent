@@ -252,7 +252,7 @@ class AgentTestFixture:
         return self.get_output()
     
     @staticmethod
-       def create_mock_tool(name: str = "mock_tool", return_value: str = "mock result") -> MockTool:
+    def create_mock_tool(name: str = "mock_tool", return_value: str = "mock result") -> MockTool:
         """
         创建 Mock 工具
         

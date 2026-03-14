@@ -64,22 +64,20 @@ class IntegrationRegistry:
         """
         return list(self._integrations.items())
     
-    def start_all(self) -> None:
+    async def start_all(self) -> None:
         """启动所有集成"""
         for name, integration in self._integrations.items():
             try:
-                import asyncio
-                asyncio.create_task(integration.start())
+                await integration.start()
                 print(f"集成 {name} 已启动")
             except Exception as e:
                 print(f"启动集成 {name} 失败: {e}")
-    
-    def stop_all(self) -> None:
+
+    async def stop_all(self) -> None:
         """停止所有集成"""
         for name, integration in self._integrations.items():
             try:
-                import asyncio
-                asyncio.create_task(integration.stop())
+                await integration.stop()
                 print(f"集成 {name} 已停止")
             except Exception as e:
                 print(f"停止集成 {name} 失败: {e}")

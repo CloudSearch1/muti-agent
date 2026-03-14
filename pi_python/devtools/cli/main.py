@@ -6,6 +6,7 @@ PI-Python CLI 入口
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -14,7 +15,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ... import Agent, AgentState, get_model
-from ...agent.tools import BashTool, FileTool
+from ...agent.tools import BashTool, ReadFileTool, WriteFileTool
 from .repl import ReplSession
 
 
@@ -31,10 +32,6 @@ def start(
     skills_dir: Optional[Path] = typer.Option(
         None, "--skills", "-s",
         help="技能目录路径"
-    ),
-    extensions_dir: Optional[Path] = typer.Option(
-        None, "--extensions", "-e",
-        help="扩展目录路径"
     ),
     debug: bool = typer.Option(
         False, "--debug", "-d",
@@ -60,7 +57,7 @@ def start(
             initial_state=AgentState(
                 system_prompt=system_prompt or _get_default_system_prompt(),
                 model=get_model(provider, model_id),
-                tools=[BashTool(), FileTool()],
+                tools=[BashTool(), ReadFileTool(), WriteFileTool()],
                 messages=[]
             ),
             skills_dir=skills_dir,
@@ -82,7 +79,6 @@ def start(
         f"[bold green]PI-Python 编程助手已启动[/bold green]\n"
         f"模型: {model}\n"
         f"技能目录: {skills_dir or '无'}\n"
-        f"扩展目录: {extensions_dir or '无'}\n"
         f"调试模式: {'开启' if debug else '关闭'}",
         title="欢迎使用"
     ))

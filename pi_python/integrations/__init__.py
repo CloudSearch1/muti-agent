@@ -10,18 +10,19 @@ from .base import (
     IntegrationResponse,
     IntegrationHandler,
 )
-from .registry import IntegrationRegistry
+from .registry import IntegrationRegistry, get_integration_registry
 from .router import MessageRouter, Route
 
 __all__ = [
     # 基类和类型
     "BaseIntegration",
-    "IntegrationMessage", 
+    "IntegrationMessage",
     "IntegrationResponse",
     "IntegrationHandler",
-    
+
     # 注册表和路由
     "IntegrationRegistry",
+    "get_integration_registry",
     "MessageRouter",
     "Route",
 ]

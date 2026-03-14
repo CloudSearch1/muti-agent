@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pi_python.agent.tools import AgentTool, ToolResult
 from pi_python.ai.types import TextContent
 

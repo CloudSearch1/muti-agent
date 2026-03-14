@@ -92,6 +92,10 @@ class SlackIntegration(BaseIntegration):
         async def handle_message(message: dict[str, Any], say: Any) -> None:
             """处理直接消息"""
             try:
+                # 过滤 Bot 自身消息
+                if message.get("bot_id") or message.get("subtype") == "bot_message":
+                    return
+
                 # 只处理 DM，不处理频道消息（避免重复）
                 if message.get("channel_type") != "im":
                     return

@@ -27,7 +27,7 @@ class ReplSession:
     ):
         """
         初始化 REPL 会话
-        
+
         Args:
             agent: Agent 实例
             console: Rich 控制台
@@ -39,8 +39,9 @@ class ReplSession:
         self.debug = debug
         self.tracer = tracer
         self.history: list[str] = []
-        
-        # 订阅 Agent 事件
+
+        # 订阅 Agent 事件（只订阅一次）
+        self._request_handler: Callable[[AgentEvent], None] | None = None
         self.agent.subscribe(self._on_agent_event)
     
     async def run(self) -> None:
@@ -248,12 +249,12 @@ class ReplSession:
     
     async def _process_request(self, user_input: str) -> None:
         """处理用户请求"""
-        
+
         from rich.live import Live
         from rich.markdown import Markdown
         from rich.panel import Panel
         from rich.spinner import Spinner
-        
+
         # 显示思考中提示
         with Live(
             Spinner("dots", text="思考中..."),
@@ -261,15 +262,15 @@ class ReplSession:
             refresh_per_second=10,
             transient=True
         ) as live:
-            
+
             response_parts = []
-            
+
             def on_event(event: AgentEvent) -> None:
                 """收集 Agent 输出"""
                 if event.type == AgentEventType.MESSAGE_UPDATE:
                     if hasattr(event, 'delta') and event.delta:
                         response_parts.append(event.delta)
-                        
+
                         # 更新显示
                         content = "".join(response_parts)
                         live.update(
@@ -279,13 +280,13 @@ class ReplSession:
                                 border_style="blue"
                             )
                         )
-                
+
                 elif event.type == AgentEventType.TOOL_EXECUTION_START:
                     tool_name = getattr(event, 'tool_name', 'unknown')
                     live.update(
                         Spinner("dots", text=f"正在执行 {tool_name}...")
                     )
-                
+
                 elif event.type == AgentEventType.ERROR:
                     error_msg = getattr(event, 'error', '未知错误')
                     live.update(
@@ -295,17 +296,20 @@ class ReplSession:
                             border_style="red"
                         )
                     )
-            
-            # 订阅 Agent 事件
-            self.agent.subscribe(on_event)
-            
+
+            # 设置临时请求处理器
+            self._request_handler = on_event
+
             # 发送提示
             try:
                 await self.agent.prompt(user_input)
             except Exception as e:
                 self.console.print(f"\n[red]处理请求失败: {e}[/red]")
                 return
-            
+            finally:
+                # 清理请求处理器
+                self._request_handler = None
+
             # 显示完成消息
             if response_parts:
                 content = "".join(response_parts)
@@ -319,5 +323,6 @@ class ReplSession:
     
     async def _on_agent_event(self, event: AgentEvent) -> None:
         """处理 Agent 事件（会话级别）"""
-        # 可以在这里添加额外的事件处理逻辑
-        pass
+        # 如果有请求处理器，转发事件
+        if self._request_handler:
+            self._request_handler(event)
