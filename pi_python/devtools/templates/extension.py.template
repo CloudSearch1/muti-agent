@@ -1,0 +1,83 @@
+"""
+{{EXTENSION_NAME}} 扩展
+
+扩展描述：这个扩展用于...
+"""
+
+from __future__ import annotations
+
+from pi_python.agent.tools import AgentTool, ToolResult
+from pi_python.ai.types import TextContent
+
+
+def extension(pi: Any) -> None:
+    """
+    扩展入口函数
+    
+    Args:
+        pi: 扩展 API 对象
+    """
+    
+    # 示例：注册事件处理器
+    @pi.on("agent_start")
+    async def on_agent_start(event: Any, ctx: Any) -> None:
+        """Agent 启动时触发"""
+        print("Agent 已启动")
+    
+    # 示例：注册工具
+    @pi.register_tool
+    class ExampleTool(AgentTool):
+        """示例工具"""
+        
+        name = "example_tool"
+        label = "示例工具"
+        description = "这是一个示例工具，展示如何创建扩展工具"
+        
+        parameters = {
+            "input": {
+                "type": "string",
+                "description": "输入参数",
+                "required": True
+            }
+        }
+        
+        async def execute(
+            self,
+            tool_call_id: str,
+            params: dict,
+            **kwargs
+        ) -> ToolResult:
+            """执行工具"""
+            input_text = params.get("input", "")
+            
+            # 工具逻辑
+            result = f"处理输入: {input_text}"
+            
+            return ToolResult(
+                content=[TextContent(text=result)],
+                details={"processed": True}
+            )
+    
+    # 示例：注册命令
+    # pi.register_command("example", example_command)
+    
+    print(f"{{EXTENSION_NAME}} 扩展已加载")
+
+
+# 如果需要，可以定义额外的辅助函数和类
+
+
+class HelperClass:
+    """辅助类示例"""
+    
+    def __init__(self, config: dict | None = None):
+        self.config = config or {}
+    
+    def process(self, data: Any) -> Any:
+        """处理方法示例"""
+        return data
+
+
+def helper_function(data: Any) -> Any:
+    """辅助函数示例"""
+    return data
