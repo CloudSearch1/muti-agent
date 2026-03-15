@@ -118,11 +118,17 @@ class Agent:
 
     async def _emit(self, event: AgentEvent) -> None:
         """发射事件"""
+        import logging
+        _logger = logging.getLogger(__name__)
         for callback in self._subscribers:
             try:
                 await callback(event)
-            except Exception:
-                pass  # 忽略订阅者错误
+            except Exception as e:
+                # 记录订阅者错误，避免静默忽略
+                _logger.warning(
+                    f"Event subscriber callback failed: {e}",
+                    exc_info=True,
+                )
 
     def _default_convert_to_llm(self, messages: list[Message]) -> list[Message]:
         """默认消息转换"""

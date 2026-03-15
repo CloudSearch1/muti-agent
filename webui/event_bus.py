@@ -94,8 +94,14 @@ class EventBus:
                 try:
                     self._subscribers[event_type].remove(callback)
                     logger.debug(f"Unsubscribed from {event_type}")
+                    # 清理空列表，防止内存泄漏和竞态条件
+                    if not self._subscribers[event_type]:
+                        del self._subscribers[event_type]
+                        logger.debug(f"Cleaned up empty subscriber list for {event_type}")
                 except ValueError:
-                    pass
+                    logger.warning(
+                        f"Attempted to unsubscribe non-existent callback from {event_type}"
+                    )
     
     async def publish(self, event: AgentEvent):
         """发布事件"""

@@ -230,18 +230,23 @@ class StateStore:
 # 全局状态存储实例
 _state_store: StateStore | None = None
 _state_store_lock = asyncio.Lock()
+# 线程锁用于同步初始化（防止多线程竞态）
+import threading
+_state_store_thread_lock = threading.Lock()
 
 
 def get_state_store() -> StateStore:
     """
-    获取状态存储实例
+    获取状态存储实例（线程安全）
 
-    注意：此函数使用惰性初始化模式。首次调用时会创建实例。
-    在高并发场景下，可能会有多个实例被创建，但最终只有一个会被使用。
+    使用线程锁确保单例初始化的线程安全性。
     """
     global _state_store
     if _state_store is None:
-        _state_store = StateStore()
+        with _state_store_thread_lock:
+            # 双重检查，防止在等待锁时其他线程已初始化
+            if _state_store is None:
+                _state_store = StateStore()
     return _state_store
 
 

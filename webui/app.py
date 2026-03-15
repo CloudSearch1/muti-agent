@@ -541,12 +541,25 @@ def _validate_skill_path(file_path: Path) -> bool:
         如果路径在 SKILLS_DIR 内返回 True，否则返回 False
     """
     try:
-        # 解析绝对路径
+        # 解析绝对路径（follow symlinks）
         resolved_path = file_path.resolve()
         skills_dir_resolved = SKILLS_DIR.resolve()
 
         # 检查路径是否在 skills 目录内
-        return str(resolved_path).startswith(str(skills_dir_resolved))
+        # 使用 Path.is_relative_to (Python 3.9+) 或手动检查
+        try:
+            # Python 3.9+ 方法
+            resolved_path.relative_to(skills_dir_resolved)
+            return True
+        except (ValueError, AttributeError):
+            # 对于不支持 is_relative_to 的版本，使用字符串比较
+            # 确保 skills_dir_resolved 以分隔符结尾，防止前缀匹配攻击
+            # 例如：/app/skills2 不应该匹配 /app/skills
+            skills_dir_str = str(skills_dir_resolved)
+            if not skills_dir_str.endswith('/'):
+                skills_dir_str += '/'
+            resolved_str = str(resolved_path)
+            return resolved_str.startswith(skills_dir_str) or resolved_str == str(skills_dir_resolved)
     except Exception:
         return False
 
