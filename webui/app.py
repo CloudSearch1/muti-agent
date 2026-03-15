@@ -586,6 +586,12 @@ if not SKILLS_DATA:
 
 # ============ API 路由 ============
 
+# 处理 Chrome DevTools 的自动请求，避免 404 日志噪音
+@app.get("/.well-known/appspecific/com.chrome.devtools.json")
+async def chrome_devtools_well_known():
+    """返回空响应以消除 Chrome DevTools 自动请求的 404 日志"""
+    return JSONResponse(content={}, status_code=204)
+
 @app.get("/")
 async def root():
     """返回仪表盘页面（根目录）"""
@@ -1368,6 +1374,23 @@ class ChatRequest(BaseModel):
     # 工具调用支持
     enable_tools: bool = True  # 是否启用工具调用（默认启用）
     tool_profile: str = "coding"  # 工具策略 profile
+    session_id: Optional[str] = None  # 会话 ID（用于工具注入）
+
+
+class ReActRequest(BaseModel):
+    """ReAct Agent 请求模型"""
+    messages: List[ChatMessage]
+    agent_type: str = "coder"  # Agent 类型: coder, tester, architect
+    temperature: float = 0.7
+    max_iterations: int = 15  # 最大推理迭代次数
+    stream: bool = True
+    # 支持自定义 AI 配置
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    apiKey: Optional[str] = None
+    endpoint: Optional[str] = None  # 自定义 API 端点
+    session_id: Optional[str] = None
+
 
 # 聊天历史存储（内存中，实际应用应使用数据库）
 CHAT_HISTORY: dict[str, list] = {}
@@ -1382,6 +1405,7 @@ async def generate_agent_response(
     model: str = None,
     endpoint: str = None,
     tool_profile: str = "coding",
+    session_id: str = None,
 ) -> AsyncGenerator[str, None]:
     """
     使用 Agent 框架生成聊天响应（支持工具调用）
@@ -1398,6 +1422,7 @@ async def generate_agent_response(
         model: 模型名称
         endpoint: 自定义端点
         tool_profile: 工具策略 profile
+        session_id: 会话 ID（用于工具注入）
         
     Yields:
         SSE 格式的流式响应
@@ -1538,6 +1563,14 @@ async def generate_agent_response(
                     function_args = json.loads(function_args_str)
                 except json.JSONDecodeError:
                     function_args = {}
+                
+                # 🔧 自动注入 agent_id（针对需要 agent_id 的工具）
+                tools_requiring_agent_id = ["memory_search", "memory_get"]
+                if function_name in tools_requiring_agent_id and "agent_id" not in function_args:
+                    # 使用 session_id 作为 agent_id，如果没有则生成一个
+                    agent_id = session_id or f"session-{hash(str(messages))}"
+                    function_args["agent_id"] = agent_id
+                    logger.info(f"[Agent] 自动注入 agent_id: {agent_id} for tool {function_name}")
                 
                 # 发送工具开始事件
                 tool_start_info = {
@@ -2019,6 +2052,438 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
         yield "data: [DONE]\n\n"
 
 
+async def generate_react_response(
+    messages: List[ChatMessage],
+    agent_type: str = "coder",
+    temperature: float = 0.7,
+    max_iterations: int = 15,
+    provider: str = "bailian",
+    api_key: str = None,
+    model: str = None,
+    endpoint: str = None,
+    session_id: str = None,
+) -> AsyncGenerator[str, None]:
+    """
+    使用 ReAct Agent 生成响应
+    
+    ReAct Agent 通过推理-行动循环完成任务，支持动态工具调用和完整推理链追踪。
+    
+    **实时进展推送**：
+    - 通过 WebSocket 实时推送每个推理步骤
+    - 通过 SSE 发送最终结果
+    
+    Args:
+        messages: 聊天消息列表
+        agent_type: Agent 类型（coder, tester, architect）
+        temperature: 温度参数
+        max_iterations: 最大推理迭代次数
+        provider: LLM 提供商
+        api_key: API 密钥
+        model: 模型名称
+        endpoint: 自定义 API 端点
+        session_id: 会话 ID
+        
+    Yields:
+        SSE 格式的流式响应
+    """
+    try:
+        # 导入 ReAct Agent
+        from src.agents.react_coder import create_react_coder_agent
+        from src.agents.react_tester import create_react_tester_agent
+        from src.agents.react_architect import create_react_architect_agent
+        from src.react import ReActConfig
+        from src.core import Task
+        from langchain_openai import ChatOpenAI
+        
+        # ===== 创建实时进展推送回调 =====
+        # 导入 LangChain 回调基类
+        try:
+            from langchain_core.callbacks import BaseCallbackHandler
+        except ImportError:
+            from langchain.callbacks.base import BaseCallbackHandler
+        
+        class RealTimeProgressCallback(BaseCallbackHandler):
+            """实时推送 ReAct 执行进展的回调，包含 LLM token 流式输出"""
+            
+            def __init__(self, ws_manager, session_id):
+                self.ws_manager = ws_manager
+                self.session_id = session_id
+                self.step_counter = 0
+                self.start_time = None
+                self.current_tool_name = None
+                # LLM 输出相关
+                self.current_llm_output = ""  # 当前 LLM 输出缓冲
+                self.is_llm_streaming = False  # 是否正在流式输出
+                self.llm_call_id = 0  # LLM 调用计数
+            
+            def on_llm_start(self, serialized, prompts, **kwargs):
+                """LLM 开始生成时"""
+                from datetime import datetime
+                import asyncio
+                
+                self.llm_call_id += 1
+                self.current_llm_output = ""
+                self.is_llm_streaming = True
+                
+                # 推送 LLM 开始事件
+                self._safe_broadcast({
+                    "type": "react_progress",
+                    "data": {
+                        "session_id": self.session_id,
+                        "event": "llm_start",
+                        "llm_call_id": self.llm_call_id,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                })
+            
+            def on_llm_new_token(self, token, **kwargs):
+                """LLM 生成新 token 时推送"""
+                from datetime import datetime
+                
+                self.current_llm_output += token
+                
+                # 每 5 个 token 或遇到换行时推送一次（减少推送频率）
+                if len(self.current_llm_output) % 5 == 0 or token in ['\n', '。', '：', ':']:
+                    self._safe_broadcast({
+                        "type": "react_progress",
+                        "data": {
+                            "session_id": self.session_id,
+                            "event": "llm_token",
+                            "llm_call_id": self.llm_call_id,
+                            "token": token,
+                            "current_output": self.current_llm_output,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    })
+            
+            def on_llm_end(self, response, **kwargs):
+                """LLM 生成结束时"""
+                from datetime import datetime
+                
+                self.is_llm_streaming = False
+                
+                # 推送完整的 LLM 输出
+                self._safe_broadcast({
+                    "type": "react_progress",
+                    "data": {
+                        "session_id": self.session_id,
+                        "event": "llm_end",
+                        "llm_call_id": self.llm_call_id,
+                        "full_output": self.current_llm_output,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                })
+            
+            def on_tool_start(self, serialized, input_str, **kwargs):
+                """工具开始执行时推送"""
+                from datetime import datetime
+                
+                self.step_counter += 1
+                if self.start_time is None:
+                    self.start_time = datetime.now()
+                
+                tool_name = serialized.get("name", "unknown")
+                self.current_tool_name = tool_name
+                
+                # 通过 WebSocket 推送进展
+                self._safe_broadcast({
+                    "type": "react_progress",
+                    "data": {
+                        "session_id": self.session_id,
+                        "event": "tool_start",
+                        "step": self.step_counter,
+                        "tool": tool_name,
+                        "input": input_str[:200] if input_str else "",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                })
+            
+            def on_tool_end(self, output, **kwargs):
+                """工具执行结束时推送"""
+                from datetime import datetime
+                
+                # 通过 WebSocket 推送进展
+                self._safe_broadcast({
+                    "type": "react_progress",
+                    "data": {
+                        "session_id": self.session_id,
+                        "event": "tool_end",
+                        "step": self.step_counter,
+                        "tool": self.current_tool_name or "unknown",
+                        "output": output[:500] if output else "",
+                        "timestamp": datetime.now().isoformat()
+                    }
+                })
+            
+            def _safe_broadcast(self, message):
+                """从任意线程安全地广播消息到 WebSocket"""
+                import asyncio
+                import concurrent.futures
+                
+                try:
+                    # 尝试获取正在运行的事件循环
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # 如果当前在事件循环线程中，直接创建任务
+                        asyncio.create_task(self._broadcast_progress(message))
+                    except RuntimeError:
+                        # 当前不在事件循环线程中，需要找到主事件循环并调度任务
+                        # 尝试获取主事件循环（由 FastAPI/Uvicorn 创建）
+                        main_loop = None
+                        try:
+                            main_loop = asyncio.get_event_loop()
+                        except RuntimeError:
+                            pass
+                        
+                        if main_loop is None:
+                            # 尝试使用全局存储的事件循环引用
+                            if hasattr(self.ws_manager, '_event_loop'):
+                                main_loop = self.ws_manager._event_loop
+                        
+                        if main_loop and main_loop.is_running():
+                            # 从另一个线程安全地调度协程
+                            future = asyncio.run_coroutine_threadsafe(
+                                self._broadcast_progress(message),
+                                main_loop
+                            )
+                            # 不等待结果，fire-and-forget 模式
+                        else:
+                            logger.debug("No running event loop available for broadcast")
+                except Exception as e:
+                    logger.warning(f"Failed to broadcast message: {e}")
+            
+            async def _broadcast_progress(self, message):
+                """广播进展消息到所有 WebSocket 客户端"""
+                try:
+                    await self.ws_manager.broadcast(message)
+                    logger.debug(f"[ReAct Progress] Step {self.step_counter}: {message['data']['event']}")
+                except Exception as e:
+                    logger.error(f"Failed to broadcast progress: {e}")
+        
+        # 创建回调实例
+        progress_callback = RealTimeProgressCallback(websocket_manager, session_id)
+        
+        # 检测是否支持通义千问
+        TONGYI_AVAILABLE = False
+        try:
+            from langchain_community.chat_models import ChatTongyi
+            TONGYI_AVAILABLE = True
+        except ImportError:
+            ChatTongyi = None
+        
+        # 1. 创建 LLM（根据可用性和配置选择）
+        use_tongyi = (provider == "bailian" or (model and "qwen" in model.lower()))
+        
+        # 检查是否支持原生工具调用
+        # 百炼 OpenAI 兼容端点对 function calling 的支持可能有限
+        SUPPORTS_FUNCTION_CALLING = provider in ["openai", "anthropic", "deepseek"]
+        
+        if use_tongyi and TONGYI_AVAILABLE:
+            # 百炼 API 使用 OpenAI 兼容端点，不是原生 DashScope
+            # 普通模式使用 https://coding.dashscope.aliyuncs.com/v1
+            # 这里应该使用 ChatOpenAI 而不是 ChatTongyi
+            base_url = endpoint.rstrip('/') if endpoint else "https://coding.dashscope.aliyuncs.com/v1"
+            # 去掉 bailian/ 前缀
+            model_name = model or "qwen3.5-plus"
+            if model_name.startswith("bailian/"):
+                model_name = model_name[8:]
+            
+            # 使用 ChatOpenAI 连接百炼 API（OpenAI 兼容格式）
+            # 启用 streaming 以支持实时 token 输出
+            from langchain_openai import ChatOpenAI
+            llm = ChatOpenAI(
+                model=model_name,
+                api_key=api_key,
+                temperature=temperature,
+                base_url=base_url,
+                streaming=True,  # 启用流式输出
+            )
+            logger.info(f"[ReAct] 使用百炼 API (OpenAI 兼容): {model_name}, endpoint: {base_url}, streaming=True")
+            logger.info(f"[ReAct] 百炼 API function calling 支持: 有限（可能存在兼容性问题）")
+        else:
+            if use_tongyi and not TONGYI_AVAILABLE:
+                logger.warning("[ReAct] ChatTongyi 不可用，请安装 dashscope: pip install dashscope")
+                logger.info("[ReAct] 回退到 ChatOpenAI")
+            llm = ChatOpenAI(
+                model=model or "gpt-4o-mini",
+                api_key=api_key,
+                temperature=temperature,
+                streaming=True,  # 启用流式输出
+            )
+            logger.info(f"[ReAct] 使用 ChatOpenAI: {model or 'gpt-4o-mini'}, streaming=True")
+        
+        # 2. 配置 ReAct Agent
+        config = ReActConfig(
+            max_iterations=max_iterations,
+            max_execution_time=300.0,
+            enable_loop_detection=True,
+            max_same_action=3,
+            verbose=False,
+        )
+        
+        # 百炼 API 需要强制使用 Legacy 模式（不支持原生 function calling）
+        force_legacy = use_tongyi
+        if force_legacy:
+            logger.info("[ReAct] 百炼 API 不支持原生 function calling，使用 Legacy ReAct 模式")
+        
+        # 3. 创建 Agent（添加实时进展回调）
+        agent = None
+        extra_callbacks = [progress_callback]  # 添加实时进展回调
+        
+        if agent_type == "coder":
+            agent = create_react_coder_agent(
+                llm=llm, 
+                config=config, 
+                verbose=True, 
+                force_legacy=force_legacy,
+                extra_callbacks=extra_callbacks  # 传递回调
+            )
+        elif agent_type == "tester":
+            agent = create_react_tester_agent(
+                llm=llm, 
+                config=config, 
+                verbose=True, 
+                force_legacy=force_legacy,
+                extra_callbacks=extra_callbacks
+            )
+        elif agent_type == "architect":
+            agent = create_react_architect_agent(
+                llm=llm, 
+                config=config, 
+                verbose=True, 
+                force_legacy=force_legacy,
+                extra_callbacks=extra_callbacks
+            )
+        else:
+            agent = create_react_coder_agent(
+                llm=llm, 
+                config=config, 
+                verbose=True, 
+                force_legacy=force_legacy,
+                extra_callbacks=extra_callbacks
+            )
+        
+        logger.info(f"[ReAct] 创建 Agent: {agent_type}, 最大迭代: {max_iterations}, 实时进展推送: 已启用")
+        
+        # 4. 构建任务
+        last_message = messages[-1] if messages else None
+        if not last_message:
+            yield f"data: {json.dumps({'error': 'No messages provided'})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+        
+        # 从历史消息中提取上下文
+        context = ""
+        if len(messages) > 1:
+            context_messages = messages[:-1]  # 除了最后一条消息
+            context = "\n".join([
+                f"{msg.role}: {msg.content}" 
+                for msg in context_messages[-5:]  # 最多 5 条历史
+            ])
+        
+        task = Task(
+            title=f"ReAct {agent_type} task",
+            description=last_message.content,
+            input_data={"history": context, "session_id": session_id} if context else {},
+        )
+        
+        # 5. 发送开始事件
+        yield f"data: {json.dumps({'type': 'react_start', 'agent_type': agent_type})}\n\n"
+        
+        # 6. 执行任务
+        async with agent.lifecycle():
+            result = await agent.process_task(task)
+            
+            # 安全获取 output_data（可能是 dict 或 None）
+            output_data = result.output_data if isinstance(result.output_data, dict) else {}
+            
+            # 7. 流式发送推理链
+            reasoning_chain = output_data.get("reasoning_chain", [])
+            if not isinstance(reasoning_chain, list):
+                reasoning_chain = []
+            total_steps = len(reasoning_chain)
+            
+            for i, step in enumerate(reasoning_chain):
+                if not isinstance(step, dict):
+                    continue
+                step_data = {
+                    'type': 'reasoning_step',
+                    'step': i + 1,
+                    'total': total_steps,
+                    'thought': step.get('thought', ''),
+                    'action': step.get('action', ''),
+                    'action_input': step.get('action_input', {}),
+                    'observation': str(step.get('observation', ''))[:500],  # 截断避免过长
+                }
+                yield f"data: {json.dumps(step_data)}\n\n"
+                logger.info(f"[ReAct] 步骤 {i+1}/{total_steps}: {step.get('action', 'unknown')}")
+            
+            # 8. 发送最终结果
+            # success 基于 output_data 或 task status 判断
+            output_content = output_data.get("output", "")
+            success = output_data.get("success", result.status == "completed")
+            
+            # 检测是否达到迭代限制或超时（通过输出内容判断）
+            iteration_limit_msg = "Agent stopped due to iteration limit or time limit"
+            if iteration_limit_msg in output_content:
+                success = False
+                # 提供更友好的提示
+                output_content = (
+                    "🔄 Agent 达到迭代限制。\n\n"
+                    "可能原因：\n"
+                    "1. 任务过于复杂，需要更多迭代次数\n"
+                    "2. LLM 输出格式不符合要求，导致解析失败\n"
+                    "3. 任务定义不够清晰\n\n"
+                    "建议：\n"
+                    "- 简化问题或分解为多个小任务\n"
+                    "- 使用更清晰的指令\n"
+                    "- 尝试切换到普通对话模式"
+                )
+            
+            response_data = {
+                "type": "react_result",
+                "content": output_content,
+                "iterations": output_data.get("iterations", 0),
+                "success": success,
+                "execution_time": output_data.get("total_execution_time", 0),
+                "reasoning_chain_length": total_steps,
+            }
+            
+            yield f"data: {json.dumps(response_data)}\n\n"
+            logger.info(f"[ReAct] 任务完成: 成功={success}, 迭代={output_data.get('iterations', 0)}")
+            
+        yield "data: [DONE]\n\n"
+        
+    except ImportError as e:
+        logger.error(f"ReAct Agent 导入失败: {e}", exc_info=True)
+        yield f"data: {json.dumps({'error': f'ReAct Agent 未安装: {str(e)}'})}\n\n"
+        yield "data: [DONE]\n\n"
+    except asyncio.TimeoutError:
+        logger.error("ReAct Agent 执行超时")
+        yield f"data: {json.dumps({'error': '⏱️ ReAct 执行超时（5分钟），建议：\n1. 简化问题\n2. 降低 max_iterations\n3. 使用普通模式'})}\n\n"
+        yield "data: [DONE]\n\n"
+    except Exception as e:
+        logger.error(f"ReAct Agent 执行错误: {e}", exc_info=True)
+        error_msg = str(e)
+        
+        # 友好的错误提示
+        if "未配置" in error_msg or "LLMConfigError" in error_msg:
+            yield f"data: {json.dumps({'error': '⚠️ LLM 服务未配置，请在设置中配置 API Key'})}\n\n"
+        elif "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+            yield f"data: {json.dumps({'error': '⏱️ 执行超时，请稍后重试或简化问题'})}\n\n"
+        elif "rate limit" in error_msg.lower():
+            yield f"data: {json.dumps({'error': '🚫 API 请求频率限制，请稍后重试'})}\n\n"
+        elif "authentication" in error_msg.lower() or "api key" in error_msg.lower():
+            yield f"data: {json.dumps({'error': '🔑 API Key 无效，请检查设置'})}\n\n"
+        elif "MaxIterations" in error_msg or "max_iterations" in error_msg:
+            yield f"data: {json.dumps({'error': f'🔄 达到最大迭代次数限制，请尝试简化问题或增加迭代次数'})}\n\n"
+        elif "LoopDetected" in error_msg or "循环检测" in error_msg:
+            yield f"data: {json.dumps({'error': f'🔁 检测到执行循环，已自动停止。请换一种方式提问'})}\n\n"
+        else:
+            yield f"data: {json.dumps({'error': f'❌ ReAct Agent 错误: {error_msg}'})}\n\n"
+        yield "data: [DONE]\n\n"
+
+
 @app.post("/api/v1/chat")
 async def chat(request: ChatRequest):
     """
@@ -2056,6 +2521,7 @@ async def chat(request: ChatRequest):
                     model=model,
                     endpoint=endpoint,
                     tool_profile=request.tool_profile,
+                    session_id=request.session_id,
                 ),
                 media_type="text/event-stream",
                 headers={
@@ -2083,6 +2549,7 @@ async def chat(request: ChatRequest):
                     "Cache-Control": "no-cache",
                     "Connection": "keep-alive",
                     "X-Accel-Buffering": "no",  # 禁用 nginx 缓冲
+                    "Content-Encoding": "identity",  # 跳过 Gzip 压缩
                 }
             )
     else:
@@ -2100,6 +2567,7 @@ async def chat(request: ChatRequest):
                 model=model,
                 endpoint=endpoint,
                 tool_profile=request.tool_profile,
+                session_id=request.session_id,
             ):
                 if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
                     try:
@@ -2135,6 +2603,110 @@ async def chat(request: ChatRequest):
             "timestamp": datetime.now().isoformat(),
             "tool_calls": tool_calls if tool_calls else None,
             "agent_mode": use_agent
+        }
+
+
+@app.post("/api/v1/react/chat")
+async def react_chat(request: ReActRequest):
+    """
+    ReAct Agent 聊天端点
+    
+    使用 ReAct (Reasoning + Acting) 模式处理任务，支持：
+    - 动态推理和决策
+    - 自动工具调用
+    - 完整推理链追踪
+    - 多种 Agent 类型（coder, tester, architect）
+    
+    Args:
+        request: ReActRequest 包含：
+            - messages: 消息列表
+            - agent_type: Agent 类型（coder/tester/architect）
+            - max_iterations: 最大推理迭代次数
+            - stream: 是否流式响应
+            - provider/model/apiKey: LLM 配置
+    
+    Returns:
+        StreamingResponse 或 JSONResponse
+    """
+    # 获取配置
+    provider = request.provider or SETTINGS_STORE.get("aiProvider", "bailian")
+    api_key = request.apiKey
+    if not api_key:
+        api_key = SETTINGS_STORE.get("apiKey", "")
+        if not api_key and SETTINGS_STORE.get("apiKeyEncrypted"):
+            api_key = decrypt_api_key(SETTINGS_STORE.get("apiKeyEncrypted", ""))
+    model = request.model or SETTINGS_STORE.get("model", "qwen-max")
+    endpoint = request.endpoint or SETTINGS_STORE.get("endpoint", "")
+    
+    logger.info(f"[ReAct Chat] Agent: {request.agent_type}, 迭代: {request.max_iterations}, 流式: {request.stream}")
+    
+    if request.stream:
+        # 流式响应
+        return StreamingResponse(
+            generate_react_response(
+                request.messages,
+                agent_type=request.agent_type,
+                temperature=request.temperature,
+                max_iterations=request.max_iterations,
+                provider=provider,
+                api_key=api_key,
+                model=model,
+                endpoint=endpoint,
+                session_id=request.session_id,
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+                "Content-Encoding": "identity",  # 跳过 Gzip 压缩
+            }
+        )
+    else:
+        # 非流式响应 - 收集所有数据
+        response_data = {
+            "content": "",
+            "reasoning_chain": [],
+            "iterations": 0,
+            "success": False,
+        }
+        
+        async for chunk in generate_react_response(
+            request.messages,
+            agent_type=request.agent_type,
+            temperature=request.temperature,
+            max_iterations=request.max_iterations,
+            provider=provider,
+            api_key=api_key,
+            model=model,
+            endpoint=endpoint,
+            session_id=request.session_id,
+        ):
+            if chunk.startswith("data: ") and chunk != "data: [DONE]\n\n":
+                try:
+                    data = json.loads(chunk[6:].strip())
+                    
+                    if data.get("type") == "react_result":
+                        response_data["content"] = data.get("content", "")
+                        response_data["iterations"] = data.get("iterations", 0)
+                        response_data["success"] = data.get("success", False)
+                        response_data["execution_time"] = data.get("execution_time", 0)
+                    elif data.get("type") == "reasoning_step":
+                        response_data["reasoning_chain"].append(data)
+                    elif "error" in data:
+                        response_data["error"] = data["error"]
+                        
+                except json.JSONDecodeError:
+                    continue
+        
+        return {
+            "response": response_data["content"],
+            "reasoning_chain": response_data["reasoning_chain"],
+            "iterations": response_data["iterations"],
+            "success": response_data["success"],
+            "model": model,
+            "agent_type": request.agent_type,
+            "timestamp": datetime.now().isoformat(),
         }
 
 
@@ -2665,12 +3237,17 @@ class WebSocketManager:
     def __init__(self):
         self.active_connections: dict[int, WebSocket] = {}
         self.heartbeat_interval = 30  # 心跳间隔（秒）
+        self._event_loop = None  # 存储主事件循环引用
         logger.info("WebSocket 管理器初始化完成")
 
     async def connect(self, websocket: WebSocket, client_id: int):
         """接受连接并记录"""
+        import asyncio
         await websocket.accept()
         self.active_connections[client_id] = websocket
+        # 存储当前事件循环引用，供后台线程使用
+        if self._event_loop is None:
+            self._event_loop = asyncio.get_running_loop()
         logger.info(f"WebSocket 客户端连接：{client_id}, 当前连接数：{len(self.active_connections)}")
 
     def disconnect(self, client_id: int):

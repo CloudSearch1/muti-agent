@@ -197,6 +197,22 @@
                             </div>
                         </div>
                         <div class="flex items-center gap-2" role="toolbar" aria-label="聊天操作">
+                            <!-- ReAct 模式切换 -->
+                            <div class="flex items-center gap-1 bg-gh-bg border border-gh-border rounded-lg px-2 py-1">
+                                <span class="text-xs text-gh-text">模式:</span>
+                                <button @click="agentMode = 'normal'"
+                                        :class="['px-2 py-0.5 rounded text-xs transition',
+                                                 agentMode === 'normal' ? 'bg-gh-blue text-white' : 'text-gh-text hover:text-white']"
+                                        title="普通 Agent 模式">
+                                    普通
+                                </button>
+                                <button @click="agentMode = 'react'"
+                                        :class="['px-2 py-0.5 rounded text-xs transition',
+                                                 agentMode === 'react' ? 'bg-gh-purple text-white' : 'text-gh-text hover:text-white']"
+                                        title="ReAct 推理模式">
+                                    ReAct
+                                </button>
+                            </div>
                             <!-- 会话选择器 -->
                             <div class="relative" v-if="sessions.length > 0">
                                 <select @change="switchToSession($event.target.value)" 
@@ -300,6 +316,70 @@
                             </div>
                             <div :class="['max-w-[80%] rounded-2xl px-4 py-3',
                                           msg.role === 'user' ? 'bg-gh-blue text-white rounded-tr-sm' : 'bg-gh-elevated text-gh-light rounded-tl-sm']">
+                                <!-- ReAct 推理链显示 -->
+                                <div v-if="msg.role === 'assistant' && msg.reasoning_chain && msg.reasoning_chain.length > 0" 
+                                     class="mb-3 p-2 bg-gh-bg rounded-lg border border-gh-border">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-2 text-xs text-gh-purple">
+                                            <i class="fas fa-brain"></i>
+                                            <span>推理链 ({{ msg.reasoning_chain.length }} 步)</span>
+                                        </div>
+                                        <!-- 实时执行指示器 -->
+                                        <div v-if="loading && index === messages.length - 1" 
+                                             class="flex items-center gap-1 text-xs text-gh-green animate-pulse">
+                                            <i class="fas fa-spinner fa-spin"></i>
+                                            <span>执行中...</span>
+                                        </div>
+                                    </div>
+                                    <details class="text-xs" :open="loading && index === messages.length - 1">
+                                        <summary class="cursor-pointer text-gh-text hover:text-white">查看推理过程</summary>
+                                        <div class="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                                            <div v-for="(step, idx) in msg.reasoning_chain" :key="idx" 
+                                                 :class="['p-2 rounded transition-all',
+                                                          step.is_llm_output ? 'bg-gh-purple/10 border border-gh-purple/30' :
+                                                          step.observation === '执行中...' ? 'bg-gh-blue/20 border border-gh-blue/50' : 'bg-gh-elevated']">
+                                                <div class="flex items-center gap-2 text-gh-blue mb-1">
+                                                    <span class="font-semibold">步骤 {{ step.step }}:</span>
+                                                    <!-- LLM 思考步骤 -->
+                                                    <template v-if="step.is_llm_output">
+                                                        <span class="text-gh-purple">
+                                                            <i class="fas fa-brain mr-1"></i>思考中
+                                                        </span>
+                                                        <i v-if="msg.is_thinking && idx === msg.reasoning_chain.length - 1" 
+                                                           class="fas fa-spinner fa-spin text-gh-purple ml-auto"></i>
+                                                        <i v-else class="fas fa-check text-gh-green ml-auto"></i>
+                                                    </template>
+                                                    <!-- 工具执行步骤 -->
+                                                    <template v-else>
+                                                        <span class="text-gh-text">{{ step.action }}</span>
+                                                        <!-- 执行状态图标 -->
+                                                        <i v-if="step.observation === '执行中...'" 
+                                                           class="fas fa-spinner fa-spin text-gh-green ml-auto"></i>
+                                                        <i v-else-if="step.observation && step.observation !== '执行中...'" 
+                                                           class="fas fa-check text-gh-green ml-auto"></i>
+                                                    </template>
+                                                </div>
+                                                <!-- 思考内容 - 显示更多内容 -->
+                                                <div v-if="step.thought" :class="['text-gh-text mb-1 pl-4',
+                                                    step.is_llm_output ? 'whitespace-pre-wrap break-words' : '']">
+                                                    💭 {{ step.thought.substring(0, step.is_llm_output ? 500 : 100) }}{{ step.thought.length > (step.is_llm_output ? 500 : 100) ? '...' : '' }}
+                                                </div>
+                                                <div v-if="step.action_input && !step.is_llm_output" class="text-gh-text mb-1 pl-4 text-xs opacity-70">
+                                                    📥 输入: {{ step.action_input.substring(0, 50) }}{{ step.action_input.length > 50 ? '...' : '' }}
+                                                </div>
+                                                <div v-if="step.observation && step.observation !== '执行中...' && !step.is_llm_output" 
+                                                     class="text-gh-text pl-4 opacity-80">
+                                                    👁️ {{ step.observation.substring(0, 100) }}{{ step.observation.length > 100 ? '...' : '' }}
+                                                </div>
+                                                <div v-else-if="step.observation === '执行中...'" 
+                                                     class="text-gh-text pl-4 text-gh-green">
+                                                    ⏳ 正在执行...
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </details>
+                                </div>
+                                <!-- 消息内容 -->
                                 <div v-if="msg.role === 'assistant'" 
                                      v-html="renderMarkdown(msg.content)" 
                                      class="prose prose-invert prose-sm max-w-none"
@@ -308,6 +388,9 @@
                                 <div class="flex items-center gap-2 mt-1 text-xs opacity-60">
                                     <time :datetime="formatDate(msg.time, 'YYYY-MM-DDTHH:mm:ss')">{{ formatDate(msg.time, 'HH:mm') }}</time>
                                     <span v-if="msg.model" class="px-1.5 py-0.5 bg-gh-bg rounded" :aria-label="'使用模型：' + msg.model">{{ msg.model }}</span>
+                                    <span v-if="msg.iterations" class="px-1.5 py-0.5 bg-gh-purple/20 text-gh-purple rounded">
+                                        {{ msg.iterations }} 次迭代
+                                    </span>
                                 </div>
                             </div>
                         </article>
@@ -894,6 +977,7 @@
                         // Agent 相关
                         agents: [],
                         selectedAgent: null,
+                        agentMode: 'normal', // 'normal' 或 'react'
                         
                         // 任务相关
                         tasks: [],
@@ -1013,6 +1097,11 @@
                                 this.loadTasks();
                                 break;
                                 
+                            case 'react_progress':
+                                // 处理 ReAct 实时进展
+                                this.handleReactProgress(payload);
+                                break;
+                                
                             case 'system_status':
                                 break;
                                 
@@ -1021,6 +1110,98 @@
                                 
                             default:
                                 console.warn('[AIAssistant] 未知消息类型:', type);
+                        }
+                    },
+                    
+                    /**
+                     * 处理 ReAct 实时进展
+                     */
+                    handleReactProgress(progressData) {
+                        console.log('[AIAssistant] ReAct 进展:', progressData);
+                        
+                        // 检查是否是当前会话的进展
+                        if (progressData.session_id !== this.currentSessionId) {
+                            return;
+                        }
+                        
+                        // 找到最后一条 AI 消息
+                        const lastAiMessage = [...this.messages].reverse().find(m => m.role === 'assistant');
+                        if (!lastAiMessage) {
+                            return;
+                        }
+                        
+                        // 初始化 reasoning_chain（如果不存在）
+                        if (!lastAiMessage.reasoning_chain) {
+                            lastAiMessage.reasoning_chain = [];
+                        }
+                        
+                        // 根据事件类型更新推理链
+                        if (progressData.event === 'llm_start') {
+                            // LLM 开始生成：创建思考气泡
+                            lastAiMessage.llm_call_id = progressData.llm_call_id;
+                            lastAiMessage.current_thought = '';
+                            lastAiMessage.is_thinking = true;
+                            
+                            // 创建一个思考步骤来显示 LLM 输出
+                            lastAiMessage.reasoning_chain.push({
+                                step: lastAiMessage.reasoning_chain.length + 1,
+                                thought: '思考中...',
+                                is_llm_output: true,
+                                llm_call_id: progressData.llm_call_id
+                            });
+                            
+                            this.scrollToBottom();
+                            
+                        } else if (progressData.event === 'llm_token') {
+                            // LLM token 流式输出
+                            if (progressData.current_output) {
+                                // 更新最后一步的思考内容
+                                const lastStep = lastAiMessage.reasoning_chain[lastAiMessage.reasoning_chain.length - 1];
+                                if (lastStep && lastStep.is_llm_output) {
+                                    lastStep.thought = progressData.current_output;
+                                }
+                                lastAiMessage.current_thought = progressData.current_output;
+                            }
+                            
+                            // 每 10 个 token 滚动一次
+                            if ((progressData.current_output?.length || 0) % 50 === 0) {
+                                this.scrollToBottom();
+                            }
+                            
+                        } else if (progressData.event === 'llm_end') {
+                            // LLM 生成结束
+                            lastAiMessage.is_thinking = false;
+                            
+                            // 更新最后一步的完整输出
+                            const lastStep = lastAiMessage.reasoning_chain[lastAiMessage.reasoning_chain.length - 1];
+                            if (lastStep && lastStep.is_llm_output && progressData.full_output) {
+                                lastStep.thought = progressData.full_output;
+                            }
+                            
+                            this.scrollToBottom();
+                            
+                        } else if (progressData.event === 'tool_start') {
+                            // 工具开始：创建新的推理步骤
+                            lastAiMessage.reasoning_chain.push({
+                                step: progressData.step,
+                                thought: '正在执行工具...',
+                                action: progressData.tool,
+                                action_input: progressData.input || '',
+                                observation: '执行中...',
+                                is_tool_step: true
+                            });
+                            
+                            // 滚动到底部
+                            this.scrollToBottom();
+                        } else if (progressData.event === 'tool_end') {
+                            // 工具结束：更新最后一步的观察结果
+                            const lastStep = lastAiMessage.reasoning_chain[lastAiMessage.reasoning_chain.length - 1];
+                            if (lastStep && lastStep.is_tool_step) {
+                                lastStep.observation = progressData.output || '';
+                            }
+                            
+                            // 滚动到底部
+                            this.scrollToBottom();
                         }
                     },
                     
@@ -1327,24 +1508,53 @@
                     },
                     
                     async sendStreamingChat(messages) {
-                        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-                        const url = `${protocol}//${window.location.host}/api/v1/chat`;
+                        // 根据模式选择端点
+                        const isReactMode = this.agentMode === 'react';
+                        const endpoint = isReactMode ? '/api/v1/react/chat' : '/api/v1/chat';
                         
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                messages,
-                                stream: true,
-                                temperature: parseFloat(this.localSettings.temperature),
-                                max_tokens: 4096,
-                                provider: this.localSettings.aiProvider,
-                                model: this.localSettings.model,
-                                apiKey: this.localSettings.apiKey
-                            })
-                        });
+                        const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+                        const url = `${protocol}//${window.location.host}${endpoint}`;
+                        
+                        // 构建请求体
+                        const requestBody = {
+                            messages,
+                            stream: true,
+                            temperature: parseFloat(this.localSettings.temperature),
+                            provider: this.localSettings.aiProvider,
+                            model: this.localSettings.model,
+                            apiKey: this.localSettings.apiKey,
+                            session_id: this.currentSessionId
+                        };
+                        
+                        // ReAct 模式额外参数
+                        if (isReactMode) {
+                            requestBody.agent_type = this.selectedAgent?.name?.toLowerCase() || 'coder';
+                            requestBody.max_iterations = 10; // 降低到 10，避免超时
+                        }
+                        
+                        // 创建 AbortController 用于超时控制
+                        const controller = new AbortController();
+                        const timeout = isReactMode ? 300000 : 60000; // ReAct 模式 5 分钟，普通模式 1 分钟
+                        const timeoutId = setTimeout(() => controller.abort(), timeout);
+                        
+                        try {
+                            var response = await fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(requestBody),
+                                signal: controller.signal
+                            });
+                        } catch (fetchError) {
+                            clearTimeout(timeoutId);
+                            if (fetchError.name === 'AbortError') {
+                                throw new Error(`请求超时（${isReactMode ? '5分钟' : '1分钟'}），请尝试简化问题或使用普通模式`);
+                            }
+                            throw fetchError;
+                        }
+                        
+                        clearTimeout(timeoutId);
                         
                         if (!response.ok) {
                             let errorMsg = `HTTP ${response.status}: ${response.statusText}`;
@@ -1362,7 +1572,8 @@
                             role: 'assistant',
                             content: '',
                             time: new Date(),
-                            model: this.localSettings.model
+                            model: this.localSettings.model,
+                            reasoning_chain: [] // ReAct 模式专用
                         });
                         
                         const reader = response.body.getReader();
@@ -1385,11 +1596,34 @@
                                         }
                                         try {
                                             const parsed = JSON.parse(data);
-                                            if (parsed.content) {
+                                            
+                                            // 处理 ReAct 模式的推理步骤
+                                            if (isReactMode && parsed.type === 'reasoning_step') {
+                                                this.messages[aiMessageIndex].reasoning_chain.push({
+                                                    step: parsed.step,
+                                                    thought: parsed.thought,
+                                                    action: parsed.action,
+                                                    observation: parsed.observation
+                                                });
+                                                this.scrollToBottom();
+                                            }
+                                            
+                                            // 处理 ReAct 最终结果
+                                            if (isReactMode && parsed.type === 'react_result') {
+                                                fullContent = parsed.content;
+                                                this.messages[aiMessageIndex].content = fullContent;
+                                                this.messages[aiMessageIndex].iterations = parsed.iterations;
+                                                this.messages[aiMessageIndex].execution_time = parsed.execution_time;
+                                                this.scrollToBottom();
+                                            }
+                                            
+                                            // 处理普通模式的内容
+                                            if (!isReactMode && parsed.content) {
                                                 fullContent += parsed.content;
                                                 this.messages[aiMessageIndex].content = fullContent;
                                                 this.scrollToBottom();
                                             }
+                                            
                                             if (parsed.error) {
                                                 throw new Error(parsed.error);
                                             }
