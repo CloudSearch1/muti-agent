@@ -453,8 +453,8 @@ class BaseTool(ABC):
     """
 
     # 类变量：工具名称和描述
-    NAME: str = None  # 必须在子类中定义
-    DESCRIPTION: str = None
+    NAME: str | None = None  # 必须在子类中定义
+    DESCRIPTION: str | None = None
     SCHEMA_VERSION: str = "1.0.0"  # 工具 schema 版本，遵循语义化版本
 
     def __init__(self, **kwargs):

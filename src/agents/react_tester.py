@@ -95,7 +95,7 @@ class ReactTesterAgent(ReActAgent):
         
         logger.info(
             "ReactTesterAgent initialized",
-            agent_id=self.agent.id,
+            agent_id=agent_id,
             tool_count=len(tools),
         )
     

@@ -171,8 +171,8 @@ class MessageRouter:
         # 订阅 Agent 事件（使用 try-finally 确保清理）
         handler_id = None
         try:
-            # 如果 Agent 支持 unsubscribe，保存 handler_id
-            if hasattr(agent, 'subscribe'):
+            # 如果 Agent 支持 subscribe，保存返回的 handler_id
+            if hasattr(agent, 'subscribe') and callable(getattr(agent, 'subscribe')):
                 handler_id = agent.subscribe(on_event)
 
             # 发送提示
@@ -184,8 +184,8 @@ class MessageRouter:
                 thread_id=message.raw_data.get("ts") if message.raw_data else None
             )
         finally:
-            # 如果有 unsubscribe 方法，取消订阅
-            if handler_id and hasattr(agent, 'unsubscribe'):
+            # 如果有 unsubscribe 方法且有有效的 handler_id，取消订阅
+            if handler_id is not None and hasattr(agent, 'unsubscribe'):
                 try:
                     agent.unsubscribe(handler_id)
                 except Exception:

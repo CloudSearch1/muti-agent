@@ -7,7 +7,8 @@ PI-Python 交互式 REPL
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Awaitable
+from collections.abc import Coroutine
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -15,9 +16,13 @@ if TYPE_CHECKING:
 from ...agent.events import AgentEvent, AgentEventType
 
 
+# Type alias for event handlers that can be sync or async
+EventHandler = Callable[[AgentEvent], None] | Callable[[AgentEvent], Awaitable[None]]
+
+
 class ReplSession:
     """交互式 REPL 会话"""
-    
+
     def __init__(
         self,
         agent: Any,
@@ -41,7 +46,7 @@ class ReplSession:
         self.history: list[str] = []
 
         # 订阅 Agent 事件（只订阅一次）
-        self._request_handler: Callable[[AgentEvent], None] | None = None
+        self._request_handler: EventHandler | None = None
         self.agent.subscribe(self._on_agent_event)
     
     async def run(self) -> None:

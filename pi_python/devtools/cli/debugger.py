@@ -39,17 +39,17 @@ class DebugTracer:
     def __init__(self, output_dir: Path | None = None):
         """
         初始化追踪器
-        
+
         Args:
             output_dir: 输出目录（默认为 ./debug_logs）
         """
         self.output_dir = output_dir or Path.cwd() / "debug_logs"
         self.output_dir.mkdir(exist_ok=True, parents=True)
-        
+
         self.trace_id = f"trace_{int(time.time())}_{id(self)}"
         self.events: list[TraceEvent] = []
         self.start_time = time.time()
-        
+
         # 统计信息
         self.stats = {
             "tool_calls": 0,
@@ -57,6 +57,9 @@ class DebugTracer:
             "llm_calls": 0,
             "total_tokens": 0
         }
+
+        # 取消订阅函数（初始化为 None）
+        self._unsubscribe: Callable[[], None] | None = None
     
     def enable_for_agent(self, agent: Any) -> None:
         """

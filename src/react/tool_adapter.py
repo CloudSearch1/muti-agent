@@ -546,7 +546,7 @@ class ToolAdapter:
         @functools.wraps(sync_func)
         async def async_wrapper(*args, **kwargs):
             # 在线程池中运行同步函数
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             return await loop.run_in_executor(
                 None,
                 functools.partial(sync_func, *args, **kwargs),
@@ -727,7 +727,7 @@ def adapt_tool_with_timeout(
             elif original_func:
                 # 包装同步函数为异步
                 return await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
+                    asyncio.get_running_loop().run_in_executor(
                         None,
                         functools.partial(original_func, *args, **kwargs_inner)
                     ),

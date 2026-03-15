@@ -6,6 +6,7 @@ Slack 集成实现
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any
 
@@ -58,9 +59,10 @@ class SlackIntegration(BaseIntegration):
             token=bot_token,
             signing_secret=signing_secret
         )
-        
+
         self.handler: AsyncSocketModeHandler | None = None
-        
+        self._task: asyncio.Task | None = None  # 存储异步任务引用
+
         # 注册事件处理器
         self._register_handlers()
     
@@ -122,17 +124,25 @@ class SlackIntegration(BaseIntegration):
         if self._running:
             print("Slack 集成已在运行中")
             return
-        
+
         app_token = self.config.get("app_token") or os.getenv("SLACK_APP_TOKEN")
         if not app_token:
             raise ValueError("未提供 app_token，请在 config 中设置或设置 SLACK_APP_TOKEN 环境变量")
-        
+
         if not self.handler:
             self.handler = AsyncSocketModeHandler(self.app, app_token)
-        
-        # 异步启动
-        import asyncio
-        asyncio.create_task(self.handler.start_async())
+
+        # 异步启动，存储任务引用以便管理
+        async def _run_handler():
+            try:
+                await self.handler.start_async()
+            except asyncio.CancelledError:
+                print("Slack Bot 任务已取消")
+            except Exception as e:
+                print(f"Slack Bot 运行错误: {e}")
+                raise
+
+        self._task = asyncio.create_task(_run_handler())
         self._running = True
         print("Slack 集成已启动")
     
@@ -140,8 +150,17 @@ class SlackIntegration(BaseIntegration):
         """停止 Slack Bot"""
         if not self._running:
             return
-        
+
+        # 取消异步任务
+        if self._task and not self._task.done():
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+
         self._running = False
+        self._task = None
         print("Slack 集成已停止")
     
     async def send_message(

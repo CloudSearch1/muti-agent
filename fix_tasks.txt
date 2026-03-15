@@ -1,0 +1,21 @@
+修复项目代码质量分析中发现的所有问题。
+
+高优先级问题:
+1. repl.py 类型标注错误 - pi_python/devtools/cli/repl.py:44-45
+2. debugger.py 变量未初始化 - pi_python/devtools/cli/debugger.py:91
+
+中优先级问题:
+3. ReAct Agents 属性访问错误 - src/agents/react_architect.py:98, react_coder.py:102, react_tester.py:98
+4. Slack Bot 异步任务管理 - pi_python/integrations/slack/bot.py:134-135
+5. Router 空值检查 - pi_python/integrations/router.py:173-192
+6. Tool Adapter 弃用 API - 改为 get_running_loop
+
+低优先级问题:
+7. FastAPI 弃用 API - webui/app.py 迁移到 lifespan
+8. 类型注解改进 - src/tools/base.py:456 使用 Optional[str]
+9. 异常处理精细化 - webui/app.py 使用具体异常类型
+10. CORS 安全配置 - webui/app.py 添加生产环境注释
+
+逐一修复每个问题，验证语法正确性，运行测试，输出修复报告。
+
+完成后运行：openclaw system event --text "Done: 修复所有代码质量问题" --mode now

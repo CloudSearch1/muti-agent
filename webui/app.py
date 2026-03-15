@@ -11,6 +11,7 @@ import io
 import logging
 import random
 import sys
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List, AsyncGenerator
@@ -40,56 +41,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
-
-app = FastAPI(
-    title="IntelliTeam Web UI v5.2",
-    description="智能研发协作平台 - Web 管理界面",
-    version="5.2.0",
-    docs_url="/docs",      # 启用 Swagger UI
-    redoc_url="/redoc",    # 启用 ReDoc
-    openapi_url="/openapi.json"
-)
-
-# CORS 配置 - 允许所有来源访问（生产环境建议限制）
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Gzip 压缩 - 启用以提升传输效率
-app.add_middleware(GZipMiddleware, minimum_size=1024)
-
-
-# ============ 应用启动事件 - 初始化数据库 ============
-
-@app.on_event("startup")
-async def startup_event():
-    """应用启动时初始化"""
-    global DATABASE_ENABLED
-    logger.info("应用启动中...")
-    
-    # 初始化数据库（如果启用）
-    if DATABASE_ENABLED:
-        try:
-            from src.db.database import init_database
-            await init_database()
-            logger.info("数据库初始化完成")
-        except Exception as e:
-            logger.error(f"数据库初始化失败: {e}", exc_info=True)
-            logger.warning("降级到内存模式")
-            DATABASE_ENABLED = False
-    
-    logger.info(f"应用启动完成，数据库模式: {'启用' if DATABASE_ENABLED else '禁用（内存模式）'}")
-
-# 挂载静态文件（使用绝对路径）
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-    logger.info(f"静态文件挂载成功：{STATIC_DIR}")
-else:
-    logger.warning(f"静态文件目录不存在：{STATIC_DIR}")
 
 # ============ 数据库支持（用于聊天持久化） ============
 
@@ -126,6 +77,85 @@ except Exception as e:
     get_db_session = None
     get_database_manager = None
     ChatMessageModel = None
+
+
+# ============ 应用生命周期管理 ============
+
+# 响应缓存实例（提前声明，供 lifespan 使用）
+response_cache = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    应用生命周期管理
+
+    使用 lifespan 替代已弃用的 @app.on_event("startup") 和 @app.on_event("shutdown")
+    """
+    global DATABASE_ENABLED, response_cache
+
+    # ========== 启动逻辑 ==========
+    logger.info("应用启动中...")
+
+    # 初始化数据库（如果启用）
+    if DATABASE_ENABLED:
+        try:
+            from src.db.database import init_database
+            await init_database()
+            logger.info("数据库初始化完成")
+        except Exception as e:
+            logger.error(f"数据库初始化失败: {e}", exc_info=True)
+            logger.warning("降级到内存模式")
+            DATABASE_ENABLED = False
+
+    logger.info(f"应用启动完成，数据库模式: {'启用' if DATABASE_ENABLED else '禁用（内存模式）'}")
+
+    # 初始化响应缓存
+    response_cache = ResponseCache(ttl_seconds=30)
+
+    yield  # 应用运行中
+
+    # ========== 关闭逻辑 ==========
+    logger.info("应用关闭中...")
+
+    # 关闭缓存连接
+    if response_cache:
+        await response_cache.close()
+
+    logger.info("应用已关闭")
+
+
+# 创建 FastAPI 应用实例
+app = FastAPI(
+    title="IntelliTeam Web UI v5.2",
+    description="智能研发协作平台 - Web 管理界面",
+    version="5.2.0",
+    docs_url="/docs",      # 启用 Swagger UI
+    redoc_url="/redoc",    # 启用 ReDoc
+    openapi_url="/openapi.json",
+    lifespan=lifespan,     # 使用新的生命周期管理
+)
+
+# CORS 配置 - 允许所有来源访问
+# ⚠️ 生产环境安全警告：建议限制 allow_origins 为具体的域名列表
+# 例如：allow_origins=["https://your-domain.com"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 生产环境应替换为具体域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Gzip 压缩 - 启用以提升传输效率
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+# 挂载静态文件（使用绝对路径）
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    logger.info(f"静态文件挂载成功：{STATIC_DIR}")
+else:
+    logger.warning(f"静态文件目录不存在：{STATIC_DIR}")
 
 # ============ Agent 框架支持（工具调用能力） ============
 
@@ -356,22 +386,23 @@ class SyncResponseCache:
     def get(self, key: str) -> dict | None:
         """同步获取（用于非异步上下文）"""
         import asyncio
+        import concurrent.futures
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
             # 在异步上下文中，创建任务
-            import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(asyncio.run, self._cache.get(key))
                 return future.result()
         except RuntimeError:
             # 没有事件循环，直接运行
             return asyncio.run(self._cache.get(key))
-    
+
     def set(self, key: str, data: dict):
         """同步设置"""
+        import asyncio
+        import concurrent.futures
         try:
-            loop = asyncio.get_running_loop()
-            import concurrent.futures
+            asyncio.get_running_loop()
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(asyncio.run, self._cache.set(key, data))
                 future.result()
@@ -385,9 +416,6 @@ class SyncResponseCache:
         except RuntimeError:
             asyncio.run(self._cache.invalidate(key))
 
-
-# 全局缓存实例
-response_cache = ResponseCache(ttl_seconds=30)
 
 # ============ 数据模型 ============
 
@@ -2460,7 +2488,8 @@ async def generate_react_response(
         yield "data: [DONE]\n\n"
     except asyncio.TimeoutError:
         logger.error("ReAct Agent 执行超时")
-        yield f"data: {json.dumps({'error': '⏱️ ReAct 执行超时（5分钟），建议：\n1. 简化问题\n2. 降低 max_iterations\n3. 使用普通模式'})}\n\n"
+        timeout_msg = "⏱️ ReAct 执行超时（5分钟），建议：\n1. 简化问题\n2. 降低 max_iterations\n3. 使用普通模式"
+        yield f"data: {json.dumps({'error': timeout_msg})}\n\n"
         yield "data: [DONE]\n\n"
     except Exception as e:
         logger.error(f"ReAct Agent 执行错误: {e}", exc_info=True)

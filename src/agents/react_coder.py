@@ -99,7 +99,7 @@ class ReactCoderAgent(ReActAgent):
         
         logger.info(
             "ReactCoderAgent initialized",
-            agent_id=self.agent.id,
+            agent_id=agent_id,
             tool_count=len(tools),
         )
     
