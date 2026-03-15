@@ -226,26 +226,56 @@ def get_query_monitor() -> QueryPerformanceMonitor:
 
 
 class TransactionManager:
-    """事务管理器"""
+    """
+    事务管理器
+
+    支持嵌套事务（使用 SQLAlchemy savepoint）。
+    当在已有事务中调用 begin() 时，会创建一个 savepoint。
+    """
 
     def __init__(self, session: AsyncSession):
         self.session = session
         self._is_active = False
+        self._is_nested = False  # 标记是否为嵌套事务
+        self._savepoint = None   # savepoint 对象
 
     async def begin(self) -> None:
-        """开始事务"""
-        if not self._is_active:
-            await self.session.begin()
-            self._is_active = True
+        """开始事务（支持嵌套）"""
+        if self._is_active:
+            # 已经在事务中，创建 savepoint 支持嵌套
+            if self._savepoint is None:
+                self._savepoint = await self.session.begin_nested()
+                self._is_nested = True
+                logger.debug("Created nested transaction (savepoint)")
+            return
+
+        await self.session.begin()
+        self._is_active = True
 
     async def commit(self) -> None:
         """提交事务"""
+        if self._is_nested and self._savepoint:
+            # 嵌套事务：释放 savepoint（不实际提交）
+            await self._savepoint.commit()
+            self._savepoint = None
+            self._is_nested = False
+            logger.debug("Released nested transaction (savepoint)")
+            return
+
         if self._is_active:
             await self.session.commit()
             self._is_active = False
 
     async def rollback(self) -> None:
         """回滚事务"""
+        if self._is_nested and self._savepoint:
+            # 嵌套事务：回滚到 savepoint
+            await self._savepoint.rollback()
+            self._savepoint = None
+            self._is_nested = False
+            logger.debug("Rolled back nested transaction (savepoint)")
+            return
+
         if self._is_active:
             await self.session.rollback()
             self._is_active = False
@@ -440,10 +470,16 @@ class DatabaseManager:
 # ============ 全局实例 ============
 
 _db_manager: DatabaseManager | None = None
+_db_manager_lock = asyncio.Lock()
 
 
 def get_database_manager(database_url: str | None = None, **kwargs) -> DatabaseManager:
-    """获取数据库管理器单例"""
+    """
+    获取数据库管理器单例
+
+    注意：此函数使用惰性初始化模式。首次调用时会创建实例。
+    在高并发场景下，可能会有多个实例被创建，但最终只有一个会被使用。
+    """
     global _db_manager
     if _db_manager is None:
         try:
@@ -452,6 +488,26 @@ def get_database_manager(database_url: str | None = None, **kwargs) -> DatabaseM
         except Exception as e:
             logger.error(f"数据库连接失败: {e}", exc_info=True)
             raise
+    return _db_manager
+
+
+async def get_database_manager_async(database_url: str | None = None, **kwargs) -> DatabaseManager:
+    """
+    获取数据库管理器单例（异步版本，线程安全）
+
+    使用 asyncio.Lock 确保单例初始化的线程安全性。
+    """
+    global _db_manager
+    if _db_manager is None:
+        async with _db_manager_lock:
+            # 双重检查，防止在等待锁时其他协程已初始化
+            if _db_manager is None:
+                try:
+                    _db_manager = DatabaseManager(database_url, **kwargs)
+                    _db_manager.connect()
+                except Exception as e:
+                    logger.error(f"数据库连接失败: {e}", exc_info=True)
+                    raise
     return _db_manager
 
 

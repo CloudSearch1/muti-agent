@@ -378,18 +378,35 @@ class ResponseCache:
 
 # 创建缓存实例（支持同步和异步接口）
 class SyncResponseCache:
-    """同步缓存包装器"""
-    
+    """
+    同步缓存包装器
+
+    注意：此类用于在同步上下文中访问异步缓存。
+    在异步上下文中，建议直接使用 ResponseCache 的异步方法。
+    """
+
     def __init__(self, cache: ResponseCache):
         self._cache = cache
-    
+
     def get(self, key: str) -> dict | None:
-        """同步获取（用于非异步上下文）"""
+        """
+        同步获取（用于非异步上下文）
+
+        注意：在异步上下文中调用此方法会阻塞事件循环。
+        建议在异步上下文中直接使用 ResponseCache.get() 方法。
+        """
         import asyncio
-        import concurrent.futures
         try:
-            asyncio.get_running_loop()
-            # 在异步上下文中，创建任务
+            loop = asyncio.get_running_loop()
+            # 在异步上下文中，使用 run_coroutine_threadsafe 避免阻塞
+            # 但这需要另一个线程的事件循环，这里记录警告
+            import logging
+            logging.getLogger(__name__).warning(
+                "SyncResponseCache.get() called in async context. "
+                "Consider using ResponseCache.get() directly for better performance."
+            )
+            # 在新线程中运行以避免阻塞
+            import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(asyncio.run, self._cache.get(key))
                 return future.result()
@@ -398,23 +415,61 @@ class SyncResponseCache:
             return asyncio.run(self._cache.get(key))
 
     def set(self, key: str, data: dict):
-        """同步设置"""
+        """
+        同步设置
+
+        注意：在异步上下文中调用此方法会阻塞事件循环。
+        建议在异步上下文中直接使用 ResponseCache.set() 方法。
+        """
         import asyncio
-        import concurrent.futures
         try:
-            asyncio.get_running_loop()
+            loop = asyncio.get_running_loop()
+            import logging
+            logging.getLogger(__name__).warning(
+                "SyncResponseCache.set() called in async context. "
+                "Consider using ResponseCache.set() directly for better performance."
+            )
+            import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(asyncio.run, self._cache.set(key, data))
-                future.result()
+                return future.result()
         except RuntimeError:
             asyncio.run(self._cache.set(key, data))
-    
+
     def invalidate(self, key: str):
-        """同步失效"""
+        """
+        同步失效
+
+        注意：在异步上下文中调用此方法会阻塞事件循环。
+        建议在异步上下文中直接使用 ResponseCache.invalidate() 方法。
+        """
+        import asyncio
         try:
-            asyncio.get_running_loop()
+            loop = asyncio.get_running_loop()
+            import logging
+            logging.getLogger(__name__).warning(
+                "SyncResponseCache.invalidate() called in async context. "
+                "Consider using ResponseCache.invalidate() directly for better performance."
+            )
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(asyncio.run, self._cache.invalidate(key))
+                return future.result()
         except RuntimeError:
             asyncio.run(self._cache.invalidate(key))
+
+    # 提供异步接口的便捷方法
+    async def async_get(self, key: str) -> dict | None:
+        """异步获取（推荐在异步上下文中使用）"""
+        return await self._cache.get(key)
+
+    async def async_set(self, key: str, data: dict):
+        """异步设置（推荐在异步上下文中使用）"""
+        await self._cache.set(key, data)
+
+    async def async_invalidate(self, key: str):
+        """异步失效（推荐在异步上下文中使用）"""
+        await self._cache.invalidate(key)
 
 
 # ============ 数据模型 ============
@@ -457,6 +512,56 @@ SKILLS_DIR = WEBUI_DIR / "skills"
 
 # 确保 skills 目录存在
 SKILLS_DIR.mkdir(exist_ok=True)
+
+
+def _validate_skill_path(file_path: Path) -> bool:
+    """
+    验证技能文件路径是否在允许的目录内（防止路径遍历攻击）
+
+    Args:
+        file_path: 要验证的文件路径
+
+    Returns:
+        如果路径在 SKILLS_DIR 内返回 True，否则返回 False
+    """
+    try:
+        # 解析绝对路径
+        resolved_path = file_path.resolve()
+        skills_dir_resolved = SKILLS_DIR.resolve()
+
+        # 检查路径是否在 skills 目录内
+        return str(resolved_path).startswith(str(skills_dir_resolved))
+    except Exception:
+        return False
+
+
+def _get_safe_skill_path(skill_name: str) -> Path:
+    """
+    获取安全的技能文件路径
+
+    Args:
+        skill_name: 技能名称
+
+    Returns:
+        安全的文件路径
+
+    Raises:
+        ValueError: 如果技能名称包含非法字符或路径遍历尝试
+    """
+    import re
+
+    # 验证文件名：只允许字母、数字、下划线、连字符
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
+    if not safe_name:
+        raise ValueError("技能名称包含非法字符")
+
+    file_path = SKILLS_DIR / f"{safe_name}.md"
+
+    # 验证路径安全性
+    if not _validate_skill_path(file_path):
+        raise ValueError("无效的文件路径")
+
+    return file_path
 
 
 def _parse_yaml_frontmatter(content: str) -> dict:
@@ -520,18 +625,12 @@ def _load_skills_from_files() -> list:
 
 def _save_skill_to_file(skill_data: dict) -> Path:
     """保存技能到文件"""
-    import re
-    
     name = skill_data.get('name', '')
     if not name:
         raise ValueError("技能名称不能为空")
-    
-    # 验证文件名：只允许字母、数字、下划线、连字符
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', name)
-    if not safe_name:
-        raise ValueError("技能名称包含非法字符")
-    
-    file_path = SKILLS_DIR / f"{safe_name}.md"
+
+    # 使用安全路径获取函数（包含路径遍历验证）
+    file_path = _get_safe_skill_path(name)
     
     # 准备 frontmatter 数据
     frontmatter_data = {
@@ -575,12 +674,12 @@ def _save_skill_to_file(skill_data: dict) -> Path:
 
 def _delete_skill_file(skill_name: str) -> bool:
     """删除技能文件"""
-    import re
-    
-    # 验证文件名
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
-    file_path = SKILLS_DIR / f"{safe_name}.md"
-    
+    try:
+        # 使用安全路径获取函数（包含路径遍历验证）
+        file_path = _get_safe_skill_path(skill_name)
+    except ValueError:
+        return False
+
     if file_path.exists():
         file_path.unlink()
         return True
@@ -1035,11 +1134,12 @@ async def toggle_skill(skill_id: int):
 @app.get("/api/v1/skills/name/{skill_name}")
 async def get_skill_by_name(skill_name: str):
     """根据名称获取技能详情"""
-    import re
-    # 验证文件名
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
-    file_path = SKILLS_DIR / f"{safe_name}.md"
-    
+    try:
+        # 使用安全路径获取函数（包含路径遍历验证）
+        file_path = _get_safe_skill_path(skill_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"技能文件不存在：{skill_name}")
     
@@ -1070,12 +1170,12 @@ async def get_skill_by_name(skill_name: str):
 @app.put("/api/v1/skills/name/{skill_name}/content")
 async def update_skill_content(skill_name: str, content_data: dict):
     """更新技能文件内容（Markdown 编辑器）"""
-    import re
-    
-    # 验证文件名
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
-    file_path = SKILLS_DIR / f"{safe_name}.md"
-    
+    try:
+        # 使用安全路径获取函数（包含路径遍历验证）
+        file_path = _get_safe_skill_path(skill_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"技能文件不存在：{skill_name}")
     
@@ -1144,8 +1244,8 @@ async def upload_skill_file(upload_data: dict):
         raise HTTPException(status_code=400, detail="文件大小不能超过 1MB")
     
     try:
-        # 保存文件
-        file_path = SKILLS_DIR / f"{skill_name}.md"
+        # 保存文件（使用安全路径获取函数）
+        file_path = _get_safe_skill_path(skill_name)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(file_content)
         
@@ -1165,12 +1265,12 @@ async def upload_skill_file(upload_data: dict):
 @app.delete("/api/v1/skills/name/{skill_name}")
 async def delete_skill_by_name(skill_name: str):
     """根据名称删除技能"""
-    import re
-    
-    # 验证文件名
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', skill_name)
-    file_path = SKILLS_DIR / f"{safe_name}.md"
-    
+    try:
+        # 使用安全路径获取函数（包含路径遍历验证）
+        file_path = _get_safe_skill_path(skill_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     if not file_path.exists():
         raise HTTPException(status_code=404, detail=f"技能文件不存在：{skill_name}")
     

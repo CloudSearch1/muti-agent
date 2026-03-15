@@ -4,7 +4,9 @@ IntelliTeam 缓存模块
 提供 Redis 缓存支持
 """
 
+import asyncio
 import json
+import logging
 from typing import Any
 
 try:
@@ -13,6 +15,8 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 
 class CacheManager:
@@ -34,8 +38,11 @@ class CacheManager:
         try:
             self._redis = redis.from_url(self.redis_url, encoding="utf-8", decode_responses=True)
             await self._redis.ping()
+            logger.info(f"Successfully connected to Redis at {self.redis_url}")
             return True
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to connect to Redis at {self.redis_url}: {e}", exc_info=True)
+            self._redis = None
             return False
 
     async def disconnect(self):
@@ -150,13 +157,34 @@ class CacheManager:
 
 # 全局缓存实例
 _cache: CacheManager | None = None
+_cache_lock = asyncio.Lock()
 
 
 def get_cache(redis_url: str = "redis://localhost:6379/0") -> CacheManager:
-    """获取缓存管理器单例"""
+    """
+    获取缓存管理器单例
+
+    注意：此函数使用惰性初始化模式。首次调用时会创建实例。
+    在高并发场景下，可能会有多个实例被创建，但最终只有一个会被使用。
+    """
     global _cache
     if _cache is None:
         _cache = CacheManager(redis_url)
+    return _cache
+
+
+async def get_cache_async(redis_url: str = "redis://localhost:6379/0") -> CacheManager:
+    """
+    获取缓存管理器单例（异步版本，线程安全）
+
+    使用 asyncio.Lock 确保单例初始化的线程安全性。
+    """
+    global _cache
+    if _cache is None:
+        async with _cache_lock:
+            # 双重检查，防止在等待锁时其他协程已初始化
+            if _cache is None:
+                _cache = CacheManager(redis_url)
     return _cache
 
 

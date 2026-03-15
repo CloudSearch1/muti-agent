@@ -94,9 +94,16 @@ class StateStore:
                 self._subscribers.remove(callback)
                 logger.debug(f"Subscriber removed, total: {len(self._subscribers)}")
 
-    async def _notify_subscribers(self, change: dict[str, Any]):
-        """通知订阅者"""
-        for callback in self._subscribers:
+    async def _notify_subscribers(self, change: dict[str, Any], subscribers_snapshot: list[Callable] | None = None):
+        """通知订阅者
+
+        Args:
+            change: 状态变更信息（应包含 state_snapshot）
+            subscribers_snapshot: 订阅者列表快照（可选，用于在锁外安全通知）
+        """
+        # 使用快照或当前订阅者列表
+        subscribers = subscribers_snapshot if subscribers_snapshot is not None else self._subscribers
+        for callback in subscribers:
             try:
                 if asyncio.iscoroutinefunction(callback):
                     await callback(change)
@@ -142,6 +149,8 @@ class StateStore:
                 "old_status": old_status.value,
                 "new_status": status.value,
                 "timestamp": datetime.now().isoformat(),
+                # 包含状态快照，避免订阅者在锁外读取时出现竞态
+                "state_snapshot": agent_state.to_dict(),
             }
             self._history.append(change)
 
@@ -153,8 +162,11 @@ class StateStore:
                 f"Agent state changed: {agent_name} {old_status.value} -> {status.value}",
             )
 
-        # 通知订阅者（在锁外）
-        await self._notify_subscribers(change)
+            # 复制订阅者列表快照（在锁内）
+            subscribers_snapshot = self._subscribers.copy()
+
+        # 通知订阅者（在锁外，使用快照避免竞态条件和死锁）
+        await self._notify_subscribers(change, subscribers_snapshot)
 
     async def get_agent_state(self, agent_name: str) -> AgentStatusData | None:
         """获取 Agent 状态"""
@@ -217,13 +229,34 @@ class StateStore:
 
 # 全局状态存储实例
 _state_store: StateStore | None = None
+_state_store_lock = asyncio.Lock()
 
 
 def get_state_store() -> StateStore:
-    """获取状态存储实例"""
+    """
+    获取状态存储实例
+
+    注意：此函数使用惰性初始化模式。首次调用时会创建实例。
+    在高并发场景下，可能会有多个实例被创建，但最终只有一个会被使用。
+    """
     global _state_store
     if _state_store is None:
         _state_store = StateStore()
+    return _state_store
+
+
+async def get_state_store_async() -> StateStore:
+    """
+    获取状态存储实例（异步版本，线程安全）
+
+    使用 asyncio.Lock 确保单例初始化的线程安全性。
+    """
+    global _state_store
+    if _state_store is None:
+        async with _state_store_lock:
+            # 双重检查，防止在等待锁时其他协程已初始化
+            if _state_store is None:
+                _state_store = StateStore()
     return _state_store
 
 

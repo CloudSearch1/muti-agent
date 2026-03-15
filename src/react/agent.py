@@ -361,6 +361,24 @@ class ReActAgent(BaseAgent):
                 "total_execution_time": execution_time,
                 "success": False,
                 "error": str(e),
+                "error_type": "loop_detected",
+            }
+        except ReActTimeoutError as e:
+            # 超时异常
+            execution_time = time.time() - start_time
+            logger.warning(
+                "ReAct execution timed out",
+                task_id=task.id,
+                timeout_seconds=self.config.max_execution_time or 300.0,
+            )
+            return {
+                "output": f"Execution timed out: {e}",
+                "reasoning_chain": self._reasoning_chain,
+                "iterations": self._current_iteration,
+                "total_execution_time": execution_time,
+                "success": False,
+                "error": str(e),
+                "error_type": "timeout",
             }
         except Exception as e:
             logger.error("ReAct execution failed", error=str(e), exc_info=True)
@@ -395,7 +413,9 @@ class ReActAgent(BaseAgent):
                 )
             except asyncio.TimeoutError:
                 logger.error("LangGraph execution timed out")
-                return "执行超时，请稍后重试"
+                raise ReActTimeoutError(
+                    f"Execution timed out after {self.config.max_execution_time or 300.0} seconds"
+                )
             
             logger.info("LangGraph execution completed", result_type=type(result).__name__)
             
@@ -449,8 +469,17 @@ class ReActAgent(BaseAgent):
                         }
                         self._reasoning_chain.append(step)
                 elif msg.content:
-                    # 纯思考步骤
-                    pass
+                    # 纯思考步骤 - 也记录到推理链
+                    step = {
+                        "thought": msg.content,
+                        "action": None,  # 标记为纯思考
+                        "action_input": None,
+                        "observation": None,
+                        "timestamp": datetime.now().isoformat(),
+                        "step_type": "thought",  # 标记步骤类型
+                    }
+                    self._reasoning_chain.append(step)
+                    self._current_iteration += 1
             
             # 处理工具消息（工具返回结果）
             elif isinstance(msg, ToolMessage):
@@ -481,7 +510,9 @@ class ReActAgent(BaseAgent):
                 )
             except asyncio.TimeoutError:
                 logger.error("Legacy executor timed out")
-                return "执行超时，请稍后重试"
+                raise ReActTimeoutError(
+                    f"Execution timed out after {self.config.max_execution_time or 300.0} seconds"
+                )
             
             logger.info("Legacy executor completed", result_type=type(result).__name__)
             
