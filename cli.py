@@ -84,12 +84,19 @@ def status():
 def start_redis(port):
     """启动 Redis 容器"""
     import subprocess
-    
-    cmd = f'docker run -d --name intelliteam-redis -p {port}:6379 redis:7-alpine'
-    print(f"执行：{cmd}")
-    
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
+
+    # 使用 shell=False 安全地执行命令
+    # 验证端口是有效数字
+    if not isinstance(port, int) or port < 1 or port > 65535:
+        print(f"❌ 无效端口: {port}")
+        return
+
+    cmd = ['docker', 'run', '-d', '--name', 'intelliteam-redis',
+           '-p', f'{port}:6379', 'redis:7-alpine']
+    print(f"执行：{' '.join(cmd)}")
+
+    result = subprocess.run(cmd, shell=False, capture_output=True, text=True)
+
     if result.returncode == 0:
         print("✅ Redis 容器已启动")
     else:
@@ -102,12 +109,26 @@ def start_redis(port):
 def start_postgres(port, password):
     """启动 PostgreSQL 容器"""
     import subprocess
-    
-    cmd = f'docker run -d --name intelliteam-postgres -e POSTGRES_PASSWORD={password} -p {port}:5432 postgres:15-alpine'
-    print(f"执行：{cmd}")
-    
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
+    import re
+
+    # 使用 shell=False 安全地执行命令
+    # 验证端口是有效数字
+    if not isinstance(port, int) or port < 1 or port > 65535:
+        print(f"❌ 无效端口: {port}")
+        return
+
+    # 验证密码不包含危险字符（防止命令注入）
+    if re.search(r'[;&|`$]', password):
+        print("❌ 密码包含非法字符")
+        return
+
+    cmd = ['docker', 'run', '-d', '--name', 'intelliteam-postgres',
+           '-e', f'POSTGRES_PASSWORD={password}',
+           '-p', f'{port}:5432', 'postgres:15-alpine']
+    print(f"执行：{' '.join(cmd[:5])}...")
+
+    result = subprocess.run(cmd, shell=False, capture_output=True, text=True)
+
     if result.returncode == 0:
         print("✅ PostgreSQL 容器已启动")
     else:
@@ -118,12 +139,13 @@ def start_postgres(port, password):
 def docker_up():
     """使用 docker-compose 启动所有服务"""
     import subprocess
-    
-    cmd = 'docker-compose up -d'
-    print(f"执行：{cmd}")
-    
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
+
+    # 使用 shell=False 安全地执行命令
+    cmd = ['docker-compose', 'up', '-d']
+    print("执行：docker-compose up -d")
+
+    result = subprocess.run(cmd, shell=False, capture_output=True, text=True)
+
     if result.returncode == 0:
         print("✅ 所有服务已启动")
     else:
@@ -134,12 +156,13 @@ def docker_up():
 def docker_down():
     """停止所有 docker-compose 服务"""
     import subprocess
-    
-    cmd = 'docker-compose down'
-    print(f"执行：{cmd}")
-    
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
+
+    # 使用 shell=False 安全地执行命令
+    cmd = ['docker-compose', 'down']
+    print("执行：docker-compose down")
+
+    result = subprocess.run(cmd, shell=False, capture_output=True, text=True)
+
     if result.returncode == 0:
         print("✅ 所有服务已停止")
     else:

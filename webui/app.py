@@ -7,6 +7,7 @@ IntelliTeam Web UI - v5.2
 
 import asyncio
 import csv
+import functools
 import io
 import logging
 import random
@@ -34,6 +35,71 @@ WEBUI_DIR = Path(__file__).parent.resolve()
 STATIC_DIR = WEBUI_DIR / "static"
 PROJECT_ROOT = WEBUI_DIR.parent
 
+# ============ 应用配置常量 ============
+
+# HTTP 客户端超时配置（秒）
+HTTP_CONNECT_TIMEOUT = 10.0      # 连接超时
+HTTP_READ_TIMEOUT = 60.0         # 读取超时
+HTTP_WRITE_TIMEOUT = 30.0        # 写入超时
+HTTP_POOL_TIMEOUT = 10.0         # 连接池超时
+
+# HTTP 客户端连接池配置
+HTTP_MAX_KEEPALIVE_CONNECTIONS = 10
+HTTP_MAX_CONNECTIONS = 20
+
+# LLM API 默认配置
+DEFAULT_MAX_TOKENS = 4096        # 默认最大 token 数
+DEFAULT_TEMPERATURE = 0.7        # 默认温度
+DEFAULT_AGENT_MAX_TOKENS = 4096  # Agent 模式最大 token
+DEFAULT_CHAT_MAX_TOKENS = 2048   # 聊天模式默认最大 token（可从设置覆盖）
+
+# 缓存配置
+DEFAULT_CACHE_TTL_SECONDS = 30   # 默认缓存过期时间（秒）
+DEFAULT_REDIS_TTL_SECONDS = 60   # Redis 缓存默认过期时间
+
+# Agent 相关配置
+DEFAULT_AGENT_MAX_ITERATIONS = 10    # Agent 默认最大迭代次数
+DEFAULT_REACT_MAX_ITERATIONS = 15    # ReAct Agent 默认最大迭代次数
+DEFAULT_REACT_EXECUTION_TIME = 300.0  # ReAct 默认最大执行时间（秒）
+
+# ============ 可用模型列表 ============
+# 模型列表是静态数据，使用缓存避免重复创建
+
+@functools.lru_cache(maxsize=1)
+def _get_available_models() -> dict:
+    """
+    获取可用模型列表（带缓存）
+
+    Returns:
+        模型列表字典
+    """
+    return {
+        "anthropic": [
+            {"id": "claude-opus-4-6", "name": "Claude Opus 4.6", "description": "最强大的模型，适合复杂任务"},
+            {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "description": "平衡性能与速度"},
+            {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "description": "快速响应，适合简单任务"}
+        ],
+        "openai": [
+            {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "description": "最新的 GPT-4 模型"},
+            {"id": "gpt-4", "name": "GPT-4", "description": "强大的语言理解能力"},
+            {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "快速且经济"}
+        ],
+        "deepseek": [
+            {"id": "deepseek-chat", "name": "DeepSeek Chat", "description": "通用对话模型"},
+            {"id": "deepseek-coder", "name": "DeepSeek Coder", "description": "代码专用模型"}
+        ],
+        "bailian": [
+            {"id": "qwen3.5-plus", "name": "Qwen3.5 Plus", "description": "通义千问3.5增强版，性价比最优", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "qwen3-max-2026-01-23", "name": "Qwen3 Max", "description": "通义千问3最强版，适合复杂任务", "reasoning": True, "input": "¥0.002/千tokens", "cost": "¥0.006/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "qwen3-coder-next", "name": "Qwen3 Coder Next", "description": "代码专用模型，最新版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "qwen3-coder-plus", "name": "Qwen3 Coder Plus", "description": "代码专用模型，增强版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "MiniMax-M2.5", "name": "MiniMax M2.5", "description": "MiniMax通用模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 24576, "maxTokens": 4096},
+            {"id": "glm-5", "name": "GLM-5", "description": "智谱GLM-5，深度推理", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "glm-4.7", "name": "GLM-4.7", "description": "智谱GLM-4.7，通用对话", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
+            {"id": "kimi-k2.5", "name": "Kimi K2.5", "description": "Moonshot Kimi模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192}
+        ]
+    }
+
 # 配置结构化日志
 logging.basicConfig(
     level=logging.INFO,
@@ -41,6 +107,89 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
+
+
+# ============ 敏感信息过滤 ============
+
+# 敏感信息模式列表
+SENSITIVE_PATTERNS = [
+    "api_key", "apikey", "api-key",
+    "token", "access_token", "refresh_token",
+    "secret", "password", "passwd",
+    "authorization", "bearer",
+    "private_key", "private-key",
+]
+
+# 需要从日志中过滤的敏感字段名
+SENSITIVE_KEYS = {
+    "api_key", "apiKey", "apiKeyEncrypted",
+    "token", "access_token", "refresh_token",
+    "password", "passwd", "secret",
+    "authorization", "x-api-key",
+}
+
+
+def redact_sensitive_info(text: str, show_length: int = 8) -> str:
+    """
+    过滤敏感信息，将敏感值替换为星号
+
+    Args:
+        text: 需要过滤的文本
+        show_length: 显示的字符长度（默认显示前8个字符）
+
+    Returns:
+        过滤后的安全文本
+    """
+    import re
+
+    if not text or not isinstance(text, str):
+        return text
+
+    result = text
+
+    # 模式1: "key": "value" 或 "key": "value" 格式
+    for key in SENSITIVE_KEYS:
+        # 匹配 JSON 格式 "key": "value"
+        pattern = rf'("{key}"\s*:\s*")[^"]*(")'
+        result = re.sub(pattern, rf'\1{"*" * show_length}\2', result, flags=re.IGNORECASE)
+
+        # 匹配 URL 参数格式 key=value
+        pattern = rf'({key}=)[^&\s]+'
+        result = re.sub(pattern, rf'\1{"*" * show_length}', result, flags=re.IGNORECASE)
+
+    # 模式2: Authorization: Bearer xxx
+    pattern = r'(Authorization:\s*Bearer\s+)[^\s]+'
+    result = re.sub(pattern, rf'\1{"*" * show_length}', result, flags=re.IGNORECASE)
+
+    # 模式3: URL 中的 api_key 参数
+    pattern = r'(api_key=)[^&\s]+'
+    result = re.sub(pattern, rf'\1{"*" * show_length}', result, flags=re.IGNORECASE)
+
+    return result
+
+
+def safe_log(text: str, max_length: int = 500) -> str:
+    """
+    安全日志输出：过滤敏感信息并截断超长文本
+
+    Args:
+        text: 需要处理的文本
+        max_length: 最大输出长度
+
+    Returns:
+        安全的日志文本
+    """
+    if not text:
+        return text
+
+    # 过滤敏感信息
+    safe_text = redact_sensitive_info(text)
+
+    # 截断超长文本
+    if len(safe_text) > max_length:
+        return safe_text[:max_length] + "..."
+
+    return safe_text
 
 # ============ 数据库支持（用于聊天持久化） ============
 
@@ -84,6 +233,53 @@ except Exception as e:
 # 响应缓存实例（提前声明，供 lifespan 使用）
 response_cache = None
 
+# 全局 HTTP 客户端池（提升性能，避免重复创建连接）
+http_client: httpx.AsyncClient | None = None
+
+
+def get_http_client() -> httpx.AsyncClient:
+    """
+    获取全局 HTTP 客户端实例
+
+    如果客户端不存在，创建一个新实例。
+    建议在 lifespan 中初始化，以确保正确的生命周期管理。
+
+    Returns:
+        httpx.AsyncClient 实例
+    """
+    global http_client
+
+    if http_client is None or http_client.is_closed:
+        # 支持系统代理
+        import os
+        proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or \
+                os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
+
+        timeout_config = httpx.Timeout(
+            connect=HTTP_CONNECT_TIMEOUT,
+            read=HTTP_READ_TIMEOUT,
+            write=HTTP_WRITE_TIMEOUT,
+            pool=HTTP_POOL_TIMEOUT
+        )
+
+        client_kwargs = {
+            "timeout": timeout_config,
+            "follow_redirects": True,
+            "limits": httpx.Limits(
+                max_keepalive_connections=HTTP_MAX_KEEPALIVE_CONNECTIONS,
+                max_connections=HTTP_MAX_CONNECTIONS
+            )
+        }
+
+        if proxy:
+            client_kwargs["proxy"] = proxy
+            logger.info(f"[HTTP Client] 使用代理: {proxy}")
+
+        http_client = httpx.AsyncClient(**client_kwargs)
+        logger.info("[HTTP Client] 创建新的全局 HTTP 客户端")
+
+    return http_client
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -92,7 +288,7 @@ async def lifespan(app: FastAPI):
 
     使用 lifespan 替代已弃用的 @app.on_event("startup") 和 @app.on_event("shutdown")
     """
-    global DATABASE_ENABLED, response_cache
+    global DATABASE_ENABLED, response_cache, http_client
 
     # ========== 启动逻辑 ==========
     logger.info("应用启动中...")
@@ -111,7 +307,11 @@ async def lifespan(app: FastAPI):
     logger.info(f"应用启动完成，数据库模式: {'启用' if DATABASE_ENABLED else '禁用（内存模式）'}")
 
     # 初始化响应缓存
-    response_cache = ResponseCache(ttl_seconds=30)
+    response_cache = ResponseCache(ttl_seconds=DEFAULT_CACHE_TTL_SECONDS)
+
+    # 初始化全局 HTTP 客户端
+    get_http_client()
+    logger.info("全局 HTTP 客户端初始化完成")
 
     yield  # 应用运行中
 
@@ -121,6 +321,11 @@ async def lifespan(app: FastAPI):
     # 关闭缓存连接
     if response_cache:
         await response_cache.close()
+
+    # 关闭全局 HTTP 客户端
+    if http_client:
+        await http_client.aclose()
+        logger.info("全局 HTTP 客户端已关闭")
 
     logger.info("应用已关闭")
 
@@ -635,7 +840,8 @@ def _load_skills_from_files() -> list:
                 if isinstance(frontmatter.get('config'), str):
                     try:
                         frontmatter['config'] = json.loads(frontmatter['config'])
-                    except:
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.debug(f"Failed to parse config JSON: {e}")
                         frontmatter['config'] = {}
                 elif frontmatter.get('config') is None:
                     frontmatter['config'] = {}
@@ -1471,32 +1677,7 @@ async def save_settings(request: dict):
 @app.get("/api/v1/settings/models")
 async def get_available_models():
     """获取可用的 AI 模型列表"""
-    models = {
-        "anthropic": [
-            {"id": "claude-opus-4-6", "name": "Claude Opus 4.6", "description": "最强大的模型，适合复杂任务"},
-            {"id": "claude-sonnet-4-6", "name": "Claude Sonnet 4.6", "description": "平衡性能与速度"},
-            {"id": "claude-haiku-4-5", "name": "Claude Haiku 4.5", "description": "快速响应，适合简单任务"}
-        ],
-        "openai": [
-            {"id": "gpt-4-turbo", "name": "GPT-4 Turbo", "description": "最新的 GPT-4 模型"},
-            {"id": "gpt-4", "name": "GPT-4", "description": "强大的语言理解能力"},
-            {"id": "gpt-3.5-turbo", "name": "GPT-3.5 Turbo", "description": "快速且经济"}
-        ],
-        "deepseek": [
-            {"id": "deepseek-chat", "name": "DeepSeek Chat", "description": "通用对话模型"},
-            {"id": "deepseek-coder", "name": "DeepSeek Coder", "description": "代码专用模型"}
-        ],
-        "bailian": [
-            {"id": "qwen3.5-plus", "name": "Qwen3.5 Plus", "description": "通义千问3.5增强版，性价比最优", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "qwen3-max-2026-01-23", "name": "Qwen3 Max", "description": "通义千问3最强版，适合复杂任务", "reasoning": True, "input": "¥0.002/千tokens", "cost": "¥0.006/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "qwen3-coder-next", "name": "Qwen3 Coder Next", "description": "代码专用模型，最新版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "qwen3-coder-plus", "name": "Qwen3 Coder Plus", "description": "代码专用模型，增强版", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "MiniMax-M2.5", "name": "MiniMax M2.5", "description": "MiniMax通用模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 24576, "maxTokens": 4096},
-            {"id": "glm-5", "name": "GLM-5", "description": "智谱GLM-5，深度推理", "reasoning": True, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "glm-4.7", "name": "GLM-4.7", "description": "智谱GLM-4.7，通用对话", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192},
-            {"id": "kimi-k2.5", "name": "Kimi K2.5", "description": "Moonshot Kimi模型", "reasoning": False, "input": "¥0.0004/千tokens", "cost": "¥0.002/千tokens", "contextWindow": 131072, "maxTokens": 8192}
-        ]
-    }
+    models = _get_available_models()
     return JSONResponse({
         "success": True,
         "models": models
@@ -1576,8 +1757,8 @@ class ChatRequest(BaseModel):
     """聊天请求模型"""
     messages: List[ChatMessage]
     stream: bool = True
-    temperature: float = 0.7
-    max_tokens: int = 2048
+    temperature: float = DEFAULT_TEMPERATURE
+    max_tokens: int = DEFAULT_CHAT_MAX_TOKENS
     context_window: Optional[int] = None  # 上下文窗口长度
     # 支持自定义 AI 配置
     provider: Optional[str] = None
@@ -1611,8 +1792,8 @@ CHAT_HISTORY: dict[str, list] = {}
 
 async def generate_agent_response(
     messages: List[ChatMessage],
-    temperature: float = 0.7,
-    max_tokens: int = 4096,
+    temperature: float = DEFAULT_TEMPERATURE,
+    max_tokens: int = DEFAULT_AGENT_MAX_TOKENS,
     provider: str = "bailian",
     api_key: str = None,
     model: str = None,
@@ -1899,8 +2080,8 @@ async def _call_llm_with_tools(
     endpoint: str,
     messages: list,
     tools: list,
-    temperature: float = 0.7,
-    max_tokens: int = 4096,
+    temperature: float = DEFAULT_TEMPERATURE,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
 ) -> dict | None:
     """
     调用 LLM API（支持工具调用）
@@ -1949,24 +2130,23 @@ async def _call_llm_with_tools(
         if tools:
             payload["tools"] = tools
             payload["tool_choice"] = "auto"
-        
-        timeout_config = httpx.Timeout(connect=10.0, read=120.0, write=30.0, pool=10.0)
-        
-        async with httpx.AsyncClient(timeout=timeout_config) as client:
-            response = await client.post(api_url, headers=headers, json=payload)
-            
-            if response.status_code != 200:
-                logger.error(f"[Agent] LLM 调用失败: {response.status_code} - {response.text}")
-                return None
-            
-            data = response.json()
-            choice = data.get("choices", [{}])[0]
-            message = choice.get("message", {})
-            
-            return {
-                "content": message.get("content", ""),
-                "tool_calls": message.get("tool_calls", [])
-            }
+
+        # 使用全局 HTTP 客户端
+        client = get_http_client()
+        response = await client.post(api_url, headers=headers, json=payload)
+
+        if response.status_code != 200:
+            logger.error(f"[Agent] LLM 调用失败: {response.status_code} - {response.text}")
+            return None
+
+        data = response.json()
+        choice = data.get("choices", [{}])[0]
+        message = choice.get("message", {})
+
+        return {
+            "content": message.get("content", ""),
+            "tool_calls": message.get("tool_calls", [])
+        }
             
     except Exception as e:
         logger.error(f"[Agent] LLM 调用异常: {e}")
@@ -2004,7 +2184,7 @@ def _build_system_prompt(tool_profile: str = "coding") -> str:
     return base_prompt
 
 
-async def generate_chat_response(messages: List[ChatMessage], temperature: float = 0.7, max_tokens: int = 2048, provider: str = None, api_key: str = None, model: str = None, endpoint: str = None, context_window: int = None) -> AsyncGenerator[str, None]:
+async def generate_chat_response(messages: List[ChatMessage], temperature: float = DEFAULT_TEMPERATURE, max_tokens: int = DEFAULT_CHAT_MAX_TOKENS, provider: str = None, api_key: str = None, model: str = None, endpoint: str = None, context_window: int = None) -> AsyncGenerator[str, None]:
     """
     生成聊天响应（流式）
     支持 Anthropic、OpenAI、DeepSeek 和阿里云百炼 API
@@ -2025,8 +2205,8 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
             endpoint = SETTINGS_STORE.get("endpoint", "") or SETTINGS_STORE.get("apiEndpoint", "")
 
         # 从全局设置读取 max_tokens 和 context_window（如果请求中没有提供）
-        if max_tokens == 2048:  # 默认值，可能需要从设置中获取
-            max_tokens = SETTINGS_STORE.get("maxTokens", 4096)
+        if max_tokens == DEFAULT_CHAT_MAX_TOKENS:  # 默认值，可能需要从设置中获取
+            max_tokens = SETTINGS_STORE.get("maxTokens", DEFAULT_MAX_TOKENS)
         if context_window is None:
             context_window = SETTINGS_STORE.get("contextWindow", None)
 
@@ -2105,108 +2285,87 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
                     "stream": True
                 }
 
-            # 添加调试日志：打印实际发送的 payload
+            # 添加调试日志：打印实际发送的 payload（过滤敏感信息）
             logger.info(f"[DEBUG] 实际发送的 payload: model={payload.get('model')}, provider={provider}, max_tokens={max_tokens}, context_window={context_window}")
-            logger.info(f"[DEBUG] 完整 payload: {json.dumps(payload, ensure_ascii=False)[:500]}")
+            logger.debug(f"[DEBUG] 完整 payload: {safe_log(json.dumps(payload, ensure_ascii=False))}")
 
-            # 发送流式请求 - 使用详细的超时配置
-            timeout_config = httpx.Timeout(
-                connect=10.0,      # 连接超时 10 秒
-                read=60.0,         # 读取超时 60 秒
-                write=30.0,        # 写入超时 30 秒
-                pool=10.0          # 连接池超时 10 秒
-            )
-
-            # 支持系统代理
-            import os
-            proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or \
-                    os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
-
-            client_kwargs = {
-                "timeout": timeout_config,
-                "follow_redirects": True,
-                "limits": httpx.Limits(max_keepalive_connections=5, max_connections=10)
-            }
-            if proxy:
-                client_kwargs["proxy"] = proxy
-                logger.info(f"[百炼API] 使用代理: {proxy}")
-
-            async with httpx.AsyncClient(**client_kwargs) as client:
-                async with client.stream("POST", api_url, headers=headers, json=payload) as response:
-                    if response.status_code != 200:
-                        error_text = await response.aread()
-                        yield f"data: {json.dumps({'error': f'API错误 ({response.status_code}): {error_text.decode()}'})}\n\n"
-                        yield "data: [DONE]\n\n"
-                        return
-
-                    # 记录响应状态
-                    logger.info(f"[百炼API] 流式响应状态: {response.status_code}")
-                    # 记录响应头中的模型信息
-                    model_header = response.headers.get("x-model", "unknown")
-                    logger.info(f"[百炼API] 响应头 x-model: {model_header}")
-
-                    buffer = ""  # 用于处理不完整的行
-                    first_chunk = True  # 标记第一个 chunk
-                    async for chunk_bytes in response.aiter_bytes():
-                        chunk_text = chunk_bytes.decode('utf-8')
-                        buffer += chunk_text
-
-                        # 按行分割处理
-                        while '\n' in buffer:
-                            line, buffer = buffer.split('\n', 1)
-                            line = line.strip()
-
-                            if not line:
-                                continue
-
-                            logger.debug(f"[百炼API] 收到行: {line[:100]}...")
-
-                            if line.startswith("data: "):
-                                data = line[6:]
-                                if data == "[DONE]":
-                                    logger.info("[百炼API] 收到 [DONE] 信号")
-                                    yield "data: [DONE]\n\n"
-                                    return
-                                try:
-                                    chunk = json.loads(data)
-                                    # 记录第一个 chunk 中的模型信息
-                                    if first_chunk and "model" in chunk:
-                                        logger.info(f"[DEBUG] API 返回的模型: {chunk.get('model')}")
-                                        first_chunk = False
-                                    if provider == "anthropic":
-                                        # Anthropic 格式
-                                        if chunk.get("type") == "content_block_delta":
-                                            content = chunk.get("delta", {}).get("text", "")
-                                            if content:
-                                                yield f"data: {json.dumps({'content': content})}\n\n"
-                                    else:
-                                        # OpenAI 兼容格式（包括百炼）
-                                        delta = chunk.get("choices", [{}])[0].get("delta", {})
-                                        content = delta.get("content", "")
-                                        if content:
-                                            logger.debug(f"[百炼API] 提取内容: {content[:50]}...")
-                                            yield f"data: {json.dumps({'content': content})}\n\n"
-                                except json.JSONDecodeError as e:
-                                    logger.warning(f"[百炼API] JSON 解析失败: {e}, 数据: {data[:100]}")
-                                    continue
-
-                    # 处理 buffer 中剩余的数据
-                    if buffer.strip():
-                        line = buffer.strip()
-                        logger.debug(f"[百炼API] 剩余数据: {line[:100]}...")
-                        if line.startswith("data: ") and line[6:] != "[DONE]":
-                            try:
-                                chunk = json.loads(line[6:])
-                                delta = chunk.get("choices", [{}])[0].get("delta", {})
-                                content = delta.get("content", "")
-                                if content:
-                                    yield f"data: {json.dumps({'content': content})}\n\n"
-                            except:
-                                pass
-
-                    logger.info("[百炼API] 流式响应完成")
+            # 使用全局 HTTP 客户端发送流式请求
+            client = get_http_client()
+            async with client.stream("POST", api_url, headers=headers, json=payload) as response:
+                if response.status_code != 200:
+                    error_text = await response.aread()
+                    yield f"data: {json.dumps({'error': f'API错误 ({response.status_code}): {error_text.decode()}'})}\n\n"
                     yield "data: [DONE]\n\n"
                     return
+
+                # 记录响应状态
+                logger.info(f"[百炼API] 流式响应状态: {response.status_code}")
+                # 记录响应头中的模型信息
+                model_header = response.headers.get("x-model", "unknown")
+                logger.info(f"[百炼API] 响应头 x-model: {model_header}")
+
+                buffer = ""  # 用于处理不完整的行
+                first_chunk = True  # 标记第一个 chunk
+                async for chunk_bytes in response.aiter_bytes():
+                    chunk_text = chunk_bytes.decode('utf-8')
+                    buffer += chunk_text
+
+                    # 按行分割处理
+                    while '\n' in buffer:
+                        line, buffer = buffer.split('\n', 1)
+                        line = line.strip()
+
+                        if not line:
+                            continue
+
+                        logger.debug(f"[百炼API] 收到行: {line[:100]}...")
+
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            if data == "[DONE]":
+                                logger.info("[百炼API] 收到 [DONE] 信号")
+                                yield "data: [DONE]\n\n"
+                                return
+                            try:
+                                chunk = json.loads(data)
+                                # 记录第一个 chunk 中的模型信息
+                                if first_chunk and "model" in chunk:
+                                    logger.info(f"[DEBUG] API 返回的模型: {chunk.get('model')}")
+                                    first_chunk = False
+                                if provider == "anthropic":
+                                    # Anthropic 格式
+                                    if chunk.get("type") == "content_block_delta":
+                                        content = chunk.get("delta", {}).get("text", "")
+                                        if content:
+                                            yield f"data: {json.dumps({'content': content})}\n\n"
+                                else:
+                                    # OpenAI 兼容格式（包括百炼）
+                                    delta = chunk.get("choices", [{}])[0].get("delta", {})
+                                    content = delta.get("content", "")
+                                    if content:
+                                        logger.debug(f"[百炼API] 提取内容: {content[:50]}...")
+                                        yield f"data: {json.dumps({'content': content})}\n\n"
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"[百炼API] JSON 解析失败: {e}, 数据: {data[:100]}")
+                                continue
+
+                # 处理 buffer 中剩余的数据
+                if buffer.strip():
+                    line = buffer.strip()
+                    logger.debug(f"[百炼API] 剩余数据: {line[:100]}...")
+                    if line.startswith("data: ") and line[6:] != "[DONE]":
+                        try:
+                            chunk = json.loads(line[6:])
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                yield f"data: {json.dumps({'content': content})}\n\n"
+                        except (json.JSONDecodeError, ValueError) as e:
+                            logger.debug(f"Failed to parse remaining data JSON: {e}")
+
+                logger.info("[百炼API] 流式响应完成")
+                yield "data: [DONE]\n\n"
+                return
 
         # 如果没有自定义配置，尝试使用项目的 LLM 服务
         import sys
@@ -2716,7 +2875,7 @@ async def chat(request: ChatRequest):
             api_key = decrypt_api_key(SETTINGS_STORE.get("apiKeyEncrypted", ""))
     model = request.model or SETTINGS_STORE.get("model", "qwen3.5-plus")
     endpoint = request.endpoint or SETTINGS_STORE.get("endpoint", "")
-    max_tokens = request.max_tokens if request.max_tokens != 2048 else SETTINGS_STORE.get("maxTokens", 4096)
+    max_tokens = request.max_tokens if request.max_tokens != DEFAULT_CHAT_MAX_TOKENS else SETTINGS_STORE.get("maxTokens", DEFAULT_MAX_TOKENS)
     
     # 选择响应生成方式
     # 如果启用了工具且 Agent 框架可用，使用 Agent 响应
