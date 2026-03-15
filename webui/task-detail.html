@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>任务详情 - IntelliTeam</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="./static/js/vue.global.prod.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>
         window.tailwind = window.tailwind || {};
@@ -22,250 +23,531 @@
                             light: '#e6edf3',
                             blue: '#0366D6',
                             green: '#33BB22',
-                            red: '#DA3633'
+                            red: '#DA3633',
+                            yellow: '#F0C744'
                         }
                     }
                 }
             }
-        };
+        }
     </script>
     <style>
-        body { background: #0d1117; color: #e6edf3; }
-        .nav-link { padding: 8px 16px; border-radius: 6px; transition: all 0.2s; }
-        .nav-link:hover { background: rgba(255,255,255,0.1); }
-        .nav-link.active { background: rgba(3,102,214,0.2); color: #58a6ff; }
-        .tab-active { border-bottom: 2px solid #58a6ff; color: #fff; }
+        body { background: #0d1117; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+        .nav-link { display: flex; align-items: center; height: 64px; padding: 0 16px; color: #8b949e; font-size: 14px; border-bottom: 2px solid transparent; text-decoration: none; transition: all 0.2s; }
+        .nav-link:hover { color: #e6edf3; border-color: #30363d; }
+        .nav-link.active { color: #fff; border-color: #f78166; }
+        .gh-toolbar { height: 64px; background-color: #161b22; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 40; display: flex; align-items: center; padding: 0 16px; }
+        .gh-card { background-color: #161b22; border: 1px solid #30363d; border-radius: 6px; }
+        .gh-input { width: 100%; padding: 8px 12px; background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; }
+        .gh-input:focus { border-color: #f78166; outline: none; }
+        .gh-select { padding: 8px 12px; background-color: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; }
+        .btn-primary { background-color: #33BB22; color: #fff; border: 1px solid rgba(51,187,34,0.5); border-radius: 6px; padding: 8px 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background-color: #2ea91f; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background-color: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 8px 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { background-color: #30363d; }
+        .badge-success { background: rgba(51,187,34,0.15); color: #3fb950; border: 1px solid rgba(51,187,34,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .badge-info { background: rgba(56,139,253,0.15); color: #58a6ff; border: 1px solid rgba(56,139,253,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .badge-neutral { background: rgba(110,118,129,0.15); color: #8b949e; border: 1px solid rgba(110,118,129,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .badge-warning { background: rgba(240,199,68,0.15); color: #d29922; border: 1px solid rgba(240,199,68,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .badge-danger { background: rgba(218,54,51,0.15); color: #f85149; border: 1px solid rgba(218,54,51,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .loading-spinner { border: 3px solid #30363d; border-top: 3px solid #f78166; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 24px; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
-    <!-- 顶部导航栏 -->
-    <nav class="bg-gh-canvas border-b border-gh-border sticky top-0 z-50">
-        <div class="container mx-auto px-4">
-            <div class="flex items-center justify-between h-16">
-                <a href="index.html" class="flex items-center space-x-3 text-white font-semibold hover:opacity-80">
-                    <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
-                        <i class="fas fa-robot"></i>
+    <div id="app">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="fixed inset-0 bg-gh-bg/95 z-50 flex items-center justify-center">
+            <div class="loading-spinner"></div>
+        </div>
+
+        <nav class="gh-toolbar">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center">
+                    <a href="/" class="flex items-center space-x-3 text-white font-semibold">
+                        <div class="w-8 h-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <span>IntelliTeam</span>
+                    </a>
+                    <div class="h-6 w-px bg-gh-border mx-2"></div>
+                    <div class="hidden md:flex items-center">
+                        <a href="/" class="nav-link"><i class="fas fa-home mr-2"></i>仪表盘</a>
+                        <a href="/tasks" class="nav-link"><i class="fas fa-tasks mr-2"></i>任务</a>
+                        <a href="/agents" class="nav-link"><i class="fas fa-users mr-2"></i>Agent</a>
+                        <a href="/workflows" class="nav-link"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
+                        <a href="/analytics" class="nav-link"><i class="fas fa-chart-line mr-2"></i>分析</a>
+                        <a href="/tools" class="nav-link"><i class="fas fa-toolbox mr-2"></i>工具</a>
+                        <a href="/skills" class="nav-link"><i class="fas fa-puzzle-piece mr-2"></i>技能</a>
+                        <a href="/ai-assistant" class="nav-link"><i class="fas fa-robot mr-2"></i>AI 助手</a>
                     </div>
-                    <span>IntelliTeam</span>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <!-- 错误状态 -->
+            <div v-if="error" class="text-center py-16">
+                <i class="fas fa-exclamation-circle text-4xl text-gh-red mb-4"></i>
+                <p class="text-gh-text mb-4">{{ error }}</p>
+                <a href="/tasks" class="btn-primary inline-block px-4 py-2">
+                    <i class="fas fa-arrow-left mr-2"></i>返回任务列表
                 </a>
-                <div class="hidden md:flex items-center space-x-2">
-                    <a href="index.html" class="nav-link text-sm"><i class="fas fa-home mr-2"></i>首页</a>
-                    <a href="tools.html" class="nav-link text-sm"><i class="fas fa-toolbox mr-2"></i>工具系统</a>
-                    <a href="agent-monitor.html" class="nav-link text-sm"><i class="fas fa-desktop mr-2"></i>Agent 监控</a>
-                    <a href="log-viewer.html" class="nav-link text-sm"><i class="fas fa-file-alt mr-2"></i>日志查看</a>
-                    <a href="task-manager.html" class="nav-link text-sm"><i class="fas fa-tasks mr-2"></i>任务管理</a>
-                    <a href="workflow-viz.html" class="nav-link text-sm"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
-                    <a href="ai-assistant.html" class="nav-link text-sm"><i class="fas fa-comments mr-2"></i>AI 助手</a>
+            </div>
+
+            <div v-else-if="task" class="space-y-6">
+                <!-- 返回按钮和标题 -->
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <a href="/tasks" class="text-gh-text hover:text-white transition">
+                            <i class="fas fa-arrow-left mr-2"></i>返回
+                        </a>
+                        <h1 class="text-2xl font-semibold text-white">{{ task.title }}</h1>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button @click="openEditModal" class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">
+                            <i class="fas fa-edit mr-1"></i>编辑
+                        </button>
+                        <button @click="deleteTask" class="px-3 py-1.5 bg-red-900/30 border border-red-900/50 rounded text-sm text-red-400 hover:bg-red-900/50">
+                            <i class="fas fa-trash mr-1"></i>删除
+                        </button>
+                    </div>
                 </div>
-                <button class="md:hidden text-gh-text hover:text-white">
-                    <i class="fas fa-bars text-xl"></i>
-                </button>
-            </div>
-        </div>
-    </nav>
 
-    <!-- 主内容 -->
-    <main class="flex-1 container mx-auto px-4 py-6">
-        <!-- 返回按钮和标题 -->
-        <div class="flex items-center justify-between mb-6">
-            <div class="flex items-center space-x-4">
-                <a href="task-manager.html" class="text-gh-text hover:text-white transition">
-                    <i class="fas fa-arrow-left mr-2"></i>返回
-                </a>
-                <h1 class="text-2xl font-semibold text-white">创建用户管理 API</h1>
-            </div>
-            <div class="flex items-center space-x-2">
-                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">
-                    <i class="fas fa-edit mr-1"></i>编辑
-                </button>
-                <button class="px-3 py-1.5 bg-gh-elevated border border-gh-border rounded text-sm hover:bg-white/5">
-                    <i class="fas fa-clone mr-1"></i>复制
-                </button>
-                <button class="px-3 py-1.5 bg-red-900/30 border border-red-900/50 rounded text-sm text-red-400 hover:bg-red-900/50">
-                    <i class="fas fa-trash mr-1"></i>删除
-                </button>
-            </div>
-        </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 主内容区 -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- 任务信息 -->
+                        <div class="gh-card p-6">
+                            <div class="flex items-start justify-between mb-4">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span :class="getPriorityBadge(task.priority)">{{ getPriorityText(task.priority) }}</span>
+                                        <span :class="getStatusBadge(task.status)">{{ getStatusText(task.status) }}</span>
+                                    </div>
+                                    <p class="text-gh-light">{{ task.description || '暂无描述' }}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-6 text-sm text-gh-text">
+                                <span><i class="fas fa-calendar mr-2"></i>创建：{{ task.createdAt }}</span>
+                                <span v-if="task.assignee"><i class="fas fa-user mr-2"></i>负责人：{{ task.assignee }}</span>
+                            </div>
+                        </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- 主内容区 -->
-            <div class="lg:col-span-2 space-y-6">
-                <!-- 任务信息 -->
-                <div class="bg-gh-canvas border border-gh-border rounded-lg p-6">
-                    <div class="flex items-start justify-between mb-4">
+                        <!-- 工作流信息 -->
+                        <div v-if="task.workflow" class="gh-card p-6">
+                            <h3 class="font-semibold text-white mb-4">
+                                <i class="fas fa-project-diagram mr-2 text-gh-blue"></i>工作流：{{ task.workflow }}
+                            </h3>
+                            <div v-if="workflowSteps.length > 0" class="flex flex-wrap items-center gap-2">
+                                <template v-for="(step, index) in workflowSteps" :key="step.id">
+                                    <div class="flex items-center gap-2 px-3 py-2 rounded bg-gh-elevated border border-gh-border">
+                                        <i :class="[step.icon || 'fas fa-cog', 'text-gh-text']"></i>
+                                        <span class="text-white">{{ step.name }}</span>
+                                        <span class="text-xs px-1.5 py-0.5 rounded bg-gh-blue/20 text-gh-blue">{{ step.type }}</span>
+                                    </div>
+                                    <i v-if="index < workflowSteps.length - 1" class="fas fa-arrow-right text-gh-text"></i>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- 输入数据 -->
+                        <div v-if="task.input_data && Object.keys(task.input_data).length > 0" class="gh-card p-6">
+                            <h3 class="font-semibold text-white mb-4">
+                                <i class="fas fa-code mr-2 text-gh-yellow"></i>输入数据
+                            </h3>
+                            <pre class="bg-gh-bg p-4 rounded border border-gh-border text-sm overflow-x-auto">{{ JSON.stringify(task.input_data, null, 2) }}</pre>
+                        </div>
+
+                        <!-- Agent 信息 -->
+                        <div v-if="task.agent" class="gh-card p-6">
+                            <h3 class="font-semibold text-white mb-4">
+                                <i class="fas fa-robot mr-2 text-gh-green"></i>分配 Agent
+                            </h3>
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-green-900/30 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-robot text-green-400"></i>
+                                </div>
+                                <div>
+                                    <div class="text-white font-medium">{{ task.agent }}</div>
+                                    <div class="text-xs text-gh-text">智能代理</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 侧边栏 -->
+                    <div class="space-y-6">
+                        <!-- 任务状态 -->
+                        <div class="gh-card p-4">
+                            <h3 class="text-sm font-medium text-gh-text mb-3">任务状态</h3>
+                            <select v-model="task.status" @change="updateStatus" class="gh-select w-full">
+                                <option value="pending">待处理</option>
+                                <option value="in_progress">进行中</option>
+                                <option value="completed">已完成</option>
+                            </select>
+                        </div>
+
+                        <!-- 负责人 -->
+                        <div class="gh-card p-4">
+                            <h3 class="text-sm font-medium text-gh-text mb-3">负责人</h3>
+                            <div v-if="task.assignee" class="flex items-center gap-3">
+                                <div class="w-8 h-8 bg-blue-900/30 rounded-full flex items-center justify-center">
+                                    <span class="text-sm text-blue-400">{{ task.assignee.charAt(0) }}</span>
+                                </div>
+                                <span class="text-sm text-white">{{ task.assignee }}</span>
+                            </div>
+                            <p v-else class="text-gh-text text-sm">未分配</p>
+                        </div>
+
+                        <!-- 优先级 -->
+                        <div class="gh-card p-4">
+                            <h3 class="text-sm font-medium text-gh-text mb-3">优先级</h3>
+                            <select v-model="task.priority" @change="updatePriority" class="gh-select w-full">
+                                <option value="low">低优先级</option>
+                                <option value="normal">中优先级</option>
+                                <option value="high">高优先级</option>
+                                <option value="critical">紧急</option>
+                            </select>
+                        </div>
+
+                        <!-- 工作流 -->
+                        <div class="gh-card p-4">
+                            <h3 class="text-sm font-medium text-gh-text mb-3">工作流</h3>
+                            <p v-if="task.workflow" class="text-gh-blue">{{ task.workflow }}</p>
+                            <p v-else class="text-gh-text text-sm">未指定工作流</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 编辑任务模态框 -->
+        <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
+            <div class="modal-content">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-white">编辑任务</h2>
+                    <button @click="closeEditModal" class="text-gh-text hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- 任务标题 -->
+                    <div>
+                        <label class="block text-sm text-gh-text mb-2">任务标题 *</label>
+                        <input v-model="editingTask.title" type="text"
+                               class="gh-input" placeholder="例如：实现用户登录功能">
+                    </div>
+
+                    <!-- 任务描述 -->
+                    <div>
+                        <label class="block text-sm text-gh-text mb-2">任务描述</label>
+                        <textarea v-model="editingTask.description" rows="3"
+                                  class="gh-input" placeholder="详细描述任务内容..."></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- 优先级 -->
                         <div>
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="px-2 py-1 bg-red-900/30 text-red-400 rounded text-xs font-medium">高优先级</span>
-                                <span class="px-2 py-1 bg-blue-900/30 text-blue-400 rounded text-xs font-medium">进行中</span>
-                            </div>
-                            <p class="text-gh-light">实现用户注册、登录、权限管理等功能，包括 JWT 认证、角色权限控制等核心功能。</p>
+                            <label class="block text-sm text-gh-text mb-2">优先级</label>
+                            <select v-model="editingTask.priority" class="gh-select w-full">
+                                <option value="low">低优先级</option>
+                                <option value="normal">中优先级</option>
+                                <option value="high">高优先级</option>
+                                <option value="critical">紧急</option>
+                            </select>
                         </div>
-                    </div>
-                    <div class="flex items-center gap-6 text-sm text-gh-text">
-                        <span><i class="fas fa-calendar mr-2"></i>创建：2026-03-03 10:30</span>
-                        <span><i class="fas fa-clock mr-2"></i>截止：2026-03-10</span>
-                        <span><i class="fas fa-tag mr-2"></i>标签：API, 后端，用户系统</span>
-                    </div>
-                </div>
 
-                <!-- 选项卡 -->
-                <div class="bg-gh-canvas border border-gh-border rounded-lg overflow-hidden">
-                    <div class="flex border-b border-gh-border">
-                        <button class="px-4 py-3 text-sm font-medium tab-active">描述</button>
-                        <button class="px-4 py-3 text-sm font-medium text-gh-text hover:text-white">子任务</button>
-                        <button class="px-4 py-3 text-sm font-medium text-gh-text hover:text-white">评论</button>
-                        <button class="px-4 py-3 text-sm font-medium text-gh-text hover:text-white">附件</button>
-                        <button class="px-4 py-3 text-sm font-medium text-gh-text hover:text-white">活动日志</button>
-                    </div>
-                    <div class="p-6">
-                        <h3 class="font-semibold text-white mb-3">任务描述</h3>
-                        <div class="text-gh-light space-y-3">
-                            <p>需要创建一个完整的用户管理系统 API，包含以下功能：</p>
-                            <ul class="list-disc list-inside space-y-1 text-gh-text ml-4">
-                                <li>用户注册（邮箱验证）</li>
-                                <li>用户登录（JWT Token）</li>
-                                <li>密码重置</li>
-                                <li>角色权限管理</li>
-                                <li>用户资料管理</li>
-                            </ul>
-                            <p class="mt-4">技术栈要求：</p>
-                            <ul class="list-disc list-inside space-y-1 text-gh-text ml-4">
-                                <li>Python FastAPI</li>
-                                <li>PostgreSQL 数据库</li>
-                                <li>Redis 缓存</li>
-                                <li>JWT 认证</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 子任务 -->
-                <div class="bg-gh-canvas border border-gh-border rounded-lg p-6">
-                    <h3 class="font-semibold text-white mb-4">子任务</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
-                            <input type="checkbox" checked class="w-4 h-4 rounded border-gh-border bg-gh-bg">
-                            <div class="flex-1">
-                                <div class="text-sm text-white line-through text-gh-text">数据库表设计</div>
-                            </div>
-                            <span class="text-xs text-green-400"><i class="fas fa-check mr-1"></i>已完成</span>
-                        </div>
-                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
-                            <input type="checkbox" checked class="w-4 h-4 rounded border-gh-border bg-gh-bg">
-                            <div class="flex-1">
-                                <div class="text-sm text-white line-through text-gh-text">API 接口定义</div>
-                            </div>
-                            <span class="text-xs text-green-400"><i class="fas fa-check mr-1"></i>已完成</span>
-                        </div>
-                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
-                            <input type="checkbox" class="w-4 h-4 rounded border-gh-border bg-gh-bg">
-                            <div class="flex-1">
-                                <div class="text-sm text-white">实现用户注册接口</div>
-                            </div>
-                            <span class="text-xs text-blue-400"><i class="fas fa-spinner fa-spin mr-1"></i>进行中</span>
-                        </div>
-                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
-                            <input type="checkbox" class="w-4 h-4 rounded border-gh-border bg-gh-bg">
-                            <div class="flex-1">
-                                <div class="text-sm text-white">实现用户登录接口</div>
-                            </div>
-                            <span class="text-xs text-gh-text">待开始</span>
-                        </div>
-                        <div class="flex items-center gap-3 p-3 bg-gh-elevated rounded-lg border border-gh-border">
-                            <input type="checkbox" class="w-4 h-4 rounded border-gh-border bg-gh-bg">
-                            <div class="flex-1">
-                                <div class="text-sm text-white">编写单元测试</div>
-                            </div>
-                            <span class="text-xs text-gh-text">待开始</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 侧边栏 -->
-            <div class="space-y-6">
-                <!-- 负责人 -->
-                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
-                    <h3 class="text-sm font-medium text-gh-text mb-3">负责人</h3>
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-blue-900/30 rounded-full flex items-center justify-center">
-                            <span class="text-sm text-blue-400">张</span>
-                        </div>
-                        <span class="text-sm text-white">张三</span>
-                    </div>
-                </div>
-
-                <!-- Agent -->
-                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
-                    <h3 class="text-sm font-medium text-gh-text mb-3">分配 Agent</h3>
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 bg-green-900/30 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-laptop-code text-green-400 text-sm"></i>
-                        </div>
+                        <!-- 状态 -->
                         <div>
-                            <div class="text-sm text-white">Coder</div>
-                            <div class="text-xs text-gh-text">代码工程师</div>
+                            <label class="block text-sm text-gh-text mb-2">状态</label>
+                            <select v-model="editingTask.status" class="gh-select w-full">
+                                <option value="pending">待处理</option>
+                                <option value="in_progress">进行中</option>
+                                <option value="completed">已完成</option>
+                            </select>
                         </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- 负责人 -->
+                        <div>
+                            <label class="block text-sm text-gh-text mb-2">负责人</label>
+                            <input v-model="editingTask.assignee" type="text"
+                                   class="gh-input" placeholder="负责人姓名">
+                        </div>
+
+                        <!-- Agent -->
+                        <div>
+                            <label class="block text-sm text-gh-text mb-2">分配 Agent</label>
+                            <select v-model="editingTask.agent" class="gh-select w-full">
+                                <option value="">不指定</option>
+                                <option v-for="agent in availableAgents" :key="agent" :value="agent">{{ agent }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 工作流选择 -->
+                    <div>
+                        <label class="block text-sm text-gh-text mb-2">
+                            <i class="fas fa-project-diagram mr-1"></i>选择工作流
+                        </label>
+                        <select v-model="editingTask.workflow" class="gh-select w-full">
+                            <option value="">不使用工作流</option>
+                            <option v-for="wf in workflows" :key="wf.id" :value="wf.name">
+                                {{ wf.name }} ({{ wf.steps.length }} 步骤)
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- 输入数据 -->
+                    <div>
+                        <label class="block text-sm text-gh-text mb-2">输入数据 (JSON)</label>
+                        <textarea v-model="inputDataJson" rows="3"
+                                  class="gh-input font-mono text-sm" placeholder='{"language": "python"}'></textarea>
                     </div>
                 </div>
 
-                <!-- 进度 -->
-                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
-                    <h3 class="text-sm font-medium text-gh-text mb-3">进度</h3>
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-2xl font-bold text-white">40%</span>
-                        <span class="text-sm text-gh-text">2/5</span>
-                    </div>
-                    <div class="h-2 bg-gh-elevated rounded-full overflow-hidden">
-                        <div class="h-full bg-green-500 w-2/5"></div>
-                    </div>
-                </div>
-
-                <!-- 时间跟踪 -->
-                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
-                    <h3 class="text-sm font-medium text-gh-text mb-3">时间跟踪</h3>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-gh-text">预估时间</span>
-                            <span class="text-white">8h</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gh-text">已用时间</span>
-                            <span class="text-white">3.2h</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gh-text">剩余时间</span>
-                            <span class="text-yellow-400">4.8h</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 相关文件 -->
-                <div class="bg-gh-canvas border border-gh-border rounded-lg p-4">
-                    <h3 class="text-sm font-medium text-gh-text mb-3">相关文件</h3>
-                    <div class="space-y-2">
-                        <a href="#" class="flex items-center gap-2 text-sm text-gh-link hover:text-white">
-                            <i class="fas fa-file-code text-yellow-400"></i>
-                            <span>api/users.py</span>
-                        </a>
-                        <a href="#" class="flex items-center gap-2 text-sm text-gh-link hover:text-white">
-                            <i class="fas fa-database text-green-400"></i>
-                            <span>models/user.sql</span>
-                        </a>
-                        <a href="#" class="flex items-center gap-2 text-sm text-gh-link hover:text-white">
-                            <i class="fas fa-file-alt text-blue-400"></i>
-                            <span>docs/api-spec.md</span>
-                        </a>
-                    </div>
+                <div class="flex justify-end gap-2 mt-6">
+                    <button @click="closeEditModal" class="btn-secondary">取消</button>
+                    <button @click="saveTask" class="btn-primary" :disabled="saving">
+                        <i v-if="saving" class="fas fa-spinner fa-spin mr-2"></i>
+                        {{ saving ? '保存中...' : '保存' }}
+                    </button>
                 </div>
             </div>
         </div>
-    </main>
 
-    <footer class="bg-gh-canvas border-t border-gh-border py-4 mt-8">
-        <div class="container mx-auto px-4 text-center text-sm text-gh-text">
-            IntelliTeam 任务详情 © 2026
+        <!-- 删除确认模态框 -->
+        <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
+            <div class="modal-content max-w-md">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-gh-red/10 flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-gh-red"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-white">删除任务</h2>
+                </div>
+                <p class="text-gh-text mb-6">确定要删除任务 "{{ task?.title }}" 吗？此操作不可恢复。</p>
+                <div class="flex justify-end gap-2">
+                    <button @click="showDeleteConfirm = false" class="btn-secondary">取消</button>
+                    <button @click="confirmDelete" class="px-4 py-2 bg-gh-red text-white rounded hover:opacity-80">删除</button>
+                </div>
+            </div>
         </div>
-    </footer>
+
+        <!-- Toast 通知 -->
+        <div v-if="toast" :class="['fixed bottom-5 right-5 px-4 py-3 rounded z-50', toast.type === 'success' ? 'bg-green-600' : 'bg-red-600', 'text-white']">
+            {{ toast.message }}
+        </div>
+    </div>
+
+    <script type="module" defer>
+        const { createApp } = window.Vue;
+
+        createApp({
+            data() {
+                return {
+                    task: null,
+                    workflows: [],
+                    loading: true,
+                    error: null,
+                    taskId: null,
+                    // 编辑相关
+                    showEditModal: false,
+                    saving: false,
+                    editingTask: {},
+                    inputDataJson: '{}',
+                    availableAgents: ['Planner', 'Architect', 'Coder', 'Tester', 'DocWriter', 'SeniorArchitect', 'ResearchAgent'],
+                    // 删除相关
+                    showDeleteConfirm: false,
+                    // Toast
+                    toast: null
+                };
+            },
+
+            computed: {
+                workflowSteps() {
+                    if (!this.task || !this.task.workflow) return [];
+                    const wf = this.workflows.find(w => w.name === this.task.workflow);
+                    return wf ? wf.steps : [];
+                }
+            },
+
+            mounted() {
+                const urlParams = new URLSearchParams(window.location.search);
+                this.taskId = urlParams.get('id');
+
+                if (!this.taskId) {
+                    this.error = '未指定任务 ID';
+                    this.loading = false;
+                    return;
+                }
+
+                this.loadData();
+            },
+
+            methods: {
+                async loadData() {
+                    this.loading = true;
+                    try {
+                        await Promise.all([
+                            this.loadTask(),
+                            this.loadWorkflows()
+                        ]);
+                    } catch (e) {
+                        this.error = '加载任务失败：' + e.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async loadTask() {
+                    const response = await fetch(`/api/v1/tasks/${this.taskId}`);
+                    if (!response.ok) {
+                        throw new Error('任务不存在');
+                    }
+                    this.task = await response.json();
+                },
+
+                async loadWorkflows() {
+                    try {
+                        const response = await fetch('/api/v1/workflows');
+                        const data = await response.json();
+                        this.workflows = data.items || [];
+                    } catch (e) {
+                        console.error('加载工作流失败', e);
+                    }
+                },
+
+                getPriorityBadge(priority) {
+                    const badges = { low: 'badge-neutral', normal: 'badge-info', high: 'badge-warning', critical: 'badge-danger' };
+                    return badges[priority] || 'badge-neutral';
+                },
+
+                getPriorityText(priority) {
+                    const texts = { low: '低优先级', normal: '中优先级', high: '高优先级', critical: '紧急' };
+                    return texts[priority] || priority;
+                },
+
+                getStatusBadge(status) {
+                    const badges = { pending: 'badge-neutral', in_progress: 'badge-info', completed: 'badge-success' };
+                    return badges[status] || 'badge-neutral';
+                },
+
+                getStatusText(status) {
+                    const texts = { pending: '待处理', in_progress: '进行中', completed: '已完成' };
+                    return texts[status] || status;
+                },
+
+                async updateStatus() {
+                    await this.updateTask({ status: this.task.status });
+                },
+
+                async updatePriority() {
+                    await this.updateTask({ priority: this.task.priority });
+                },
+
+                async updateTask(data) {
+                    try {
+                        const response = await fetch(`/api/v1/tasks/${this.taskId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data)
+                        });
+                        if (response.ok) {
+                            this.showToast('更新成功', 'success');
+                        } else {
+                            const result = await response.json();
+                            this.showToast('更新失败：' + (result.detail || '未知错误'), 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('更新失败：' + e.message, 'error');
+                    }
+                },
+
+                openEditModal() {
+                    this.editingTask = { ...this.task };
+                    this.inputDataJson = JSON.stringify(this.task.input_data || {}, null, 2);
+                    this.showEditModal = true;
+                },
+
+                closeEditModal() {
+                    this.showEditModal = false;
+                    this.editingTask = {};
+                },
+
+                async saveTask() {
+                    if (!this.editingTask.title || !this.editingTask.title.trim()) {
+                        this.showToast('任务标题不能为空', 'error');
+                        return;
+                    }
+
+                    let inputData = {};
+                    try {
+                        inputData = JSON.parse(this.inputDataJson || '{}');
+                    } catch (e) {
+                        this.showToast('输入数据 JSON 格式错误', 'error');
+                        return;
+                    }
+
+                    this.saving = true;
+                    try {
+                        const taskData = {
+                            ...this.editingTask,
+                            input_data: inputData
+                        };
+
+                        const response = await fetch(`/api/v1/tasks/${this.taskId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(taskData)
+                        });
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            // 更新本地数据
+                            this.task = { ...this.task, ...taskData };
+                            this.showToast('任务已更新', 'success');
+                            this.closeEditModal();
+                        } else {
+                            this.showToast(result.detail || '操作失败', 'error');
+                        }
+                    } catch (error) {
+                        this.showToast('保存失败：' + error.message, 'error');
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+
+                deleteTask() {
+                    this.showDeleteConfirm = true;
+                },
+
+                async confirmDelete() {
+                    try {
+                        const response = await fetch(`/api/v1/tasks/${this.taskId}`, { method: 'DELETE' });
+                        if (response.ok) {
+                            window.location.href = '/tasks';
+                        } else {
+                            const result = await response.json();
+                            this.showToast('删除失败：' + (result.detail || '未知错误'), 'error');
+                        }
+                    } catch (e) {
+                        this.showToast('删除失败：' + e.message, 'error');
+                    }
+                },
+
+                showToast(message, type = 'success') {
+                    this.toast = { message, type };
+                    setTimeout(() => { this.toast = null; }, 3000);
+                }
+            }
+        }).mount('#app');
+    </script>
 </body>
 </html>

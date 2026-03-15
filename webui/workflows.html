@@ -12,7 +12,7 @@
         window.tailwind = window.tailwind || {};
         window.tailwind.config = {
             darkMode: 'class',
-            theme: { extend: { colors: { gh: { bg: '#0d1117', canvas: '#161b22', elevated: '#21262d', border: '#30363d', text: '#6A737D', light: '#e6edf3', blue: '#0366D6', green: '#33BB22' } } } }
+            theme: { extend: { colors: { gh: { bg: '#0d1117', canvas: '#161b22', elevated: '#21262d', border: '#30363d', text: '#6A737D', light: '#e6edf3', blue: '#0366D6', green: '#33BB22', red: '#f85149', purple: '#8957e5', yellow: '#d29922' } } } }
         }
     </script>
     <style>
@@ -25,7 +25,36 @@
         .nav-link:hover { color: #e6edf3; border-color: #30363d; }
         .nav-link.active { color: #fff; border-color: #f78166; }
         .gh-toolbar { height: 64px; background-color: #161b22; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 40; display: flex; align-items: center; padding: 0 16px; }
-        .btn-primary { background-color: #33BB22; color: #fff; border: 1px solid rgba(51,187,34,0.5); border-radius: 6px; padding: 5px 16px; cursor: pointer; }
+        .gh-input { padding: 5px 12px; background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; width: 100%; }
+        .gh-input:focus { outline: none; border-color: #f78166; }
+        .gh-select { padding: 5px 12px; background-color: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #e6edf3; }
+        .btn-primary { background-color: #33BB22; color: #fff; border: 1px solid rgba(51,187,34,0.5); border-radius: 6px; padding: 5px 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-primary:hover { background-color: #2ea043; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-secondary { background-color: #21262d; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 5px 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { background-color: #30363d; }
+        .btn-danger { background-color: #da3633; color: #fff; border: 1px solid rgba(218,54,51,0.5); border-radius: 6px; padding: 5px 16px; cursor: pointer; transition: all 0.2s; }
+        .btn-danger:hover { background-color: #b62324; }
+        .badge-success { background: rgba(51,187,34,0.15); color: #3fb950; border: 1px solid rgba(51,187,34,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .badge-neutral { background: rgba(110,118,129,0.15); color: #8b949e; border: 1px solid rgba(110,118,129,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .badge-info { background: rgba(56,139,253,0.15); color: #58a6ff; border: 1px solid rgba(56,139,253,0.4); padding: 2px 8px; border-radius: 2em; font-size: 12px; }
+        .card-hover { transition: all 0.2s; }
+        .card-hover:hover { border-color: #f78166; transform: translateY(-2px); }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 24px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; }
+        .step-card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-bottom: 8px; transition: all 0.2s; }
+        .step-card:hover { border-color: #f78166; }
+        .step-drag-handle { cursor: grab; color: #6A737D; }
+        .step-drag-handle:hover { color: #e6edf3; }
+        .loading-spinner { border: 3px solid #30363d; border-top: 3px solid #f78166; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 6px; z-index: 200; animation: slideIn 0.3s ease; }
+        .toast-success { background: rgba(51,187,34,0.9); color: #fff; }
+        .toast-error { background: rgba(218,54,51,0.9); color: #fff; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .type-badge-agent { background: rgba(56,139,253,0.15); color: #58a6ff; border: 1px solid rgba(56,139,253,0.4); }
+        .type-badge-script { background: rgba(137,87,229,0.15); color: #b392f0; border: 1px solid rgba(137,87,229,0.4); }
+        .type-badge-api { background: rgba(210,153,34,0.15); color: #e3b341; border: 1px solid rgba(210,153,34,0.4); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -44,35 +73,545 @@
                         <a href="/agents" class="nav-link"><i class="fas fa-users mr-2"></i>Agent</a>
                         <a href="/workflows" class="nav-link active"><i class="fas fa-project-diagram mr-2"></i>工作流</a>
                         <a href="/analytics" class="nav-link"><i class="fas fa-chart-line mr-2"></i>分析</a>
-                        <a href="/tools" class="nav-link"><i class="fas fa-toolbox mr-2"></i>工具</a><a href="/skills" class="nav-link"><i class="fas fa-puzzle-piece mr-2"></i>技能</a>
+                        <a href="/tools" class="nav-link"><i class="fas fa-toolbox mr-2"></i>工具</a>
+                        <a href="/skills" class="nav-link"><i class="fas fa-puzzle-piece mr-2"></i>技能</a>
                         <a href="/ai-assistant" class="nav-link"><i class="fas fa-robot mr-2"></i>AI 助手</a>
                     </div>
                 </div>
             </div>
         </nav>
+
         <main class="flex-1 container mx-auto px-4 py-6">
-            <workflows-view :workflows="workflows" :agents="agents"></workflows-view>
+            <!-- 加载状态 -->
+            <div v-if="loading" class="flex items-center justify-center py-16">
+                <div class="loading-spinner"></div>
+                <span class="ml-4 text-gh-text">加载中...</span>
+            </div>
+
+            <div v-else class="space-y-6">
+                <!-- 页面标题 -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">工作流管理</h1>
+                        <p class="text-gh-text mt-1">共 {{ workflows.length }} 个工作流</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="showTemplatesModal = true" class="btn-secondary flex items-center gap-2">
+                            <i class="fas fa-magic"></i>从模板创建
+                        </button>
+                        <button @click="openCreateModal" class="btn-primary flex items-center gap-2">
+                            <i class="fas fa-plus"></i>新建工作流
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 搜索过滤 -->
+                <div class="flex gap-4">
+                    <div class="flex-1 relative">
+                        <input v-model="searchQuery" type="text" placeholder="搜索工作流..."
+                               class="gh-input pl-10">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gh-text"></i>
+                    </div>
+                </div>
+
+                <!-- 工作流列表 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div v-for="workflow in filteredWorkflows" :key="workflow.id"
+                         class="gh-card card-hover group">
+                        <div class="gh-card-header flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-gh-blue/10 flex items-center justify-center">
+                                    <i class="fas fa-project-diagram text-gh-blue"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-white">{{ workflow.name }}</h3>
+                                    <p class="text-sm text-gh-text">{{ workflow.steps.length }} 个步骤</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span :class="workflow.status === 'active' ? 'badge-success' : 'badge-neutral'">
+                                    {{ workflow.status === 'active' ? '活跃' : '停用' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="gh-card-body">
+                            <p class="text-sm text-gh-text mb-4">{{ workflow.description || '暂无描述' }}</p>
+
+                            <!-- 步骤预览 -->
+                            <div class="flex flex-wrap items-center gap-2 mb-4">
+                                <template v-for="(step, index) in workflow.steps.slice(0, 4)" :key="step.id">
+                                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gh-elevated border border-gh-border text-sm">
+                                        <i :class="[step.icon || 'fas fa-cog', 'text-gh-text']"></i>
+                                        <span class="text-white">{{ step.name }}</span>
+                                        <span :class="['text-xs px-1.5 py-0.5 rounded', getTypeBadgeClass(step.type)]">
+                                            {{ getTypeLabel(step.type) }}
+                                        </span>
+                                    </div>
+                                    <i v-if="index < Math.min(workflow.steps.length, 4) - 1" class="fas fa-arrow-right text-gh-text text-xs"></i>
+                                </template>
+                                <span v-if="workflow.steps.length > 4" class="text-gh-text text-sm">
+                                    +{{ workflow.steps.length - 4 }} 更多
+                                </span>
+                            </div>
+
+                            <!-- 操作按钮 -->
+                            <div class="flex items-center gap-2 pt-3 border-t border-gh-border">
+                                <button @click="openEditModal(workflow)" class="flex-1 btn-secondary text-sm py-1.5">
+                                    <i class="fas fa-edit mr-1"></i>编辑
+                                </button>
+                                <button @click="duplicateWorkflow(workflow)" class="flex-1 btn-secondary text-sm py-1.5">
+                                    <i class="fas fa-copy mr-1"></i>复制
+                                </button>
+                                <button @click="confirmDelete(workflow)"
+                                        class="w-8 h-8 rounded-lg flex items-center justify-center text-gh-text hover:text-gh-red hover:bg-gh-red/10 transition">
+                                    <i class="fas fa-trash text-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="px-4 py-2 border-t border-gh-border bg-gh-elevated/30 text-xs text-gh-text">
+                            创建于 {{ workflow.createdAt }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 空状态 -->
+                <div v-if="filteredWorkflows.length === 0" class="text-center py-16">
+                    <div class="w-16 h-16 mx-auto bg-gh-elevated rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-project-diagram text-2xl text-gh-text"></i>
+                    </div>
+                    <p class="text-gh-text mb-4">暂无工作流</p>
+                    <button @click="openCreateModal" class="btn-primary">
+                        <i class="fas fa-plus mr-2"></i>创建第一个工作流
+                    </button>
+                </div>
+            </div>
+
+            <!-- 创建/编辑工作流模态框 -->
+            <div v-if="showEditModal" class="modal-overlay" @click.self="closeEditModal">
+                <div class="modal-content" style="max-width: 900px;">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-white">{{ isEditing ? '编辑工作流' : '创建工作流' }}</h2>
+                        <button @click="closeEditModal" class="text-gh-text hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <!-- 基本信息 -->
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="block text-sm text-gh-text mb-2">工作流名称 *</label>
+                            <input v-model="editingWorkflow.name" type="text"
+                                   class="gh-input" placeholder="例如：标准研发流程">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gh-text mb-2">状态</label>
+                            <select v-model="editingWorkflow.status" class="gh-select w-full">
+                                <option value="active">活跃</option>
+                                <option value="inactive">停用</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm text-gh-text mb-2">描述</label>
+                        <input v-model="editingWorkflow.description" type="text"
+                               class="gh-input" placeholder="工作流描述...">
+                    </div>
+
+                    <!-- 步骤编辑器 -->
+                    <div class="mb-6">
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="text-sm font-semibold text-white">步骤配置</label>
+                            <div class="flex gap-2">
+                                <button @click="addStep('agent')" class="btn-secondary text-xs py-1 px-2">
+                                    <i class="fas fa-robot mr-1"></i>添加 Agent
+                                </button>
+                                <button @click="addStep('script')" class="btn-secondary text-xs py-1 px-2">
+                                    <i class="fas fa-terminal mr-1"></i>添加脚本
+                                </button>
+                                <button @click="addStep('api')" class="btn-secondary text-xs py-1 px-2">
+                                    <i class="fas fa-plug mr-1"></i>添加 API
+                                </button>
+                            </div>
+                        </div>
+
+                        <div v-if="editingWorkflow.steps.length === 0" class="text-center py-8 border border-dashed border-gh-border rounded-lg">
+                            <i class="fas fa-plus-circle text-2xl text-gh-text mb-2"></i>
+                            <p class="text-gh-text">点击上方按钮添加步骤</p>
+                        </div>
+
+                        <div v-else class="space-y-2">
+                            <div v-for="(step, index) in editingWorkflow.steps" :key="step.id" class="step-card">
+                                <div class="flex items-start gap-3">
+                                    <!-- 拖拽手柄 -->
+                                    <div class="step-drag-handle pt-2">
+                                        <i class="fas fa-grip-vertical"></i>
+                                    </div>
+
+                                    <!-- 步骤内容 -->
+                                    <div class="flex-1 grid grid-cols-12 gap-3">
+                                        <!-- 步骤序号 -->
+                                        <div class="col-span-1 flex items-center">
+                                            <span class="w-6 h-6 rounded-full bg-gh-elevated flex items-center justify-center text-xs text-gh-text">
+                                                {{ index + 1 }}
+                                            </span>
+                                        </div>
+
+                                        <!-- 步骤名称 -->
+                                        <div class="col-span-3">
+                                            <input v-model="step.name" type="text"
+                                                   class="gh-input text-sm" placeholder="步骤名称">
+                                        </div>
+
+                                        <!-- 类型标识 -->
+                                        <div class="col-span-2 flex items-center">
+                                            <span :class="['text-xs px-2 py-1 rounded', getTypeBadgeClass(step.type)]">
+                                                {{ getTypeLabel(step.type) }}
+                                            </span>
+                                        </div>
+
+                                        <!-- 类型特定字段 -->
+                                        <div class="col-span-4">
+                                            <!-- Agent 类型 -->
+                                            <select v-if="step.type === 'agent'" v-model="step.agent" class="gh-select w-full text-sm">
+                                                <option value="">选择 Agent</option>
+                                                <option v-for="agent in availableAgents" :key="agent" :value="agent">{{ agent }}</option>
+                                            </select>
+
+                                            <!-- Script 类型 -->
+                                            <input v-if="step.type === 'script'" v-model="step.script" type="text"
+                                                   class="gh-input text-sm" placeholder="pytest tests/">
+
+                                            <!-- API 类型 -->
+                                            <div v-if="step.type === 'api'" class="flex gap-2">
+                                                <select v-model="step.method" class="gh-select text-sm w-20">
+                                                    <option>GET</option>
+                                                    <option>POST</option>
+                                                    <option>PUT</option>
+                                                    <option>DELETE</option>
+                                                </select>
+                                                <input v-model="step.url" type="text"
+                                                       class="gh-input text-sm flex-1" placeholder="https://api.example.com">
+                                            </div>
+                                        </div>
+
+                                        <!-- 操作按钮 -->
+                                        <div class="col-span-2 flex items-center gap-1">
+                                            <button @click="moveStep(index, -1)" :disabled="index === 0"
+                                                    class="w-7 h-7 rounded flex items-center justify-center text-gh-text hover:text-white hover:bg-gh-elevated disabled:opacity-30">
+                                                <i class="fas fa-chevron-up text-xs"></i>
+                                            </button>
+                                            <button @click="moveStep(index, 1)" :disabled="index === editingWorkflow.steps.length - 1"
+                                                    class="w-7 h-7 rounded flex items-center justify-center text-gh-text hover:text-white hover:bg-gh-elevated disabled:opacity-30">
+                                                <i class="fas fa-chevron-down text-xs"></i>
+                                            </button>
+                                            <button @click="removeStep(index)"
+                                                    class="w-7 h-7 rounded flex items-center justify-center text-gh-text hover:text-gh-red hover:bg-gh-red/10">
+                                                <i class="fas fa-times text-xs"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2">
+                        <button @click="closeEditModal" class="btn-secondary">取消</button>
+                        <button @click="saveWorkflow" class="btn-primary" :disabled="saving">
+                            <i v-if="saving" class="fas fa-spinner fa-spin mr-2"></i>
+                            {{ saving ? '保存中...' : '保存' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模板选择模态框 -->
+            <div v-if="showTemplatesModal" class="modal-overlay" @click.self="showTemplatesModal = false">
+                <div class="modal-content" style="max-width: 700px;">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-xl font-bold text-white">选择模板</h2>
+                        <button @click="showTemplatesModal = false" class="text-gh-text hover:text-white">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div v-for="template in templates" :key="template.id"
+                             @click="createFromTemplate(template)"
+                             class="p-4 rounded-lg border border-gh-border hover:border-gh-blue hover:bg-gh-blue/5 cursor-pointer transition group">
+                            <div class="flex items-center gap-3 mb-2">
+                                <div class="w-10 h-10 rounded-lg bg-gh-elevated flex items-center justify-center">
+                                    <i class="fas fa-sitemap text-gh-blue"></i>
+                                </div>
+                                <h4 class="font-medium text-white group-hover:text-gh-blue transition">{{ template.name }}</h4>
+                            </div>
+                            <p class="text-sm text-gh-text mb-2">{{ template.description }}</p>
+                            <p class="text-xs text-gh-text">{{ template.steps.length }} 个步骤</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 删除确认模态框 -->
+            <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
+                <div class="modal-content max-w-md">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-gh-red/10 flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-gh-red"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-white">删除工作流</h2>
+                    </div>
+                    <p class="text-gh-text mb-6">确定要删除工作流 "{{ workflowToDelete?.name }}" 吗？此操作不可恢复。</p>
+                    <div class="flex justify-end gap-2">
+                        <button @click="showDeleteConfirm = false" class="btn-secondary">取消</button>
+                        <button @click="handleDelete" class="btn-danger">删除</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast 通知 -->
+            <div v-if="toast" :class="['toast', toast.type === 'success' ? 'toast-success' : 'toast-error']">
+                {{ toast.message }}
+            </div>
         </main>
     </div>
+
     <script type="module" defer>
-        import { WorkflowsView } from './static/js/components/WorkflowsView.js';
         const { createApp } = window.Vue;
+
         createApp({
-            components: { WorkflowsView },
             data() {
                 return {
-                    workflows: [
-                        { id: 1, name: '需求开发流程', steps: ['需求分析', '架构设计', '代码开发', '测试', '文档'] },
-                        { id: 2, name: 'Bug 修复流程', steps: ['问题确认', '定位分析', '代码修复', '验证测试'] }
-                    ],
-                    agents: [
-                        { name: 'Planner', icon: 'fas fa-clipboard-list' },
-                        { name: 'Architect', icon: 'fas fa-building' },
-                        { name: 'Coder', icon: 'fas fa-laptop-code' },
-                        { name: 'Tester', icon: 'fas fa-vial' },
-                        { name: 'DocWriter', icon: 'fas fa-file-alt' }
-                    ]
+                    workflows: [],
+                    templates: [],
+                    loading: true,
+                    saving: false,
+                    searchQuery: '',
+                    showEditModal: false,
+                    showTemplatesModal: false,
+                    showDeleteConfirm: false,
+                    isEditing: false,
+                    editingWorkflow: {
+                        name: '',
+                        description: '',
+                        status: 'active',
+                        steps: []
+                    },
+                    workflowToDelete: null,
+                    toast: null,
+                    availableAgents: ['Planner', 'Architect', 'Coder', 'Tester', 'DocWriter', 'SeniorArchitect', 'ResearchAgent']
                 };
+            },
+
+            computed: {
+                filteredWorkflows() {
+                    if (!this.searchQuery) return this.workflows;
+                    const query = this.searchQuery.toLowerCase();
+                    return this.workflows.filter(w =>
+                        w.name.toLowerCase().includes(query) ||
+                        (w.description && w.description.toLowerCase().includes(query))
+                    );
+                }
+            },
+
+            mounted() {
+                this.loadWorkflows();
+                this.loadTemplates();
+            },
+
+            methods: {
+                async loadWorkflows() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/v1/workflows');
+                        const data = await response.json();
+                        this.workflows = data.items || [];
+                    } catch (error) {
+                        this.showToast('加载工作流失败：' + error.message, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async loadTemplates() {
+                    try {
+                        const response = await fetch('/api/v1/workflow-templates');
+                        const data = await response.json();
+                        this.templates = data.items || [];
+                    } catch (error) {
+                        console.error('加载模板失败', error);
+                    }
+                },
+
+                getTypeLabel(type) {
+                    const labels = {
+                        'agent': 'Agent',
+                        'script': '脚本',
+                        'api': 'API'
+                    };
+                    return labels[type] || type;
+                },
+
+                getTypeBadgeClass(type) {
+                    const classes = {
+                        'agent': 'type-badge-agent',
+                        'script': 'type-badge-script',
+                        'api': 'type-badge-api'
+                    };
+                    return classes[type] || 'badge-neutral';
+                },
+
+                openCreateModal() {
+                    this.isEditing = false;
+                    this.editingWorkflow = {
+                        name: '',
+                        description: '',
+                        status: 'active',
+                        steps: []
+                    };
+                    this.showEditModal = true;
+                },
+
+                openEditModal(workflow) {
+                    this.isEditing = true;
+                    this.editingWorkflow = JSON.parse(JSON.stringify(workflow));
+                    this.showEditModal = true;
+                },
+
+                closeEditModal() {
+                    this.showEditModal = false;
+                    this.editingWorkflow = { name: '', description: '', status: 'active', steps: [] };
+                },
+
+                addStep(type) {
+                    const step = {
+                        id: 'step-' + Date.now(),
+                        name: '',
+                        type: type,
+                        icon: type === 'agent' ? 'fas fa-robot' : type === 'script' ? 'fas fa-terminal' : 'fas fa-plug'
+                    };
+
+                    if (type === 'agent') {
+                        step.agent = '';
+                    } else if (type === 'script') {
+                        step.script = '';
+                    } else if (type === 'api') {
+                        step.method = 'GET';
+                        step.url = '';
+                    }
+
+                    this.editingWorkflow.steps.push(step);
+                },
+
+                removeStep(index) {
+                    this.editingWorkflow.steps.splice(index, 1);
+                },
+
+                moveStep(index, direction) {
+                    const newIndex = index + direction;
+                    if (newIndex < 0 || newIndex >= this.editingWorkflow.steps.length) return;
+
+                    const steps = this.editingWorkflow.steps;
+                    [steps[index], steps[newIndex]] = [steps[newIndex], steps[index]];
+                },
+
+                async saveWorkflow() {
+                    // 验证
+                    if (!this.editingWorkflow.name || !this.editingWorkflow.name.trim()) {
+                        this.showToast('工作流名称不能为空', 'error');
+                        return;
+                    }
+
+                    this.saving = true;
+                    try {
+                        let response;
+                        if (this.isEditing) {
+                            response = await fetch(`/api/v1/workflows/${this.editingWorkflow.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(this.editingWorkflow)
+                            });
+                        } else {
+                            response = await fetch('/api/v1/workflows', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(this.editingWorkflow)
+                            });
+                        }
+
+                        const result = await response.json();
+
+                        if (response.ok) {
+                            this.showToast(this.isEditing ? '工作流已更新' : '工作流已创建', 'success');
+                            this.closeEditModal();
+                            this.loadWorkflows();
+                        } else {
+                            this.showToast(result.detail || '操作失败', 'error');
+                        }
+                    } catch (error) {
+                        this.showToast('保存失败：' + error.message, 'error');
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+
+                createFromTemplate(template) {
+                    this.isEditing = false;
+                    this.editingWorkflow = {
+                        name: template.name,
+                        description: template.description,
+                        status: 'active',
+                        steps: JSON.parse(JSON.stringify(template.steps))
+                    };
+                    this.showTemplatesModal = false;
+                    this.showEditModal = true;
+                },
+
+                async duplicateWorkflow(workflow) {
+                    this.isEditing = false;
+                    this.editingWorkflow = {
+                        name: workflow.name + ' (副本)',
+                        description: workflow.description,
+                        status: 'active',
+                        steps: JSON.parse(JSON.stringify(workflow.steps))
+                    };
+                    this.showEditModal = true;
+                },
+
+                confirmDelete(workflow) {
+                    this.workflowToDelete = workflow;
+                    this.showDeleteConfirm = true;
+                },
+
+                async handleDelete() {
+                    try {
+                        const response = await fetch(`/api/v1/workflows/${this.workflowToDelete.id}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (response.ok) {
+                            this.showToast('工作流已删除', 'success');
+                            this.showDeleteConfirm = false;
+                            this.workflowToDelete = null;
+                            this.loadWorkflows();
+                        } else {
+                            const result = await response.json();
+                            this.showToast(result.detail || '删除失败', 'error');
+                        }
+                    } catch (error) {
+                        this.showToast('删除失败：' + error.message, 'error');
+                    }
+                },
+
+                showToast(message, type = 'success') {
+                    this.toast = { message, type };
+                    setTimeout(() => {
+                        this.toast = null;
+                    }, 3000);
+                }
             }
         }).mount('#app');
     </script>

@@ -706,24 +706,51 @@ AGENTS_DATA = [
 ]
 
 TASKS_DATA = [
-    {"id": 1, "title": "创建用户管理 API", "description": "实现用户注册、登录、权限管理等功能", "priority": "high", "priorityText": "高优先级", "status": "in_progress", "statusText": "进行中", "assignee": "张三", "agent": "Coder", "createdAt": "2026-03-03 10:30", "time": "2 小时前"},
-    {"id": 2, "title": "数据库设计", "description": "设计用户表和权限表结构", "priority": "normal", "priorityText": "中优先级", "status": "completed", "statusText": "已完成", "assignee": "李四", "agent": "Architect", "createdAt": "2026-03-03 09:15", "time": "3 小时前"},
-    {"id": 3, "title": "编写测试用例", "description": "为 API 接口编写单元测试", "priority": "normal", "priorityText": "中优先级", "status": "pending", "statusText": "待处理", "assignee": "王五", "agent": "Tester", "createdAt": "2026-03-03 11:00", "time": "1 小时前"},
-    {"id": 4, "title": "性能优化", "description": "优化系统响应速度", "priority": "critical", "priorityText": "紧急", "status": "in_progress", "statusText": "进行中", "assignee": "张三", "agent": "SeniorArchitect", "createdAt": "2026-03-04 14:20", "time": "30 分钟前"},
-    {"id": 5, "title": "文档更新", "description": "更新 API 文档和使用说明", "priority": "low", "priorityText": "低优先级", "status": "pending", "statusText": "待处理", "assignee": "李四", "agent": "DocWriter", "createdAt": "2026-03-04 16:45", "time": "15 分钟前"}
+    {"id": 1, "title": "创建用户管理 API", "description": "实现用户注册、登录、权限管理等功能", "priority": "high", "priorityText": "高优先级", "status": "in_progress", "statusText": "进行中", "assignee": "张三", "agent": "Coder", "workflow": "标准研发流程", "input_data": {"language": "python", "framework": "fastapi"}, "createdAt": "2026-03-03 10:30", "time": "2 小时前"},
+    {"id": 2, "title": "数据库设计", "description": "设计用户表和权限表结构", "priority": "normal", "priorityText": "中优先级", "status": "completed", "statusText": "已完成", "assignee": "李四", "agent": "Architect", "workflow": "标准研发流程", "input_data": {}, "createdAt": "2026-03-03 09:15", "time": "3 小时前"},
+    {"id": 3, "title": "编写测试用例", "description": "为 API 接口编写单元测试", "priority": "normal", "priorityText": "中优先级", "status": "pending", "statusText": "待处理", "assignee": "王五", "agent": "Tester", "workflow": "", "input_data": {}, "createdAt": "2026-03-03 11:00", "time": "1 小时前"},
+    {"id": 4, "title": "性能优化", "description": "优化系统响应速度", "priority": "critical", "priorityText": "紧急", "status": "in_progress", "statusText": "进行中", "assignee": "张三", "agent": "SeniorArchitect", "workflow": "", "input_data": {}, "createdAt": "2026-03-04 14:20", "time": "30 分钟前"},
+    {"id": 5, "title": "文档更新", "description": "更新 API 文档和使用说明", "priority": "low", "priorityText": "低优先级", "status": "pending", "statusText": "待处理", "assignee": "李四", "agent": "DocWriter", "workflow": "", "input_data": {}, "createdAt": "2026-03-04 16:45", "time": "15 分钟前"}
 ]
 
 WORKFLOWS_DATA = [
     {
         "id": 1,
         "name": "标准研发流程",
+        "description": "完整的软件开发流程，从需求分析到文档编写",
         "steps": [
-            {"name": "需求分析", "agent": "Planner", "icon": "fas fa-clipboard-list"},
-            {"name": "架构设计", "agent": "Architect", "icon": "fas fa-building"},
-            {"name": "代码开发", "agent": "Coder", "icon": "fas fa-laptop-code"},
-            {"name": "测试", "agent": "Tester", "icon": "fas fa-vial"},
-            {"name": "文档", "agent": "DocWriter", "icon": "fas fa-file-alt"}
-        ]
+            {"id": "step-1", "name": "需求分析", "type": "agent", "agent": "Planner", "icon": "fas fa-clipboard-list"},
+            {"id": "step-2", "name": "架构设计", "type": "agent", "agent": "Architect", "icon": "fas fa-building"},
+            {"id": "step-3", "name": "代码开发", "type": "agent", "agent": "Coder", "icon": "fas fa-laptop-code"},
+            {"id": "step-4", "name": "测试验证", "type": "agent", "agent": "Tester", "icon": "fas fa-vial"},
+            {"id": "step-5", "name": "文档编写", "type": "agent", "agent": "DocWriter", "icon": "fas fa-file-alt"}
+        ],
+        "status": "active",
+        "createdAt": "2026-03-01 10:00"
+    },
+    {
+        "id": 2,
+        "name": "Bug 修复流程",
+        "description": "快速定位和修复 Bug 的标准流程",
+        "steps": [
+            {"id": "step-1", "name": "问题确认", "type": "agent", "agent": "Planner", "icon": "fas fa-search"},
+            {"id": "step-2", "name": "代码修复", "type": "agent", "agent": "Coder", "icon": "fas fa-code"},
+            {"id": "step-3", "name": "验证测试", "type": "agent", "agent": "Tester", "icon": "fas fa-check-circle"}
+        ],
+        "status": "active",
+        "createdAt": "2026-03-02 14:30"
+    },
+    {
+        "id": 3,
+        "name": "代码审查流程",
+        "description": "自动化代码审查和质量检查",
+        "steps": [
+            {"id": "step-1", "name": "代码分析", "type": "agent", "agent": "Architect", "icon": "fas fa-microscope"},
+            {"id": "step-2", "name": "运行测试", "type": "script", "script": "pytest tests/ -v", "icon": "fas fa-terminal"},
+            {"id": "step-3", "name": "生成报告", "type": "agent", "agent": "DocWriter", "icon": "fas fa-file-signature"}
+        ],
+        "status": "active",
+        "createdAt": "2026-03-03 09:15"
     }
 ]
 
@@ -987,6 +1014,15 @@ async def get_tasks():
     return HTMLResponse(content="<html><body><h1>Tasks page not found</h1></body></html>")
 
 
+@app.get("/task-detail")
+async def get_task_detail():
+    """返回任务详情页面"""
+    task_detail_file = WEBUI_DIR / "task-detail.html"
+    if task_detail_file.exists():
+        return FileResponse(path=str(task_detail_file), media_type="text/html")
+    return HTMLResponse(content="<html><body><h1>Task detail page not found</h1></body></html>")
+
+
 @app.get("/agents")
 async def get_agents():
     """返回 Agent 管理页面"""
@@ -1161,6 +1197,15 @@ async def update_task(task_id: int, task_update: dict):
                     "critical": "紧急"
                 }.get(task_update["priority"], task["priorityText"])
 
+            if "assignee" in task_update:
+                task["assignee"] = task_update["assignee"]
+
+            if "workflow" in task_update:
+                task["workflow"] = task_update["workflow"]
+
+            if "input_data" in task_update:
+                task["input_data"] = task_update["input_data"]
+
             task["updatedAt"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             return {"status": "success", "message": "任务已更新", "task": task}
 
@@ -1180,6 +1225,8 @@ async def create_task(task: dict):
         "statusText": "待处理",
         "assignee": task.get("assignee", ""),
         "agent": task.get("agent", ""),
+        "workflow": task.get("workflow", ""),
+        "input_data": task.get("input_data", {}),
         "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M"),
         "time": "刚刚"
     }
@@ -1202,9 +1249,153 @@ async def delete_task(task_id: int):
 
 
 @app.get("/api/v1/workflows")
+@app.get("/api/v1/workflows/")
 async def get_workflows():
     """获取工作流列表"""
-    return WORKFLOWS_DATA
+    return {"items": WORKFLOWS_DATA, "total": len(WORKFLOWS_DATA)}
+
+
+@app.post("/api/v1/workflows")
+@app.post("/api/v1/workflows/")
+async def create_workflow(workflow: dict):
+    """创建新工作流"""
+    # 验证名称
+    name = workflow.get("name", "")
+    if not name or not name.strip():
+        raise HTTPException(status_code=400, detail="工作流名称不能为空")
+
+    # 检查名称是否已存在
+    if any(w["name"] == name for w in WORKFLOWS_DATA):
+        raise HTTPException(status_code=400, detail=f"工作流名称 '{name}' 已存在")
+
+    # 生成步骤 ID
+    steps = workflow.get("steps", [])
+    for i, step in enumerate(steps):
+        if "id" not in step or not step["id"]:
+            step["id"] = f"step-{datetime.now().strftime('%Y%m%d%H%M%S')}-{i}"
+
+    new_workflow = {
+        "id": max(w["id"] for w in WORKFLOWS_DATA) + 1 if WORKFLOWS_DATA else 1,
+        "name": name.strip(),
+        "description": workflow.get("description", ""),
+        "steps": steps,
+        "status": workflow.get("status", "active"),
+        "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M")
+    }
+
+    WORKFLOWS_DATA.append(new_workflow)
+    await response_cache.invalidate("workflows")
+
+    return {"status": "success", "message": "工作流创建成功", "workflow": new_workflow}
+
+
+@app.get("/api/v1/workflows/{workflow_id}")
+async def get_workflow(workflow_id: int):
+    """获取单个工作流详情"""
+    for workflow in WORKFLOWS_DATA:
+        if workflow["id"] == workflow_id:
+            return workflow
+    raise HTTPException(status_code=404, detail="工作流不存在")
+
+
+@app.put("/api/v1/workflows/{workflow_id}")
+async def update_workflow(workflow_id: int, workflow: dict):
+    """更新工作流"""
+    for i, w in enumerate(WORKFLOWS_DATA):
+        if w["id"] == workflow_id:
+            # 更新字段
+            if "name" in workflow:
+                # 检查名称是否与其他工作流重复
+                for other in WORKFLOWS_DATA:
+                    if other["id"] != workflow_id and other["name"] == workflow["name"]:
+                        raise HTTPException(status_code=400, detail=f"工作流名称 '{workflow['name']}' 已存在")
+                WORKFLOWS_DATA[i]["name"] = workflow["name"]
+
+            if "description" in workflow:
+                WORKFLOWS_DATA[i]["description"] = workflow["description"]
+            if "steps" in workflow:
+                # 确保步骤有 ID
+                steps = workflow["steps"]
+                for j, step in enumerate(steps):
+                    if "id" not in step or not step["id"]:
+                        step["id"] = f"step-{datetime.now().strftime('%Y%m%d%H%M%S')}-{j}"
+                WORKFLOWS_DATA[i]["steps"] = steps
+            if "status" in workflow:
+                WORKFLOWS_DATA[i]["status"] = workflow["status"]
+
+            await response_cache.invalidate("workflows")
+            return {"status": "success", "message": "工作流已更新", "workflow": WORKFLOWS_DATA[i]}
+
+    raise HTTPException(status_code=404, detail="工作流不存在")
+
+
+@app.delete("/api/v1/workflows/{workflow_id}")
+async def delete_workflow(workflow_id: int):
+    """删除工作流"""
+    global WORKFLOWS_DATA
+    for i, w in enumerate(WORKFLOWS_DATA):
+        if w["id"] == workflow_id:
+            WORKFLOWS_DATA.pop(i)
+            await response_cache.invalidate("workflows")
+            return {"status": "success", "message": "工作流已删除"}
+
+    raise HTTPException(status_code=404, detail="工作流不存在")
+
+
+@app.get("/api/v1/workflow-templates")
+async def get_workflow_templates():
+    """获取工作流模板列表"""
+    return {
+        "items": [
+            {
+                "id": "template-standard",
+                "name": "标准研发流程",
+                "description": "完整的软件开发流程",
+                "steps": [
+                    {"id": "step-1", "name": "需求分析", "type": "agent", "agent": "Planner", "icon": "fas fa-clipboard-list"},
+                    {"id": "step-2", "name": "架构设计", "type": "agent", "agent": "Architect", "icon": "fas fa-building"},
+                    {"id": "step-3", "name": "代码开发", "type": "agent", "agent": "Coder", "icon": "fas fa-laptop-code"},
+                    {"id": "step-4", "name": "测试验证", "type": "agent", "agent": "Tester", "icon": "fas fa-vial"},
+                    {"id": "step-5", "name": "文档编写", "type": "agent", "agent": "DocWriter", "icon": "fas fa-file-alt"}
+                ]
+            },
+            {
+                "id": "template-bugfix",
+                "name": "Bug 修复流程",
+                "description": "快速定位和修复 Bug",
+                "steps": [
+                    {"id": "step-1", "name": "问题确认", "type": "agent", "agent": "Planner", "icon": "fas fa-search"},
+                    {"id": "step-2", "name": "代码修复", "type": "agent", "agent": "Coder", "icon": "fas fa-code"},
+                    {"id": "step-3", "name": "验证测试", "type": "agent", "agent": "Tester", "icon": "fas fa-check-circle"}
+                ]
+            },
+            {
+                "id": "template-review",
+                "name": "代码审查流程",
+                "description": "自动化代码审查和质量检查",
+                "steps": [
+                    {"id": "step-1", "name": "代码分析", "type": "agent", "agent": "Architect", "icon": "fas fa-microscope"},
+                    {"id": "step-2", "name": "运行测试", "type": "script", "script": "pytest tests/", "icon": "fas fa-terminal"},
+                    {"id": "step-3", "name": "生成报告", "type": "agent", "agent": "DocWriter", "icon": "fas fa-file-signature"}
+                ]
+            },
+            {
+                "id": "template-docs",
+                "name": "文档生成流程",
+                "description": "从代码自动生成技术文档",
+                "steps": [
+                    {"id": "step-1", "name": "代码分析", "type": "agent", "agent": "Architect", "icon": "fas fa-code-branch"},
+                    {"id": "step-2", "name": "生成文档", "type": "agent", "agent": "DocWriter", "icon": "fas fa-file-alt"}
+                ]
+            },
+            {
+                "id": "template-empty",
+                "name": "空白工作流",
+                "description": "从零开始创建自定义工作流",
+                "steps": []
+            }
+        ]
+    }
 
 
 # ============ Skills API ============
