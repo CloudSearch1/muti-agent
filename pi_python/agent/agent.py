@@ -2,11 +2,18 @@
 PI-Python Agent 类
 
 有状态的 Agent 运行时，支持工具调用、事件流和技能集成
+
+日志级别规范:
+- DEBUG: 详细的诊断信息（事件发射、消息处理细节）
+- INFO: 生命周期事件（启动、停止、任务完成）
+- WARNING: 可恢复的问题（订阅者错误、配置缺失）
+- ERROR: 需要关注的失败（工具执行失败、LLM 调用错误）
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -28,6 +35,9 @@ from ..skills import Skill, SkillLoader, SkillRegistry
 from .events import AgentEvent, AgentEventType
 from .session import Session
 from .tools import AgentTool
+
+# 模块级日志器
+_logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -117,21 +127,44 @@ class Agent:
             self._subscribers.remove(callback)
 
     async def _emit(self, event: AgentEvent) -> None:
-        """发射事件"""
-        import logging
-        _logger = logging.getLogger(__name__)
+        """
+        发射事件到所有订阅者
+
+        按顺序调用所有订阅者回调，捕获并记录异常。
+        使用 WARNING 级别记录订阅者错误，避免静默忽略。
+
+        Args:
+            event: 要发射的事件对象
+        """
         for callback in self._subscribers:
             try:
                 await callback(event)
             except Exception as e:
-                # 记录订阅者错误，避免静默忽略
+                # 订阅者错误是可恢复问题，使用 WARNING 级别
                 _logger.warning(
-                    f"Event subscriber callback failed: {e}",
+                    "Event subscriber callback failed: %s. "
+                    "Event: %s, Subscriber: %s",
+                    e,
+                    event.type.value,
+                    getattr(callback, '__name__', 'anonymous'),
                     exc_info=True,
                 )
 
     def _default_convert_to_llm(self, messages: list[Message]) -> list[Message]:
-        """默认消息转换"""
+        """
+        默认消息转换
+
+        过滤消息列表，只保留有效角色（user, assistant, tool_result）的消息。
+        空消息列表返回空列表，不会导致异常。
+
+        Args:
+            messages: 待转换的消息列表
+
+        Returns:
+            过滤后的消息列表
+        """
+        if not messages:
+            return []
         return [m for m in messages if m.role in ("user", "assistant", "tool_result")]
 
     async def prompt(self, content: str | list[Any]) -> None:
@@ -175,11 +208,22 @@ class Agent:
         await self._emit(AgentEvent(type=AgentEventType.AGENT_END))
 
     async def _run_loop(self) -> None:
-        """运行主循环"""
-        max_iterations = 50  # 防止无限循环
+        """
+        运行主循环
 
-        for _ in range(max_iterations):
+        执行 LLM 调用和工具执行循环，支持最大迭代限制防止无限循环。
+        """
+        max_iterations = 50  # 防止无限循环
+        iteration_count = 0
+
+        for iteration in range(max_iterations):
+            iteration_count = iteration + 1
+
             if self._abort_controller.is_set():
+                self.logger.debug(
+                    "Agent loop aborted by user",
+                    iterations_completed=iteration_count
+                )
                 break
 
             # 构建上下文
@@ -238,7 +282,15 @@ class Agent:
                 await self.prompt(follow_up.content)
 
     async def _build_context(self) -> Context:
-        """构建上下文"""
+        """
+        构建上下文
+
+        根据当前状态构建 LLM 调用上下文，包含系统提示词、消息列表和工具列表。
+        空消息列表将被正常处理，返回有效的上下文对象。
+
+        Returns:
+            Context: 构建完成的上下文对象
+        """
         # 构建系统提示词，包含 Skills
         system_prompt = self.state.system_prompt
 
@@ -248,9 +300,12 @@ class Agent:
             if skills_prompt:
                 system_prompt = system_prompt + skills_prompt
 
+        # 处理消息列表，确保不为空时也能正常工作
+        filtered_messages = self._convert_to_llm(self.state.messages)
+
         context = Context(
             system_prompt=system_prompt,
-            messages=self._convert_to_llm(self.state.messages),
+            messages=filtered_messages,  # 可能为空列表
             tools=[t.to_tool() for t in self.state.tools]
         )
 
@@ -264,7 +319,20 @@ class Agent:
         self,
         event_stream: AssistantMessageEventStream
     ) -> AssistantMessage | None:
-        """处理流式事件"""
+        """
+        处理流式事件
+
+        解析 LLM 流式响应，构建助手消息对象。
+
+        Args:
+            event_stream: 流式事件流
+
+        Returns:
+            AssistantMessage | None: 构建的助手消息，流被中止时返回 None
+
+        Raises:
+            RuntimeError: 当流中出现错误事件时
+        """
         content: list[Any] = []
         current_text = ""
         _usage = {}
@@ -302,12 +370,38 @@ class Agent:
                 return AssistantMessage(content=content)
 
             elif event.type == "error":
-                raise RuntimeError(event.error or "Unknown error")
+                error_msg = event.error or "Unknown error"
+                _logger.error(
+                    "LLM stream error: %s. "
+                    "Check API key, model availability, and network connectivity.",
+                    error_msg
+                )
+                raise RuntimeError(
+                    f"LLM streaming failed: {error_msg}. "
+                    f"Please check: 1) API key is valid, "
+                    f"2) Model '{self.state.model.id}' is available, "
+                    f"3) Network connectivity is stable."
+                )
 
         return None
 
     async def _execute_tools(self, tool_calls: list[ToolCall]) -> bool:
-        """执行工具，返回是否应该继续"""
+        """
+        执行工具
+
+        Args:
+            tool_calls: 工具调用列表
+
+        Returns:
+            bool: 是否应该继续循环
+
+        Raises:
+            ValueError: 当 tool_calls 为空列表时
+        """
+        # 边界检查：空工具调用列表
+        if not tool_calls:
+            return False
+
         for tool_call in tool_calls:
             # 检查 steering
             if not self._steering_queue.empty():
@@ -351,23 +445,47 @@ class Agent:
 
                 except Exception as e:
                     # 工具执行失败
+                    error_msg = str(e)
                     error_result = ToolResultMessage(
                         tool_call_id=tool_call.id,
-                        content=[TextContent(text=f"Error: {str(e)}")]
+                        content=[TextContent(
+                            text=f"Error executing tool '{tool_call.name}': {error_msg}. "
+                                 f"Please check the tool parameters and try again."
+                        )]
                     )
                     self.state.messages.append(error_result)
 
+                    _logger.error(
+                        "Tool execution failed: %s - %s. "
+                        "Tool: %s, Args: %s",
+                        tool_call.name,
+                        error_msg,
+                        tool_call.name,
+                        tool_call.input
+                    )
+
                     await self._emit(AgentEvent(
                         type=AgentEventType.ERROR,
-                        error=f"Tool {tool_call.name} failed: {str(e)}"
+                        error=f"Tool {tool_call.name} failed: {error_msg}"
                     ))
             else:
                 # 工具不存在
+                available_tools = [t.name for t in self.state.tools]
                 error_result = ToolResultMessage(
                     tool_call_id=tool_call.id,
-                    content=[TextContent(text=f"Unknown tool: {tool_call.name}")]
+                    content=[TextContent(
+                        text=f"Unknown tool: '{tool_call.name}'. "
+                             f"Available tools: {', '.join(available_tools) if available_tools else 'none'}. "
+                             f"Please use a valid tool name."
+                    )]
                 )
                 self.state.messages.append(error_result)
+
+                _logger.warning(
+                    "Unknown tool requested: %s. Available: %s",
+                    tool_call.name,
+                    available_tools
+                )
 
         return True  # 继续循环
 

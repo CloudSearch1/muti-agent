@@ -152,13 +152,21 @@ async def stream(
 
     Returns:
         AssistantMessageEventStream: 流式事件流
+
+    Raises:
+        ValueError: 当提供商不存在或配置无效时
     """
     options = options or StreamOptions()
 
     # 获取提供商
     provider_fn = get_provider(model.provider)
     if not provider_fn:
-        raise ValueError(f"Unknown provider: {model.provider}")
+        available_providers = list(ModelRegistry._providers.keys())
+        raise ValueError(
+            f"Unknown provider: '{model.provider}'. "
+            f"Available providers: {', '.join(available_providers) if available_providers else 'none registered'}. "
+            f"Please register a provider using 'register_provider()' or use a valid provider name."
+        )
 
     # 调用提供商
     return await provider_fn(model, context, options)

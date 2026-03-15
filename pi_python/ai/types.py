@@ -136,7 +136,20 @@ Message = UserMessage | AssistantMessage | ToolResultMessage
 
 
 def parse_message(data: dict[str, Any]) -> Message:
-    """解析消息"""
+    """
+    解析消息
+
+    将字典数据转换为对应的消息类型。
+
+    Args:
+        data: 消息数据字典，必须包含 'role' 字段
+
+    Returns:
+        Message: 解析后的消息对象
+
+    Raises:
+        ValueError: 当角色未知或数据格式无效时
+    """
     role = data.get("role")
     if role == "user":
         return UserMessage(**data)
@@ -144,7 +157,13 @@ def parse_message(data: dict[str, Any]) -> Message:
         return AssistantMessage(**data)
     elif role == "tool_result":
         return ToolResultMessage(**data)
-    raise ValueError(f"Unknown message role: {role}")
+
+    valid_roles = ("user", "assistant", "tool_result")
+    raise ValueError(
+        f"Unknown message role: '{role}'. "
+        f"Valid roles are: {', '.join(valid_roles)}. "
+        f"Please ensure the message data contains a valid 'role' field."
+    )
 
 
 # ============ 模型定义 ============

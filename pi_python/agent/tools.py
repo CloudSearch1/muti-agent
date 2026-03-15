@@ -1,10 +1,14 @@
 """
 PI-Python Agent 工具系统
+
+提供工具定义、执行和结果处理功能。
+支持大输出截断、错误处理和进度回调。
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -22,22 +26,57 @@ __all__ = [
     "BUILTIN_TOOLS",
 ]
 
+# 大输出阈值配置
+MAX_OUTPUT_SIZE = 100000  # 100KB
+TRUNCATION_WARNING_TEMPLATE = (
+    "\n\n[WARNING] Output truncated. Original size: {size} bytes. "
+    "Only first {max_size} bytes shown. "
+    "Consider using pagination or filtering to reduce output size."
+)
+
+_logger = logging.getLogger(__name__)
+
+
+def _truncate_if_needed(text: str, max_size: int = MAX_OUTPUT_SIZE) -> tuple[str, bool]:
+    """
+    如果文本超过阈值，进行截断并返回警告
+
+    Args:
+        text: 原始文本
+        max_size: 最大允许大小（字节）
+
+    Returns:
+        元组：(处理后的文本, 是否被截断)
+    """
+    if len(text) <= max_size:
+        return text, False
+
+    truncated = text[:max_size]
+    warning = TRUNCATION_WARNING_TEMPLATE.format(
+        size=len(text),
+        max_size=max_size
+    )
+    return truncated + warning, True
+
 
 class ToolResult:
     """
     工具执行结果类。
 
     封装工具执行的返回结果，支持文本内容或结构化内容。
+    自动处理大输出截断，防止内存溢出和上下文过大。
 
     Attributes:
         content: 结果内容，可以是字符串或 Content 对象列表
         details: 附加详情字典
+        truncated: 是否被截断
     """
 
     def __init__(
         self,
         content: str | list[Content] = "",
-        details: dict[str, Any] | None = None
+        details: dict[str, Any] | None = None,
+        truncated: bool = False
     ):
         """
         初始化工具结果。
@@ -45,16 +84,30 @@ class ToolResult:
         Args:
             content: 结果内容，字符串会自动转换为 TextContent 列表
             details: 附加详情字典
+            truncated: 内容是否被截断
         """
         if isinstance(content, str):
+            # 检查并处理大输出
+            if len(content) > MAX_OUTPUT_SIZE:
+                content, was_truncated = _truncate_if_needed(content)
+                if was_truncated:
+                    truncated = True
+                    _logger.warning(
+                        "Large output detected and truncated",
+                        original_size=len(content),
+                        max_size=MAX_OUTPUT_SIZE
+                    )
             content = [TextContent(text=content)]
         self.content = content
         self.details = details or {}
+        self.truncated = truncated
 
     @classmethod
     def text(cls, text: str, **details) -> ToolResult:
         """
         创建文本结果的类方法。
+
+        自动处理大输出截断。
 
         Args:
             text: 文本内容
@@ -63,7 +116,15 @@ class ToolResult:
         Returns:
             ToolResult: 包含文本内容的结果实例
         """
-        return cls(content=text, details=details)
+        truncated = False
+        if len(text) > MAX_OUTPUT_SIZE:
+            text, truncated = _truncate_if_needed(text)
+            _logger.info(
+                "Large output truncated",
+                original_size=len(text),
+                truncated=truncated
+            )
+        return cls(content=text, details=details, truncated=truncated)
 
     @classmethod
     def error(cls, error: str) -> ToolResult:
@@ -77,6 +138,34 @@ class ToolResult:
             ToolResult: 包含错误信息的结果实例
         """
         return cls(content=f"Error: {error}", details={"error": True})
+
+    @classmethod
+    def truncated_result(
+        cls,
+        text: str,
+        original_size: int,
+        max_size: int = MAX_OUTPUT_SIZE
+    ) -> ToolResult:
+        """
+        创建已截断结果的类方法。
+
+        Args:
+            text: 截断后的文本
+            original_size: 原始大小
+            max_size: 最大允许大小
+
+        Returns:
+            ToolResult: 包含截断信息的结果实例
+        """
+        warning = TRUNCATION_WARNING_TEMPLATE.format(
+            size=original_size,
+            max_size=max_size
+        )
+        return cls(
+            content=text + warning,
+            details={"truncated": True, "original_size": original_size},
+            truncated=True
+        )
 
 
 class AgentTool(ABC):
@@ -226,6 +315,21 @@ class BashTool(AgentTool):
         on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
         context: dict[str, Any] | None = None,
     ) -> ToolResult:
+        """
+        执行 Bash 命令
+
+        自动处理大输出截断，防止返回过大内容。
+
+        Args:
+            tool_call_id: 工具调用 ID
+            params: 参数字典，包含 command 和可选的 timeout
+            signal: 取消信号
+            on_update: 进度更新回调
+            context: 执行上下文
+
+        Returns:
+            ToolResult: 执行结果，包含命令输出
+        """
         command = params["command"]
         timeout = params.get("timeout", 30)
 
@@ -243,6 +347,7 @@ class BashTool(AgentTool):
 
             output = stdout.decode() + stderr.decode()
 
+            # 使用 text() 方法自动处理大输出
             return ToolResult.text(
                 output,
                 exit_code=proc.returncode,
@@ -251,10 +356,16 @@ class BashTool(AgentTool):
 
         except TimeoutError:
             proc.kill()
-            return ToolResult.error(f"Command timed out after {timeout}s")
+            return ToolResult.error(
+                f"Command timed out after {timeout}s. "
+                f"Consider increasing timeout parameter for long-running commands."
+            )
 
         except Exception as e:
-            return ToolResult.error(str(e))
+            return ToolResult.error(
+                f"Command execution failed: {e}. "
+                f"Please check command syntax and permissions."
+            )
 
 
 class ReadFileTool(AgentTool):
@@ -267,6 +378,11 @@ class ReadFileTool(AgentTool):
         "path": {
             "type": "string",
             "description": "The path to the file to read"
+        },
+        "max_size": {
+            "type": "integer",
+            "description": "Maximum bytes to read (default: 100KB)",
+            "default": MAX_OUTPUT_SIZE
         }
     }
     required = ["path"]
@@ -279,13 +395,45 @@ class ReadFileTool(AgentTool):
         on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
         context: dict[str, Any] | None = None,
     ) -> ToolResult:
+        """
+        读取文件内容
+
+        自动处理大文件截断，提供友好的错误消息。
+
+        Args:
+            tool_call_id: 工具调用 ID
+            params: 参数字典，包含 path 和可选的 max_size
+            signal: 取消信号
+            on_update: 进度更新回调
+            context: 执行上下文
+
+        Returns:
+            ToolResult: 文件内容结果
+        """
         import aiofiles
 
         path = params["path"]
+        max_size = params.get("max_size", MAX_OUTPUT_SIZE)
 
         try:
             async with aiofiles.open(path) as f:
                 content = await f.read()
+
+            # 检查文件大小并处理
+            if len(content) > max_size:
+                original_size = len(content)
+                content = content[:max_size]
+                _logger.info(
+                    "Large file truncated",
+                    path=path,
+                    original_size=original_size,
+                    max_size=max_size
+                )
+                return ToolResult.truncated_result(
+                    content,
+                    original_size=original_size,
+                    max_size=max_size
+                )
 
             return ToolResult.text(
                 content,
@@ -294,9 +442,30 @@ class ReadFileTool(AgentTool):
             )
 
         except FileNotFoundError:
-            return ToolResult.error(f"File not found: {path}")
+            return ToolResult.error(
+                f"File not found: '{path}'. "
+                f"Please verify the file path exists and check for typos."
+            )
+        except PermissionError:
+            return ToolResult.error(
+                f"Permission denied: '{path}'. "
+                f"Please check file permissions or run with appropriate privileges."
+            )
+        except IsADirectoryError:
+            return ToolResult.error(
+                f"Path is a directory, not a file: '{path}'. "
+                f"Use list command to see directory contents."
+            )
+        except UnicodeDecodeError:
+            return ToolResult.error(
+                f"Cannot read file as text: '{path}'. "
+                f"The file may be binary. Use a binary read tool instead."
+            )
         except Exception as e:
-            return ToolResult.error(str(e))
+            return ToolResult.error(
+                f"Failed to read file '{path}': {e}. "
+                f"Please check the file path and permissions."
+            )
 
 
 class WriteFileTool(AgentTool):
@@ -325,23 +494,53 @@ class WriteFileTool(AgentTool):
         on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
         context: dict[str, Any] | None = None,
     ) -> ToolResult:
+        """
+        写入文件内容
+
+        Args:
+            tool_call_id: 工具调用 ID
+            params: 参数字典，包含 path 和 content
+            signal: 取消信号
+            on_update: 进度更新回调
+            context: 执行上下文
+
+        Returns:
+            ToolResult: 写入结果
+        """
         import aiofiles
+        import os
 
         path = params["path"]
         content = params["content"]
 
         try:
+            # 确保目录存在
+            os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
+
             async with aiofiles.open(path, "w") as f:
                 await f.write(content)
 
             return ToolResult.text(
-                f"Successfully wrote {len(content)} bytes to {path}",
+                f"Successfully wrote {len(content)} bytes to '{path}'",
                 path=path,
                 size=len(content)
             )
 
+        except PermissionError:
+            return ToolResult.error(
+                f"Permission denied: '{path}'. "
+                f"Please check file permissions or run with appropriate privileges."
+            )
+        except OSError as e:
+            return ToolResult.error(
+                f"Failed to write file '{path}': {e}. "
+                f"Please check disk space and file path."
+            )
         except Exception as e:
-            return ToolResult.error(str(e))
+            return ToolResult.error(
+                f"Failed to write file '{path}': {e}. "
+                f"Please check the file path and permissions."
+            )
 
 
 class HTTPTool(AgentTool):
@@ -379,6 +578,21 @@ class HTTPTool(AgentTool):
         on_update: Callable[[ToolResult], Awaitable[None]] | None = None,
         context: dict[str, Any] | None = None,
     ) -> ToolResult:
+        """
+        发送 HTTP 请求
+
+        自动处理大响应截断。
+
+        Args:
+            tool_call_id: 工具调用 ID
+            params: 参数字典，包含 url 和可选的 method、headers、body
+            signal: 取消信号
+            on_update: 进度更新回调
+            context: 执行上下文
+
+        Returns:
+            ToolResult: HTTP 响应结果
+        """
         import httpx
 
         url = params["url"]
@@ -396,14 +610,33 @@ class HTTPTool(AgentTool):
                     timeout=30
                 )
 
+                # 使用 text() 方法自动处理大响应
                 return ToolResult.text(
                     response.text,
                     status_code=response.status_code,
                     url=url
                 )
 
+        except httpx.TimeoutException:
+            return ToolResult.error(
+                f"HTTP request timed out: {method} {url}. "
+                f"Consider using a longer timeout or check server availability."
+            )
+        except httpx.ConnectError:
+            return ToolResult.error(
+                f"Connection failed: {method} {url}. "
+                f"Please check the URL and network connectivity."
+            )
+        except httpx.HTTPStatusError as e:
+            return ToolResult.error(
+                f"HTTP error {e.response.status_code}: {method} {url}. "
+                f"Please check the request parameters and endpoint."
+            )
         except Exception as e:
-            return ToolResult.error(str(e))
+            return ToolResult.error(
+                f"HTTP request failed: {method} {url} - {e}. "
+                f"Please check the URL and network connectivity."
+            )
 
 
 # 内置工具列表

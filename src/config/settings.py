@@ -15,7 +15,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # ============ LLM 配置 ============
 
 class LLMSettings(BaseSettings):
-    """LLM 配置"""
+    """
+    LLM 配置
+
+    管理 LLM 服务提供商的连接和调用参数。
+
+    Attributes:
+        provider: LLM 提供商名称
+        model: 默认使用的模型
+        temperature: 生成温度 (0.0-2.0)
+        max_tokens: 最大生成 token 数
+        timeout: API 调用超时时间（秒）
+    """
+
     provider: str = Field(default="openai", description="LLM 提供商")
     model: str = Field(default="gpt-3.5-turbo", description="默认模型")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
@@ -59,8 +71,51 @@ class LLMSettings(BaseSettings):
         "openai_api_key", "anthropic_api_key", "dashscope_api_key"
     }
 
+    @model_validator(mode="after")
+    def validate_provider_config(self) -> "LLMSettings":
+        """
+        验证提供商配置完整性
+
+        检查所选提供商是否有必要的配置，并提供友好的错误提示。
+
+        Raises:
+            ValueError: 当必需配置缺失时
+        """
+        provider = self.provider
+
+        # 检查 OpenAI 配置
+        if provider == "openai" and not self.openai_api_key:
+            raise ValueError(
+                "OpenAI provider requires OPENAI_API_KEY. "
+                "Please set the OPENAI_API_KEY environment variable or "
+                "configure it in the LLM settings."
+            )
+
+        # 检查 Anthropic 配置
+        if provider == "anthropic" and not self.anthropic_api_key:
+            raise ValueError(
+                "Anthropic provider requires ANTHROPIC_API_KEY. "
+                "Please set the ANTHROPIC_API_KEY environment variable or "
+                "configure it in the LLM settings."
+            )
+
+        # 检查本地 LLM 配置
+        if provider == "local" and not self.local_base_url:
+            raise ValueError(
+                "Local LLM provider requires LLM_LOCAL_BASE_URL. "
+                "Please set the LLM_LOCAL_BASE_URL environment variable "
+                "(e.g., 'http://localhost:11434' for Ollama)."
+            )
+
+        return self
+
     def get_safe_summary(self) -> dict[str, Any]:
-        """获取安全的配置摘要（排除敏感字段）"""
+        """
+        获取安全的配置摘要（排除敏感字段）
+
+        Returns:
+            dict[str, Any]: 配置摘要，敏感字段被替换为 '***REDACTED***'
+        """
         data = self.model_dump()
         for field in self._SENSITIVE_FIELDS:
             if field in data and data[field]:
@@ -68,7 +123,12 @@ class LLMSettings(BaseSettings):
         return data
 
     def get_local_config(self) -> dict[str, Any]:
-        """获取本地 LLM 配置"""
+        """
+        获取本地 LLM 配置
+
+        Returns:
+            dict[str, Any]: 本地 LLM 配置字典
+        """
         return {
             "provider": self.local_provider,
             "base_url": self.local_base_url,
@@ -80,7 +140,20 @@ class LLMSettings(BaseSettings):
 # ============ 数据库配置 ============
 
 class DatabaseSettings(BaseSettings):
-    """数据库配置"""
+    """
+    数据库配置
+
+    管理数据库连接和连接池参数。
+
+    Attributes:
+        url: 数据库连接 URL
+        pool_size: 连接池大小 (5-200)
+        max_overflow: 最大溢出连接数 (0-100)
+        pool_recycle: 连接回收时间（秒）
+        pool_timeout: 获取连接超时时间（秒）
+        echo: 是否打印 SQL 语句
+    """
+
     url: str = Field(default="sqlite+aiosqlite:///./intelliteam.db")
     pool_size: int = Field(default=50, ge=5, le=200)
     max_overflow: int = Field(default=20, ge=0, le=100)
@@ -94,6 +167,27 @@ class DatabaseSettings(BaseSettings):
         extra="ignore",
         frozen=True,
     )
+
+    @model_validator(mode="after")
+    def validate_url(self) -> "DatabaseSettings":
+        """
+        验证数据库 URL 格式
+
+        Raises:
+            ValueError: 当 URL 格式无效时
+        """
+        url = self.url
+        valid_prefixes = (
+            "sqlite", "postgresql", "mysql", "oracle", "mssql"
+        )
+        if not any(url.startswith(prefix) for prefix in valid_prefixes):
+            raise ValueError(
+                f"Invalid database URL: '{url[:30]}...'. "
+                f"URL must start with one of: {', '.join(valid_prefixes)}. "
+                f"Example: 'sqlite+aiosqlite:///./app.db' or "
+                f"'postgresql+asyncpg://user:pass@localhost/db'"
+            )
+        return self
 
 
 # ============ Redis 配置 ============
@@ -219,7 +313,19 @@ class APISettings(BaseSettings):
 # ============ 日志配置 ============
 
 class LoggingSettings(BaseSettings):
-    """日志配置"""
+    """
+    日志配置
+
+    管理日志级别、格式和输出设置。
+
+    Attributes:
+        level: 日志级别 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        format: 日志格式字符串
+        file: 日志文件路径（可选）
+        max_bytes: 单个日志文件最大大小
+        backup_count: 保留的日志文件数量
+    """
+
     level: str = Field(default="INFO")
     format: str = Field(
         default="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -234,6 +340,25 @@ class LoggingSettings(BaseSettings):
         extra="ignore",
         frozen=True,
     )
+
+    @field_validator("level")
+    @classmethod
+    def validate_level(cls, v: str) -> str:
+        """
+        验证日志级别
+
+        Raises:
+            ValueError: 当日志级别无效时
+        """
+        valid_levels = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+        v_upper = v.upper()
+        if v_upper not in valid_levels:
+            raise ValueError(
+                f"Invalid log level: '{v}'. "
+                f"Must be one of: {', '.join(valid_levels)}. "
+                f"Example: LOG_LEVEL=INFO"
+            )
+        return v_upper
 
 
 # ============ 安全配置 ============
