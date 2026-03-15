@@ -63,6 +63,7 @@ class ExecRequest(BaseModel):
     elevated: bool = Field(False, description="是否提升权限")
     host: str = Field("local", description="执行主机")
     node: Optional[NodeTarget] = Field(None, description="节点目标")
+    shell: bool = Field(True, description="是否使用 shell 执行（默认 True，设置为 False 可提高安全性）")
 
 
 class ExecResponse(BaseModel):
@@ -106,15 +107,73 @@ class ProcessSessionManager:
     - Agent 级别的会话隔离
     - 进程状态跟踪
     - 资源清理
+    - 自动过期清理
     """
 
     _instance: Optional["ProcessSessionManager"] = None
-    _sessions: dict[str, ProcessSession] = {}
+
+    # 会话配置
+    MAX_SESSIONS = 100  # 最大会话数
+    MAX_SESSION_AGE = 3600  # 会话最大存活时间（秒）
+    CLEANUP_INTERVAL = 60  # 清理间隔（秒）
 
     def __new__(cls) -> "ProcessSessionManager":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            # 实例级别的会话存储
+            cls._instance._sessions: dict[str, ProcessSession] = {}
+            cls._instance._session_timestamps: dict[str, float] = {}
+            cls._instance._last_cleanup: float = 0
         return cls._instance
+
+    def _should_cleanup(self) -> bool:
+        """检查是否需要清理"""
+        import time
+        now = time.time()
+        if now - self._last_cleanup > self.CLEANUP_INTERVAL:
+            self._last_cleanup = now
+            return True
+        return False
+
+    async def _auto_cleanup(self) -> int:
+        """
+        自动清理过期和已完成的会话
+
+        Returns:
+            清理的会话数量
+        """
+        import time
+        now = time.time()
+        cleaned = 0
+
+        # 找出需要清理的会话
+        to_remove = []
+        for session_id, timestamp in list(self._session_timestamps.items()):
+            session = self._sessions.get(session_id)
+
+            # 清理条件：过期、已完成或超过最大数量
+            should_remove = (
+                now - timestamp > self.MAX_SESSION_AGE or
+                (session and session.status in ("completed", "error", "killed")) or
+                len(self._sessions) > self.MAX_SESSIONS
+            )
+
+            if should_remove:
+                to_remove.append(session_id)
+
+        # 执行清理
+        for session_id in to_remove:
+            await self.remove_session(session_id)
+            cleaned += 1
+
+        if cleaned > 0:
+            logger.info(
+                "Auto cleanup completed",
+                cleaned_sessions=cleaned,
+                remaining_sessions=len(self._sessions),
+            )
+
+        return cleaned
 
     async def create_session(
         self,
@@ -137,6 +196,22 @@ class ProcessSessionManager:
         """
         session_id = str(uuid.uuid4())
 
+        import time
+
+        # 检查是否需要清理
+        if self._should_cleanup():
+            await self._auto_cleanup()
+
+        # 检查最大会话数
+        if len(self._sessions) >= self.MAX_SESSIONS:
+            # 强制清理最旧的会话
+            oldest = min(self._session_timestamps.items(), key=lambda x: x[1])
+            await self.remove_session(oldest[0])
+            logger.warning(
+                "Max sessions reached, removed oldest session",
+                removed_session=oldest[0],
+            )
+
         session = ProcessSession(
             session_id=session_id,
             agent_id=agent_id,
@@ -146,12 +221,14 @@ class ProcessSessionManager:
         )
 
         self._sessions[session_id] = session
+        self._session_timestamps[session_id] = time.time()
 
         logger.info(
             "Process session created",
             session_id=session_id,
             agent_id=agent_id,
             cmd=cmd,
+            total_sessions=len(self._sessions),
         )
 
         return session_id
@@ -239,10 +316,12 @@ class ProcessSessionManager:
                     )
 
             del self._sessions[session_id]
+            self._session_timestamps.pop(session_id, None)
 
             logger.info(
                 "Process session removed",
                 session_id=session_id,
+                remaining_sessions=len(self._sessions),
             )
 
             return True
@@ -423,6 +502,13 @@ class ExecTool(BaseTool):
                 description="Node target configuration",
                 type="object",
                 required=False,
+            ),
+            ToolParameter(
+                name="shell",
+                description="Use shell for command execution (default True, set False for safer execution without shell features like pipes/redirections)",
+                type="boolean",
+                required=False,
+                default=True,
             ),
         ]
 
@@ -636,24 +722,56 @@ class ExecTool(BaseTool):
         # 构建命令
         cmd = request.cmd
 
-        # Windows 需要特殊处理
-        if sys.platform == "win32":
-            # Windows 下使用 shell=True
-            create_process = asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                env=env,
+        # 安全警告：shell=True 可能导致命令注入风险
+        # 建议在生产环境中使用 shell=False 并传递参数列表
+        if request.shell:
+            # 使用 shell 执行（支持管道、重定向等 shell 特性）
+            # ⚠️ 警告：shell=True 存在命令注入风险，请确保输入可信
+            if sys.platform == "win32":
+                create_process = asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
+            else:
+                create_process = asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
+            logger.debug(
+                "Executing command with shell=True",
+                cmd=cmd[:100],
+                warning="shell mode enabled - potential command injection risk",
             )
         else:
-            # Unix/Linux 使用 shell 执行
-            create_process = asyncio.create_subprocess_shell(
-                cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                env=env,
+            # 安全模式：不使用 shell 执行
+            # 命令将被解析为参数列表，避免 shell 注入
+            cmd_args = self._parse_command(cmd)
+            if sys.platform == "win32":
+                # Windows 需要指定 shell=False 并使用列表参数
+                create_process = asyncio.create_subprocess_exec(
+                    *cmd_args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
+            else:
+                create_process = asyncio.create_subprocess_exec(
+                    *cmd_args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
+            logger.debug(
+                "Executing command with shell=False (safer mode)",
+                cmd_args=cmd_args[:5],  # 只记录前5个参数
             )
 
         # 创建进程
@@ -720,22 +838,42 @@ class ExecTool(BaseTool):
         env = os.environ.copy()
         env.update(request.env)
 
-        if sys.platform == "win32":
-            process = await asyncio.create_subprocess_shell(
-                request.cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                env=env,
-            )
+        # 安全执行：支持 shell=False 模式
+        if request.shell:
+            if sys.platform == "win32":
+                process = await asyncio.create_subprocess_shell(
+                    request.cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
+            else:
+                process = await asyncio.create_subprocess_shell(
+                    request.cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
         else:
-            process = await asyncio.create_subprocess_shell(
-                request.cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=cwd,
-                env=env,
-            )
+            cmd_args = self._parse_command(request.cmd)
+            if sys.platform == "win32":
+                process = await asyncio.create_subprocess_exec(
+                    *cmd_args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
+            else:
+                process = await asyncio.create_subprocess_exec(
+                    *cmd_args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=env,
+                )
 
         # 更新会话的进程对象
         session.process = process
@@ -774,6 +912,32 @@ class ExecTool(BaseTool):
                 stderr="",
                 session_id=session_id,
             )
+
+    def _parse_command(self, cmd: str) -> list[str]:
+        """
+        解析命令字符串为参数列表
+
+        使用 shlex 安全地解析命令，正确处理引号和转义。
+
+        Args:
+            cmd: 命令字符串
+
+        Returns:
+            参数列表
+        """
+        import shlex
+
+        try:
+            # shlex.split 可以正确处理引号和转义
+            return shlex.split(cmd)
+        except ValueError as e:
+            # 如果解析失败，回退到简单分割
+            logger.warning(
+                "Failed to parse command with shlex, using simple split",
+                error=str(e),
+                cmd=cmd[:100],
+            )
+            return cmd.split()
 
 
 # =============================================================================

@@ -481,7 +481,10 @@ class ConfigLoader:
     @staticmethod
     def save_to_file(config: dict[str, Any], file_path: str, format: str = "yaml"):
         """
-        保存配置到文件
+        保存配置到文件（使用原子写入）
+
+        使用临时文件 + 原子重命名的方式，确保写入操作的原子性。
+        避免断电或进程崩溃导致的数据损坏。
 
         Args:
             config: 配置字典
@@ -489,23 +492,49 @@ class ConfigLoader:
             format: 文件格式（yaml/json）
         """
         import json
+        import os
+        import tempfile
         from pathlib import Path
 
         path = Path(file_path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        if format in ["yaml", "yml"]:
-            try:
-                import yaml
-                with open(path, "w", encoding="utf-8") as f:
-                    yaml.safe_dump(config, f, default_flow_style=False, allow_unicode=True)
-            except ImportError:
-                raise ImportError("PyYAML not installed") from None
-        elif format == "json":
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=2, ensure_ascii=False)
-        else:
-            raise ValueError(f"Unsupported format: {format}")
+        # 使用临时文件进行原子写入
+        # 先写入临时文件，然后原子重命名
+        fd, temp_path = tempfile.mkstemp(
+            suffix=f".{format}",
+            prefix=".tmp_",
+            dir=path.parent,
+        )
+
+        try:
+            if format in ["yaml", "yml"]:
+                try:
+                    import yaml
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        yaml.safe_dump(config, f, default_flow_style=False, allow_unicode=True)
+                except ImportError:
+                    os.close(fd)
+                    raise ImportError("PyYAML not installed") from None
+            elif format == "json":
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+            else:
+                os.close(fd)
+                raise ValueError(f"Unsupported format: {format}")
+
+            # 原子重命名（在 POSIX 系统上是原子的）
+            # Windows 上需要先删除目标文件
+            if os.name == "nt":  # Windows
+                if path.exists():
+                    os.remove(path)
+            os.replace(temp_path, path)
+
+        except Exception:
+            # 发生错误时，删除临时文件
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise
 
 
 # ============ 便捷函数 ============

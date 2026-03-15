@@ -136,12 +136,28 @@ app = FastAPI(
     lifespan=lifespan,     # 使用新的生命周期管理
 )
 
-# CORS 配置 - 允许所有来源访问
+# CORS 配置 - 支持环境变量配置
 # ⚠️ 生产环境安全警告：建议限制 allow_origins 为具体的域名列表
-# 例如：allow_origins=["https://your-domain.com"]
+# 可通过环境变量 CORS_ORIGINS 配置，多个域名用逗号分隔
+# 例如：CORS_ORIGINS=https://your-domain.com,https://app.your-domain.com
+import os
+
+_cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if _cors_origins_env:
+    CORS_ORIGINS = [origin.strip() for origin in _cors_origins_env.split(",") if origin.strip()]
+    logger.info(f"CORS origins configured from environment: {CORS_ORIGINS}")
+else:
+    # 默认允许所有来源（开发模式）
+    # ⚠️ 生产环境请设置 CORS_ORIGINS 环境变量
+    CORS_ORIGINS = ["*"]
+    logger.warning(
+        "CORS is configured to allow all origins (allow_origins=['*']). "
+        "This is insecure for production. Please set CORS_ORIGINS environment variable."
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应替换为具体域名
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1299,10 +1315,14 @@ async def delete_skill_by_name(skill_name: str):
 # ============ Settings API ============
 
 # 设置存储（内存中，实际应用应使用数据库或加密文件）
+# ⚠️ 安全警告：API Key 存储说明
+# 1. 生产环境建议使用环境变量：ANTHROPIC_API_KEY, OPENAI_API_KEY, BAILIAN_API_KEY
+# 2. 环境变量优先级高于内存存储
+# 3. 内存存储仅用于开发/测试环境
 SETTINGS_STORE: dict = {
-    "aiProvider": "bailian",
-    "apiKey": "",  # API Key 由前端设置
-    "model": "qwen3.5-plus",
+    "aiProvider": os.getenv("AI_PROVIDER", "bailian"),
+    "apiKey": "",  # API Key 由前端设置或环境变量提供，不在内存中存储明文
+    "model": os.getenv("AI_MODEL", "qwen3.5-plus"),
     "temperature": 0.7,
     "maxTokens": 4096,
     "contextWindow": None,  # 上下文窗口长度，None 表示使用模型默认
@@ -1311,12 +1331,64 @@ SETTINGS_STORE: dict = {
     "language": "zh-CN"
 }
 
+
+def get_api_key(provider: str = None) -> str:
+    """
+    安全获取 API Key
+
+    优先级：
+    1. 环境变量（推荐）
+    2. 内存存储（仅开发/测试）
+
+    Args:
+        provider: LLM 提供商名称
+
+    Returns:
+        API Key 字符串
+    """
+    provider = provider or SETTINGS_STORE.get("aiProvider", "bailian")
+
+    # 环境变量映射
+    env_key_map = {
+        "anthropic": "ANTHROPIC_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "bailian": "BAILIAN_API_KEY",
+        "deepseek": "DEEPSEEK_API_KEY",
+    }
+
+    # 优先从环境变量获取
+    env_key_name = env_key_map.get(provider.lower())
+    if env_key_name:
+        env_key = os.getenv(env_key_name)
+        if env_key:
+            logger.info(f"Using API key from environment variable: {env_key_name}")
+            return env_key
+
+    # 从内存存储获取（可能为空或加密）
+    stored_key = SETTINGS_STORE.get("apiKey", "")
+    if stored_key:
+        logger.warning(
+            f"Using API key from memory storage. "
+            f"For production, set {env_key_name or 'API_KEY'} environment variable instead."
+        )
+
+    return stored_key
+
+
 @app.get("/api/v1/settings")
 async def get_settings():
     """获取系统设置"""
+    # 返回设置时，不返回敏感信息
+    safe_settings = SETTINGS_STORE.copy()
+    # 隐藏 API Key
+    if safe_settings.get("apiKey"):
+        safe_settings["apiKey"] = "******"
+    if safe_settings.get("apiKeyEncrypted"):
+        safe_settings["apiKeyEncrypted"] = "******"
+
     return JSONResponse({
         "success": True,
-        "settings": SETTINGS_STORE
+        "settings": safe_settings
     })
 
 import base64
@@ -1929,8 +2001,8 @@ async def generate_chat_response(messages: List[ChatMessage], temperature: float
         if not provider:
             provider = SETTINGS_STORE.get("aiProvider", "bailian")
         if not api_key:
-            # 优先从 apiKey 读取，如果没有则尝试从 apiKeyEncrypted 解密
-            api_key = SETTINGS_STORE.get("apiKey", "")
+            # 使用安全的 API Key 获取函数（优先环境变量）
+            api_key = get_api_key(provider)
             if not api_key and SETTINGS_STORE.get("apiKeyEncrypted"):
                 api_key = decrypt_api_key(SETTINGS_STORE.get("apiKeyEncrypted", ""))
                 logger.info(f"[DEBUG] 从 apiKeyEncrypted 解密得到 API Key")
@@ -2625,7 +2697,8 @@ async def chat(request: ChatRequest):
     provider = request.provider or SETTINGS_STORE.get("aiProvider", "bailian")
     api_key = request.apiKey
     if not api_key:
-        api_key = SETTINGS_STORE.get("apiKey", "")
+        # 使用安全的 API Key 获取函数（优先环境变量）
+        api_key = get_api_key(provider)
         if not api_key and SETTINGS_STORE.get("apiKeyEncrypted"):
             api_key = decrypt_api_key(SETTINGS_STORE.get("apiKeyEncrypted", ""))
     model = request.model or SETTINGS_STORE.get("model", "qwen3.5-plus")
@@ -2761,7 +2834,8 @@ async def react_chat(request: ReActRequest):
     provider = request.provider or SETTINGS_STORE.get("aiProvider", "bailian")
     api_key = request.apiKey
     if not api_key:
-        api_key = SETTINGS_STORE.get("apiKey", "")
+        # 使用安全的 API Key 获取函数（优先环境变量）
+        api_key = get_api_key(provider)
         if not api_key and SETTINGS_STORE.get("apiKeyEncrypted"):
             api_key = decrypt_api_key(SETTINGS_STORE.get("apiKeyEncrypted", ""))
     model = request.model or SETTINGS_STORE.get("model", "qwen-max")

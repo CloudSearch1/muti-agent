@@ -692,9 +692,13 @@ class ToolSecurity:
         session_manager: "SessionManager",
     ) -> "SessionInfo":
         """
-        验证会话访问权限
+        验证会话访问权限（同步版本 - 已弃用）
 
         确保一个 Agent 不能访问其他 Agent 的会话。
+
+        .. deprecated::
+            此方法在异步上下文中可能导致问题。
+            请使用 `validate_session_access_async` 异步版本替代。
 
         Args:
             session_id: 会话 ID
@@ -706,13 +710,29 @@ class ToolSecurity:
 
         Raises:
             SecurityError: 访问其他 agent 的会话时抛出
+            RuntimeError: 在异步上下文中调用时抛出
         """
         import asyncio
 
-        # 获取会话
-        session = asyncio.get_event_loop().run_until_complete(
-            session_manager.get_session(session_id)
-        )
+        # 检查是否在异步上下文中
+        try:
+            loop = asyncio.get_running_loop()
+            # 如果能获取到正在运行的 loop，说明在异步上下文中
+            raise RuntimeError(
+                "validate_session_access cannot be called from an async context. "
+                "Use validate_session_access_async instead."
+            )
+        except RuntimeError as e:
+            if "validate_session_access cannot be called" in str(e):
+                raise
+            # 如果没有正在运行的 loop，说明在同步上下文中，可以安全使用
+            loop = asyncio.new_event_loop()
+            try:
+                session = loop.run_until_complete(
+                    session_manager.get_session(session_id)
+                )
+            finally:
+                loop.close()
 
         if session is None:
             raise SecurityError(f"Session not found: {session_id}")
